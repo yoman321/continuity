@@ -1,0 +1,43 @@
+# Secrets — never commit. The submission repo is public.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+credentials*.json
+application_default_credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ADK / agent local state
+.adk/
+*.sqlite
+*.sqlite3
+*.db
+
+# Node (review-queue frontend)
+node_modules/
+dist/
+build/
+.next/
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
+
+# Claude Code local overrides
+.claude/settings.local.json
+
+# planning
+summary.md
+seed-plan.md
