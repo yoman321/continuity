@@ -1,0 +1,342 @@
+{{Otheruses|TVA}}
+{{Spoiler|''[[Deadpool & Wolverine]]''}}
+{{Organization
+|image = TimeVarianceAuthorityLogo.png
+|founder = [[He Who Remains]] †
+|leader = [[B-15]]
+|formerleaders = [[He Who Remains]] †<br>[[Ravonna Renslayer]]
+|members = [[Miss Minutes]]<br>[[Minuteman 750682931199]]<br>[[Hunter D-90]]<br>[[Minuteman 90150]]<br>[[Minuteman 1507311]]<br>[[Minuteman 02094209]]<br>[[Minuteman 90018371]]<br>[[Minuteman 5705397283]]<br>[[Casey]]<br>[[Analyst 1182-E]]<br>[[Hunter H-98]]<br>[[Hunter K-5E]]<br>[[Ouroboros]]<br>[[Gamble]]<br>[[Hunter M-34]]<br>[[Minuteman 34082025]]<br>[[Ralph (TVA)|Ralph]]<br>[[Wade Wilson]]<br>[[Hero of the Multiverse/Destiny Defying Multiverse Hero|Hero of the Multiverse]]
+|formermembers = [[Hunter U-92]] †<br>[[Minuteman 200914867365]] †<br>[[Minuteman 20061486]] †<br>[[Hunter C-20]]<br>[[Hunter X-05]]<br>[[Dox]] †<br>[[Mobius M. Mobius]]<br>[[Mr. Paradox]]
+|headquarters = [[Citadel at the End of Time]]<br>[[Time Variance Authority Office]]
+|locations = Outside of space and time<br>Mobile
+|status = Active
+|movie = ''[[Ant-Man and the Wasp: Quantumania]]'' <small>([[List of Post-credits Scenes|post-credits scene]])</small><br> ''[[Deadpool & Wolverine]]''
+|tv series = ''[[Loki (TV series)|Loki]]''<br>''[[She-Hulk: Attorney at Law]]'' <small>(logo)</small>
+|game = ''[[What If...? – An Immersive Story]]''
+|docuseries = ''[[Legends]]''<br>*''[[TVA (episode)|TVA]]''}}
+{{Quote|For all time. Always.|TVA motto|Loki (TV series)}}
+The '''Time Variance Authority''' ('''TVA''') is a bureaucratic organization created by [[He Who Remains]] and located outside of time and space that originally served as a temporal law enforcement agency, tasked with preserving the [[Sacred Timeline]] by preventing the creation of alternate timelines. Following [[Loki/New York Time Heist|Loki]]'s decision to destroy the [[Temporal Loom]] and allow the [[Multiverse]] to flourish, the TVA shifted its focus to monitoring the Multiverse and tracking down [[Hub:Victor Timely|Variants]] of He Who Remains.
+
+==History==
+===Foundation===
+====True Foundation====
+{{Quote|Eons ago, before the TVA, a Variant of myself lived on [[Earth]] in the 31st century. He was a scientist and he discovered that there were universes stacked on top of his own.|[[He Who Remains]]|For All Time. Always.}}
+Eons ago, a Variant of [[He Who Remains]] lived on [[Earth]] in the 31st century. One day, he discovered the existence of alternate universes that were stacked on top of each other. At the same time, other Variants of himself were learning the same thing, leading them to eventually make contact with one another. The Variants shared knowledge and technologies from their respective universes to improve the others. However, certain nefarious Variants saw the new universes as new lands to conquer, leading to a [[Multiversal War]]. The Variants battled each other to preserve their universe and annihilate the others. At one point, He Who Remains encountered [[Alioth]], a creature created from the several tears in reality with the ability to consume time and space itself. He weaponized Alioth's power to put an end to the Multiversal War before isolating the [[Sacred Timeline]] and creating the Time Variance Authority to manage the flow of time and prevent any alternate timelines.<ref name="LK106">''[[For All Time. Always.|Loki: 1.06: For All Time. Always.]]''</ref> He recruited Variants to work for him,<ref name="LK103">''[[Lamentis|Loki: 1.03: Lamentis]]''</ref> with [[Ravonna Renslayer]] as his general and trusted second-in-command. Upon reaching an era of peace, He Who Remains ordered [[Miss Minutes]] to wipe every TVA personnel's memories of him before making them believe that they were created by the [[Time-Keepers]] to protect the Sacred Timeline.<ref name="LK204">''[[Heart of the TVA|Loki: 2.04: Heart of the TVA]]''</ref>
+
+====Visited by Loki====
+A [[Loki/New York Time Heist|Variant]] of [[Loki]] was blasted through a [[Timedoor]] into the TVA's [[Time Variance Authority Office|office]] and rushed to find [[Mobius M. Mobius]] and [[Hunter B-15]], claiming that [[He Who Remains|someone]] was coming. However, Mobius and B-15 had no memory of Loki,<ref name="LK106"/> and eventually realized that he was a Variant, prompting them to chase him alongside several [[Minutemen]]. Loki pled with Mobius, who did not remember him, so Loki jumped off the ledge into a [[Time Variance Authority Mail Cart|mail cart]], which crashed into another room. Loki assured everyone that it was alright as the mail cart left and asked if [[Casey]] remembered him while the TVA sent out a notice about Loki fleeing to all personnel. Casey called out that he had found the intruder, but Loki then [[Time Slipping|time slipped]] away.<ref name="LK201">''[[Ouroboros (episode)|Loki: 2.01: Ouroboros]]''</ref>
+
+====Discussing Time Slipping====
+[[Loki/New York Time Heist|Loki]] [[Time Slipping|time slipped]] in front of [[Ouroboros]] and asked how he would be able to fix his time slipping. Ouroboros first insisted that it was impossible to time slip in the [[Time Variance Authority Office]], so Loki phrased the question as a hypothetical. Ouroboros told Loki that someone at the time period he wanted to be in would have to use a [[Temporal Aura Extractor]] while Loki pruned himself. Loki had Ouroboros make and hold onto an extractor, when he suddenly time slipped back to his present.<ref name="LK201"/>
+
+====TVA Propaganda====
+{{Quote|Long ago, there was a vast [[Multiversal War]]. Countless unique timelines battled each other for supremacy, nearly resulting in the total destruction of... well, everything. But then, the all-knowing [[Time-Keepers]] emerged, bringing peace by reorganizing the multiverse into a single timeline, the Sacred Timeline.|[[Miss Minutes]]|Glorious Purpose (Loki Season One)}}
+[[File:Reorganizing the Multiverse.png|{{AltFloat}}|The [[Time-Keepers]] restructure the [[Multiverse]]]]
+The Time Variance Authority propaganda told of countless timelines battling one another for dominance across the [[Multiverse]] in a cataclysmic war lasting for eons and nearly destroying existence. To prevent this, the [[Time-Keepers]] brought peace and order to the Multiverse by arranging the timelines into a single "Sacred Timeline." In order to preserve the timeline's proper flow, the Time-Keepers then created the Time Variance Authority to police the Multiverse from Variants who create [[Nexus of All Realities|Nexus]] events. If these events were left unchecked, the timeline could branch off and lead to another Multiversal War.<ref name="LK101">''[[Glorious Purpose (Loki Season One)|Loki: 1.01: Glorious Purpose]]''</ref> [[He Who Remains]] created this propaganda to give TVA workers purpose and dogma to cling to, and [[Miss Minutes]] helped spread it for centuries.<ref name="LK106"/>
+
+===Arresting Loki===
+{{Quote|On behalf of the Time Variance Authority, I hereby arrest you for your crimes against the Sacred Timeline.|[[Hunter B-15]] to [[Loki/New York Time Heist|Loki]]|Glorious Purpose (Loki Season One)}}
+In an [[2012/Time Heist|alternate version of 2012]], an alternate version of [[Loki/New York Time Heist|Loki]] was able to acquire the [[Tesseract]] and escape, eventually landing in the [[Gobi Desert]] in [[Mongolia]]. Seconds later, a Time Variance Authority unit led by [[Hunter B-15]] arrived and apprehended Loki for disrupting the Sacred Timeline before [[Reset Charge|pruning]] the alternate timeline. Loki was brought to the [[Time Variance Authority Office|TVA Office]] and went through a Variant process before he was brought into the TVA courtroom to stand in front of Judge [[Ravonna Renslayer]]. She asked Loki if he was guilty or not, to which he denied doing any crimes against the "Sacred Timeline". Loki then tried to use his powers, before he was told that magic doesn't work in the TVA. Renslayer sentenced Loki to be reset, but before he was taken away, he was saved by [[Mobius M. Mobius]] who convinced Renslayer that the TVA could use Loki to their advantage.<ref name="LK101"/>
+
+====Recruiting Loki====
+[[Loki/New York Time Heist|Loki]] was recruited to work at the Time Variance Authority. [[Mobius M. Mobius]] instructed him to learn about the TVA and Loki worked at an office, where he read through TVA files and watched training videos. [[Miss Minutes]] tried to quiz Loki on what he learned, but was unsuccessful. Loki was then asked by Mobius to accompany him, [[Hunter B-15]], and other [[Minutemen]] on a mission. After causing the TVA to fail their mission, Loki was tasked by Mobius to go over each and every one of the Variant's case files. By reading a file on [[Ragnarök]], Loki figured out that the [[Sylvie Laufeydottir|Variant]] was hiding in apocalypses.<ref name="LK102">''[[The Variant|Loki: 1.02: The Variant]]''</ref>
+
+===[[Bombing of the Sacred Timeline]]===
+[[Loki/New York Time Heist|Loki]], [[Mobius M. Mobius]], [[Hunter B-15]], and other [[Minutemen]] went to [[Haven Hills]], [[Alabama]] in [[2050s#2050|2050]] to find the [[Sylvie Laufeydottir|Variant]]. During the mission, Loki met the Variant and was too late to stop her from setting off numerous [[Reset Charge]]s that fell through [[Timedoor]]s and landed at different points throughout the [[Sacred Timeline]]. However, the TVA was able to stabilize the Sacred Timeline by pruning the branched timelines.<ref name="LK102"/>
+
+===The Truth Exposed===
+After being taken to the [[Time-Keepers]]' chamber, [[Loki/New York Time Heist|Loki]] and [[Sylvie Laufeydottir|Sylvie]] [[Attack on the Time-Keepers|confronted]] the Time-Keepers. When Sylvie threw her sword at one of them, its head fell off, and the two discovered that the Time-Keepers were actually [[Glossary#Androids|androids]]. This left the true origin of the Time Variance Authority in question.<ref name="LK104">''[[The Nexus Event|Loki: 1.04: The Nexus Event]]''</ref>
+
+===Death of the TVA's Creator===
+====Opening of the Multiverse====
+[[Loki/New York Time Heist|Loki]] and [[Sylvie Laufeydottir|Sylvie]] enchanted [[Alioth]] in the [[Void]], causing him to leave his post.<ref name="LK105">''[[Journey Into Mystery|Loki: 1.05: Journey Into Mystery]]''</ref> They then were able to access the [[Citadel at the End of Time]], where they were met by [[Miss Minutes]] and then [[He Who Remains]]. He Who Remains told Loki and Sylvie about his Variants, the [[Multiversal War]], and why he created the Time Variance Authority. He Who Remains offered them two options; kill him and risk starting a new Multiversal War or take over the Time Variance Authority. Loki wanted to think it through, but Sylvie, in a fit of revenge, pushed Loki through a [[Timedoor]] and killed He Who Remains. As soon as he died, dozens of branch timelines began to form.<ref name="LK106">''[[For All Time. Always.|Loki: 1.06: For All Time. Always.]]''</ref> This caused the TVA to start experiencing power surges.
+
+Loki suddenly appeared in the TVA [[Time Variance Authority Office|office]] and found [[Casey]], relieved that Casey remembered him. He realized that he had previously been in the TVA's past and asked where [[Mobius M. Mobius]] and [[Hunter B-15]] were, but disappeared before Casey could take him to them. Casey approached Mobius and B-15 and told them what had happened, but they were interrupted by [[Hunter X-05]], who told them that the new [[Judges' Council]] wanted to see them in the War Room while Loki appeared and disappeared again in front of Casey.<ref name="LK201"/>
+
+====End of Pruning====
+In the War Room, the [[Judges' Council]] finished questioning [[Hunter D-90]] and brought in [[Hunter B-15]] and [[Mobius M. Mobius]], listening to a recording of [[Loki/New York Time Heist|Loki]] telling Mobius the truth about him being a Variant. [[Gamble]] demanded the truth and [[Dox]] insisted they hold the meeting exactly according to protocol. B-15 managed to convince Gamble to end all pruning, effective immediately. Loki suddenly appeared in the War Room, using [[Hunter X-05]]'s [[Time Stick]] to reveal that the mural in the room of the [[Time-Keepers]] was covering a wall decoration depicting [[He Who Remains]]' face. Loki declared him to be the true creator of the TVA and that he would be returning.<ref name="LK201"/>
+
+====Closing the Temporal Loom====
+{{Quote|It looks like a disaster."<br>"It is a disaster.|[[Loki/New York Time Heist|Loki]] and [[Ouroboros]]|Ouroboros (episode)}}
+Mobius took Loki out of the room, and Loki explained that he was getting pulled between the past and present. Mobius brought Loki to [[Ouroboros]], who at first did not believe that Loki could be getting pulled between times, since the phenomenon, which he called "[[Time Slipping]]", was not possible within the [[Time Variance Authority Office]]. However, as Loki spoke to his past self, Ouroboros in the present realized that it was in fact possible and explained that Mobius needed to use a [[Temporal Aura Extractor]] to pull Loki out of the [[Temporal Loom]] while Loki pruned himself.
+
+Loki returned to the present, when Ouroboros learned that the TVA had been experiencing power surges. As Mobius and Loki explained that they were allowing the timeline to branch now, Ouroboros realized that the branching was overloading the Temporal Loom, causing power surges. Once Ourboros' fears were confirmed, Loki asked how to stop the meltdown, and B-15 refused the option of pruning the branches. Ourboros told them the only other option was to close the blast doors to protect the TVA while he figured out how to retrofit the Temporal Loom to handle all of the branches.
+
+Meanwhile, [[Dox]] started to raid the armory, and [[Hunter D-90]] rushed downstairs to tell B-15, Mobius, and Loki. B-15 left to handle Dox with D-90. Loki time slipped to the future while Ouroboros prepared Mobius. Mobius confronted the Temporal Loom and approached the device to attach the Aura Extractor. Mobius waited as long as he could before going back, and Ouroboros started to close the blast doors. Mobius nearly did not make it, but Loki was pulled through at the last moment and pushed them both inside. Loki then told Mobius that they needed to find [[Sylvie Laufeydottir]].<ref name="LK201"/>
+
+====[[Attack on the Branching Timelines]]====
+''To be added''<ref name="LK202">''[[Breaking Brad|Loki: 2.02: Breaking Brad]]''</ref>
+
+====Evacuation====
+{{Expand}}
+Despite [[Ouroboros]]' efforts, the [[Temporal Loom]] overloaded and the [[Time Variance Authority Office]] was evacuated as Loki [[Time Slipping|time slipped]] into the future. Realizing he did not have a [[Time Stick]] to prune himself with, he rushed through the office, looking for one. The TVA lost significant power, and Loki ran out of time. He heard a phone ring and went to it, finding [[Sylvie Laufeydottir]] in an elevator before he got pruned<ref name="LK201"/> by his future self.<ref name="LK204"/>
+
+===New Purpose===
+====[[Liberation of the Multiverse]]====
+[[Loki/New York Time Heist|Loki]] finally learned to control his [[Time Slipping]], traveling back initially in order to attempt to fix the [[Temporal Loom]] before realizing it was ultimately useless. Even when successful in enlarging the rings to allow for increased throughput, it was doomed to fail, given the infinite branching timelines. He eventually slipped back into the moment before [[Sylvie Laufeydottir]] killed [[He Who Remains]]. After numerous more failed attempts, he was finally told by He Who Remains the Loom was a failsafe to preserve the [[Sacred Timeline]]. With this new information, Loki finally knew his new purpose. Time slipping once more, he walked out the blast doors and used his powers to destroy the loom, grabbing timelines as he ascended. He finally sat down on the remains of the throne at the [[Citadel at the End of Time]], weaving the infinite branches together. The TVA switched to hunting the variants of He Who Remains, while Mobius finally went to see [[Don|who he truly was]], observing himself playing with his sons.<ref name="LK206">''[[Glorious Purpose (Loki Season Two)|Loki: 2.06: Glorious Purpose]]''</ref>
+
+====Resistance from Mr. Paradox====
+''To be added''
+
+====Recruiting a Hero====
+{{Quote|So, instead of deleting [[Hero of the Multiverse/Destiny Defying Multiverse Hero|you]] from all existence, we're gonna put you to work!"<br>"Uh..."<br>"Now, I don't need a hero, per se. What I need is an agent. You ready for a little more fun? Here we go!|[[Miss Minutes]] and [[The Watcher]]|What If...? – An Immersive Story}}
+A [[Hero of the Multiverse/Destiny Defying Multiverse Hero|Hero of the Multiverse]] chose to use the [[Infinity Stones]] to alter the fates of their allies. The TVA was alerted to the continuity error and sent [[Miss Minutes]] to handle the situation along with a desk and [[Chrono Monitor]]. There, she was confronted by the Hero and [[The Watcher]]. She noted that timelines had been getting tangled, increasing continuity errors. Miss Minutes suggested that they should prune the branch, but the Watcher interrupted and explained that they were the Hero of the Multiverse. Miss Minutes then decided to recruit the Hero to the TVA, using the Chrono Monitor to introduce the Hero to [[Deadpool]], who she said would be the Hero's new coworker. Miss Minutes then used a [[Timedoor]] to take the hero to the [[Time Variance Authority Office]] so they could begin their training.<ref name="WIAIS">''[[What If...? – An Immersive Story]]''</ref>
+
+==Members==
+{| class="article-table" style="width: 100%;" border="0" cellpadding="1" cellspacing="1"
+! scope="col" |Name
+! scope="col" |Position
+! scope="col" |Status
+|-
+|[[He Who Remains]]
+|Founder<br>Leader
+|Deceased
+|-
+|[[Miss Minutes]]
+|Mascot/A.I. Assistant
+|Active
+|-
+|[[B-15]]
+|Leader<br>Hunter <small>(formerly)</small>
+|Active
+|-
+|[[Ravonna Renslayer]]
+|Judge<br>General <small>(formerly)</small><br>Hunter <small>(formerly)</small>
+|Unknown
+|-
+|[[Gamble]]
+|Judge
+|Active
+|-
+|[[Dox]]
+|General
+|Deceased
+|-
+|[[Mobius M. Mobius]]
+|Field Agent<br>Hunter <small>(formerly)</small><br>Analyst <small>(formerly)</small>
+|Inactive
+|-
+|[[Mr. Paradox]]
+|Agent
+|Inactive
+|-
+|[[Hunter C-20]]
+|Hunter
+|Unknown
+|-
+|[[Hunter D-90]]
+|Hunter
+|Active
+|-
+|[[Hunter H-98]]
+|Hunter
+|Unknown
+|-
+|[[Hunter K-5E]]
+|Hunter
+|Unknown
+|-
+|[[Hunter M-34]]
+|Hunter
+|Unknown
+|-
+|[[Hunter U-92]]
+|Hunter
+|Deceased
+|-
+|[[Hunter X-05]]
+|Hunter
+|Inactive
+|-
+|[[Casey]]
+|Clerk
+|Active
+|-
+|[[Ouroboros]]
+|Head of Repairs and Advancement
+|Active
+|-
+|[[Analyst 1182-E]]
+|Analyst
+|Unknown
+|-
+|[[Minuteman 90150]]
+|Minuteman
+|Unknown
+|-
+|[[Minuteman 1507311]]
+|Minuteman
+|Unknown
+|-
+|[[Minuteman 02094209]]
+|Minuteman
+|Unknown
+|-
+|[[Minuteman 90018371]]
+|Minuteman
+|Unknown
+|-
+|[[Minuteman 5705397283]]
+|Minuteman
+|Unknown
+|-
+|[[Minuteman 200914867365]]
+|Minuteman
+|Deceased
+|-
+|[[Minuteman 20061486]]
+|Minuteman
+|Deceased
+|-
+|[[Minuteman 34082025]]
+|Minuteman
+|Unknown
+|-
+|[[Minuteman 750682931199]]
+|Minuteman
+|Unknown
+|-
+|[[Wade Wilson]]
+|
+|Active
+|-
+|[[Hero of the Multiverse/Destiny Defying Multiverse Hero|Hero of the Multiverse]]
+|
+|Active
+|}
+
+==Facilities==
+*[[Time Variance Authority Office]]
+
+==Equipment and Technology==
+Time Variance Authority personnel have access to an extensive array of technology at their disposal that gives them the ability to apprehend Variants and fix any changes made to the timeline.
+
+===Weapons===
+Time Variance Authority personnel are usually equipped with a variety of weapons that help them apprehend Variants.
+
+====Regular Weapons====
+*'''[[Time Stick]]''': Standard weapon of TVA personnel.
+
+===Uniforms===
+*[[Temporal Core Suit]]
+
+===Vehicles===
+*[[Time Variance Authority Mail Cart]]
+
+===Misc.===
+*[[Gizmo]]
+**[[Time Cube]]
+*[[Maintenance Probe]]
+*[[Miss Minutes]]
+*[[Pneumatic Tube]]
+*[[Processing Droid]]
+*[[Reset Charge]]
+*[[TemPad]]
+**[[Time Cell]]
+**[[Timedoor]]
+*[[Temporal Aura Extractor]]
+*[[Temporal Loom]]
+*[[Automatic TVA Timer]]
+*[[Throughput Multiplier]]
+*[[Time Collar]]
+*[[Time Ripper]]
+*[[Time Twister]]
+*[[Time Variance Authority Official Handbook]]
+*[[Time-Keepers]]
+*[[TVA Holoprojector]]
+
+==Time Variance Authority Files==
+{{Main|Time Variance Authority Files}}
+The Time Variance Authority maintains files on different Variants and events. They also have a number of propaganda posters and videos they display.
+
+The Time Variance Authority files are stored in the archives section of the [[Time Variance Authority Office]].
+
+==Logos==
+<gallery>
+TimeVarianceAuthorityLogo.png|Main logo. A version with flipped colors is used on some uniforms.
+TimeVarianceAuthorityLogo Variant.png|Variant used in black-and-white informational videos.
+TVA Seal.png|Official TVA Seal.
+</gallery>
+
+==Appearances==
+{| class="mw-collapsible mw-collapsed wikitable" width="100%"
+! Appearances for the Time Variance Authority
+|-
+|
+In chronological order:
+*''[[Loki (TV series)|Loki]]''
+**''[[Loki (TV series)/Season One|Season One]]''
+***''[[The Variant]]'' <small>([[Before 20th Century|79 AD]])</small>
+***''[[The Nexus Event]]'' <small>(flashback; alternate timeline)</small>
+***''[[Glorious Purpose (Loki Season One)|Glorious Purpose]]'' <small>([[1549/TVA|alternate 1549]])</small>
+***''[[Glorious Purpose (Loki Season One)|Glorious Purpose]]'' <small>([[1858/A.I.M. Quantum Ore Shovel|alternate 1858]])</small>
+**''[[Loki (TV series)/Season Two|Season Two]]''
+***''[[1893]]'' <small>(1868)</small>
+***''[[1893]]'' <small>(alternate 1893)</small>
+****''[[Ant-Man and the Wasp: Quantumania]]'' <small>(post-credit scene; concurrent events)</small>
+***''[[Breaking Brad]]'' <small>([[1970s|1977]])</small>
+***''[[Breaking Brad]]'' <small>(alternate 1982)</small>
+**''[[Loki (TV series)/Season One|Season One]]''
+***''[[The Variant]]'' <small>([[1985/TVA|alternate 1985]])</small>
+***''[[Glorious Purpose (Loki Season One)|Glorious Purpose]]'' <small>([[2012/Time Heist|alternate 2012]])</small>
+***''[[For All Time. Always.]]'' <small>([[2018]])</small>
+*''[[Deadpool & Wolverine]]'' <small>(2024; alternate timeline)</small>
+*''[[Deadpool & Wolverine]]'' <small>(2030s; alternate timeline)</small>
+*''[[Loki (TV series)|Loki]]''
+**''[[Loki (TV series)/Season One|Season One]]''
+***''[[The Nexus Event]]'' <small>([[2050s|2050]])</small>
+***''[[The Variant]]'' <small>([[2050s|2050]])</small>
+****''[[Lamentis]]'' <small>([[2050s|2050]])</small>
+***''[[Lamentis]]'' <small>([[2077/TVA|2077]])</small>
+***''[[The Nexus Event]]'' <small>([[2077/TVA|2077]])</small>
+***''[[Journey Into Mystery]]'' <small>(mentioned; [[Void]])</small>
+*''[[Deadpool & Wolverine]]'' <small>(mentioned; [[Void]])</small>
+*''[[Loki (TV series)|Loki]]''
+**''[[Loki (TV series)/Season One|Season One]]''
+***''[[For All Time. Always.]]'' <small>(end of time)</small>
+
+In an indefinite temporality:
+*''[[She-Hulk: Attorney at Law]]''
+**''[[She-Hulk: Attorney at Law/Season One|Season One]]''
+***''[[Whose Show is This?]]'' <small>(logo)</small>
+*''[[Loki (TV series)|Loki]]''
+**''[[Loki (TV series)/Season One|Season One]]''
+***''[[For All Time. Always.]]''
+**''[[Loki (TV series)/Season Two|Season Two]]''
+***''[[Ouroboros (episode)|Ouroboros]]''
+**''[[Loki (TV series)/Season One|Season One]]''
+***''[[The Nexus Event]]'' <small>(flashback)</small>
+***''[[Glorious Purpose (Loki Season One)|Glorious Purpose]]''
+***''[[The Variant]]''
+***''[[Lamentis]]''
+***''[[The Nexus Event]]''
+***''[[Journey Into Mystery]]''
+***''[[For All Time. Always.]]''
+**''[[Loki (TV series)/Season Two|Season Two]]''
+***''[[Ouroboros (episode)|Ouroboros]]''
+***''[[Breaking Brad]]''
+***''[[1893]]''
+***''[[Heart of the TVA]]''
+****''[[Ouroboros (episode)|Ouroboros]]'' <small>(concurrent events)</small>
+****''[[Science/Fiction]]'' <small>(concurrent events)</small>
+****''[[Glorious Purpose (Loki Season Two)|Glorious Purpose]]'' <small>(concurrent events)</small>
+***''[[Glorious Purpose (Loki Season Two)|Glorious Purpose]]''
+*''[[Deadpool & Wolverine]]''
+|}
+
+==Trivia==
+*In the comics, the '''Time Variance Authority''' is an organization that was formed to monitor realities throughout the multiverse and to keep temporal interference to a minimum.
+
+==References==
+{{Gallery|Time Variance Authority Files}}
+{{Reflist}}
+
+==External Links==
+*{{Marvel|Time Variance Authority (Null-Time Zone)|Time Variance Authority}}
+*{{WP}}
+
+[[es:Autoridad de Variación Temporal]]
+[[pt-br:Autoridade de Variância Temporal]]
+[[ru:Управление временными изменениями]]
+[[Category:Time Variance Authority]]
+[[Category:Organizations]]

@@ -1,0 +1,233 @@
+{{SomethingElse|the Human Torch [[Variant]] who was in the [[Void (End of Time)|Void]]|Human Torch/Void-Analyzing Fantastic Four|Human Torch}}
+{{CharHub|Human Torch|Johnny Storm}}
+{{AltUniverse|[[Earth-828]]|3=Characters}} 
+{{Stub}}
+{{Character
+|image = Human Torch Infobox.png
+|real name = Jonathan {{Conjecture|Lowell Spencer}} Storm{{Ref|FFFS}}
+|alias = {{Alias
+|primary = Johnny Storm{{Ref|FFFS}}
+|codenames = Human Torch{{Ref|FFFS}}}}
+|species = [[Human]]
+|citizenship = {{Citizenship|USA}}
+|gender = Male
+|DOB =
+|title = Eagle Scout
+|affiliation = {{Affiliation|BSAE828}} <small>(formerly)</small><br>{{Affiliation|ANSA}}<br>{{Affiliation|FF}}<br>{{Affiliation|FUFO}}
+|movie = ''[[The Fantastic Four: First Steps]]''<br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small><br>''[[Avengers: Secret Wars]]'' <small>(unreleased)</small><ref name="F4Avengers">[https://x.com/DiscussingFilm/status/1817378767787975016 DiscussingFilm on X - July 27, 2024]</ref>
+|web series = ''[[Future Foundation Public Archives/Promotional Campaign|Future Foundation Public Archives]]''
+|comic = {{Infobox List|''[[Fantastic Four: First Steps]]''<br>''[[Fantastic Four: First Foes]]''<br>{{Collapse|''[[Fantastic Four: First Foes - Shalla-Bal]]'' <small>(mentioned)</small><br>}}''[[Fantastic Four: First Foes - Dragon Man]]'' <small>(unreleased)</small>}}
+|actor = [[Joseph Quinn]]
+|status = Alive}}
+{{Quote|Oh, for the love of flame on!|Human Torch|Fantastic Four: First Steps}}
+'''Jonathan {{Conjecture|Lowell Spencer}} "Johnny" Storm''' is the charismatic younger brother of [[Sue Storm]] and a founding member of the [[Fantastic Four]] dubbed '''Human Torch''' for his ability to generate fire from his body. Four years after the team's formation, Storm discovered that his sister and [[Mister Fantastic|Reed Richards]] were expecting a son before they were warned by [[Silver Surfer]] of [[Galactus]]' intent to devour [[Earth]]. While the Fantastic Four's attempts to reason with Galactus failed, Storm was able to detect recordings of the many worlds Silver Surfer allowed Galactus to devour, thus learning her native language. When the herald [[Destruction of the Teleportation Bridges|destroyed]] the [[Teleportation Bridge|Teleportation Bridges]] built around the world to teleport Earth far away from Galactus, Storm convinced her to turn against her master. As Galactus arrived in [[New York City]] to claim [[Franklin Richards]], Storm attempted to sacrifice himself to banish Galactus far into space using the last Teleportation Bridge, although Shalla-Bal stopped him and defeated Galactus herself at the cost of Sue's life. As Sue was eventually resurrected by Franklin, Storm celebrated the victory with his team.
+
+==Biography==
+{{MD|Jonathan Storm (Earth-828)}}
+===Early Life===
+====[[Boy Scouts of America/Earth-828|Boy Scouts of America]]====
+Johnny Storm was born on {{WPS|Long Island}} and is the brother of [[Sue Storm]].<ref>[https://www.instagram.com/p/DMJEz2ORjiA/ Fantastic Four on Instagram - July 15, 2025]</ref> As a young boy, he joined the [[Boy Scouts of America/Earth-828|Boy Scouts of America]] and ascended through the ranks, eventually becoming an Eagle Scout.{{Ref|FFFS}}
+
+===Fateful Mission===
+====Cosmic Radiation====
+{{Quote|Sorry I don't have existential certainty ever since space rays turned me into a living barbecue.|Johnny Storm|Fantastic Four: First Steps}}
+Storm was chosen alongside [[Sue Storm]], [[Reed Richards]], and [[Ben Grimm]] to aid in space exploration aboard the spaceship ''[[Excelsior]]'' on a [[ANSA Excelsior Mission|mission]] to study and gather data [[Cosmic Radiation]]. They took off and successfully reached space, but were hit with an unanticipated storm of [[Cosmic Radiation]] that penetrated the ship's defenses. As the group of astronauts landed back on [[Earth]], Johnny's body suddenly caught on fire.{{Ref|FFFS}}
+
+====Isolation====
+{{Quote|I'm not moping. I'm bored and sad and don't know why my life matters anymore or what it means.|Johnny Storm|Fantastic Four: First Steps}}
+At [[Reed Richards]]' insistence, Storm and the other three astronauts isolated themselves within [[Building Q]] in the [[Celestial Cradle]] in [[Huntsville]], [[Alabama]]. They took the time alone to figure out precisely how their new abilities worked while ensuring they were not a danger to everyone else. However, Storm grew bored once he had learned to manage his powers and one day asked Richards when they would be able to leave. Richards insisted that it was not time yet while [[Ben Grimm]] got frustrated and attacked a robot designated [[K.E.R.B.I.E.]], telling Storm to stop moping. Storm insisted that he was not moping, but rather that he was bored and sad and that he felt life to be meaningless.
+
+However, when Grimm explained that Storm had just described moping, Storm lit himself on fire and explained his frustrations. However, Grimm voiced his own frustrations with his body's physical transformation, leading them to fight physically while Richards tried and failed to separate them. They shouted at each other about the other moping, but [[Sue Storm]] cut in and put a forcefield around Johnny and Ben's heads, temporarily preventing them from breathing and making them stop. Sue showed the others video footage of an [[Revolt of Subterranea|attack]] in [[New York City]], shocking Johnny. Grimm and Richards agreed it was time to leave, so they got into a [[Fantasticar|vehicle]] and left Building Q, flying toward New York.{{Ref|FFFS}}
+
+===Founding the Fantastic Four===
+====[[Revolt of Subterranea]]====
+{{Quote|Watch out, ladies. Wouldn't want to scorch you.|Johnny Storm|Fantastic Four: First Steps}}
+The team arrived in [[New York City]] and stepped out of their [[Fantasticar|vehicle]], where they were mobbed by reporters. At first, Storm believed someone else famous had arrived, but he soon realized that the reporters were there for him and his friends. Suddenly, the team were confronted by a large monster named [[Giganto]]. Storm was briefly distracted by [[Ben Grimm]] shouting about clobbering and was worried about making people nervous by using his powers. [[Reed Richards]] said that he felt the same way, giving Storm the confidence to light himself on fire and attack Giganto. [[Sue Storm]] surrounded Giganto in a forcefield, suffocating him enough to make him go down while Johnny regrouped with the others.
+
+Suddenly, the [[Pan Am Building]] fell into the ground, so Johnny Storm and the others went to investigate. They found [[Harvey Elder]] leading an attack and confronted him, so Elder had his army attack the team. Storm fought his attackers and warned nearby women to stay away from his flames. Elder saw a pregnant soldier getting attacked and surrendered in exchange for her safety, so Storm stopped fighting and joined the team in taking Elder away.{{Ref|FFFS}}
+
+====Rebuilding Subterranea====
+[[Sue Storm]] and [[Harvey Elder]] worked to establish peace between [[Subterranea]] and the rest of the world, with Johnny Storm and the rest of the team working together to help the [[Moloids]] rebuild their society. The team hosted Elder and several others at a large dinner, which Storm enjoyed.{{Ref|FFFS}}
+
+====Ribbon Cutting====
+The team, now known as the [[Fantastic Four]], began working together regularly and established the [[Baxter Building]] as their base of operations. They held a ribbon cutting ceremony, during which Storm burned the ribbon to cut it. The team then celebrated their new building, while Storm teased [[Ben Grimm]] for his catchphrase of "It's clobberin' time."{{Ref|FFFS}}
+
+====Fame====
+{{Quote|My [[Fantastic Four|family]] and [[Ben Grimm|best friend]] keep me real. And I never forget where I came from.|Johnny Storm|Fantastic Four: First Steps}}
+The [[Flaming Hearts Fan Club]] was established as a fan club specifically about Storm. He was interviewed by the fan club's [[Flaming Hearts Club Fanzine|magazine]] and said that, as much as he appreciated his fans, he worried about letting them down. In an interview with [[Tommy Hanson]] of ''[[Fantastic Fans]]'', Storm expressed his confusion at the publicity surrounding his arrival in [[New York City]] the day of the [[Revolt of Subterranea]]. During this time, Storm began playing golf and played with several big names, finding it relaxing as he became skilled at the game.
+
+He was later interviewed by ''[[Teen Living]]'', during which he said that the rest of the [[Fantastic Four]] kept him grounded. He also shared that he kept a large vinyl collection at the [[Baxter Building]] and passed his [[Invisible Woman|sister]]'s advice to be true to oneself onto ''Teen Living''<nowiki>'</nowiki>s readers. When asked his favorite way to relax, he answered listening to music and being with his family. He said that he liked spontaneous dates and that the Fantastic Four were his biggest inspiration. He was asked what he would be doing if not with the Fantastic Four, to which Storm said he would likely be working with cars, adding that, as a hidden talent, he enjoyed acting. He said that the hardest part of being in the spotlight was the lack of privacy and that he did not have a strict fitness routine. He said that [[Ben Grimm]]'s food was his favorite meal and advised his fans to never give up and to stay true to themselves. He expressed hope that in ten years he would be acting and still with the Fantastic Four.{{Ref|FFFS}}
+
+Inspired by the interview, a fan named [[Jimmy (Fan)|Jimmy]] wrote a letter to Storm, which Storm received, asking about Storm's favorite food and if he liked watching movies, whether his sister was annoying, whether he ever accidentally set himself on fire, and several other questions, inviting Storm to listen to his father's record collection with him.<ref name="JimmyFan">[https://www.instagram.com/p/DLn5xMMyOga Fantastic Four on Instagram - July 2, 2025]</ref>
+
+====Fighting Mad Thinker====
+''To be added''{{Ref|FFFF}}{{Ref|TFFFS}}
+
+====Expecting a New Member====
+''To be added''{{Ref|TFFFS}}
+
+===[[Advent of Galactus]]===
+====Encountering Silver Surfer====
+{{Quote|I get it. Johnny loves space, Johnny loves women. Now there's a [[Silver Surfer|literal naked space woman]] and Johnny thinks they had a moment.|Johnny Storm to [[Sue Storm]], [[Ben Grimm]] and [[Reed Richards]]|The Fantastic Four: First Steps}}
+''To be added''{{Ref|TFFFS}}
+
+====Preparing for Launch====
+''To be added''{{Ref|TFFFS}}
+
+====[[Destruction of LHS-275|Visiting LHS-275]]====
+''To be added''{{Ref|TFFFS}}
+
+====[[Chase of the Fantastic Four|Escape from Silver Surfer]]====
+''To be added''{{Ref|TFFFS}}
+
+====Breakers of Bad News====
+''To be added''{{Ref|TFFFS}}
+
+====Figuring Out Silver Surfer's Language====
+''To be added''{{Ref|TFFFS}}
+
+====Getting Through to Shalla-Bal====
+{{Quote|Twenty-three transmissions, all in your language, trace back to the planet [[Zenn-La]]. Your home. They were looking for you, to thank you. Once I translated one phrase, I pieced together enough language to understand a part of your history. You were some sort of scientist or astronomer. When [[Galactus]] came, you offered to serve as his scout if he'd spare your planet. Was it to spare your family? He turned you into this. Shalla-Bal. Those were messages from the one planet Galactus spared. Your planet. These planets weren’t so lucky. How many do you remember, Shalla-Bal? [[Proxima Delphi System|Proxima Delphi]]. [[Saigas]]. Do you remember [[Polaris]]? They begged for mercy. You brought Galactus to all of these planets. And now you're bringing him here, to my home, to my family!|Johnny Storm to [[Silver Surfer]]|The Fantastic Four: First Steps}}
+''To be added''{{Ref|TFFFS}}
+
+====[[Battle of New York/Earth-828|Battle of New York]]====
+''To be added''{{Ref|TFFFS}}
+
+===Continuing to Change===
+====New Adventure====
+''To be added''{{Ref|TFFFS}}
+
+==Powers and Abilities==
+===Powers===
+*'''Artificially Enhanced Physiology''': While on a [[ANSA Excelsior Mission|mission]] to space, Johnny Storm was subjected to [[Cosmic Radiation]], causing his DNA to be altered, allowing him to manipulate fire and envelope himself in fiery plasma.
+**'''Plasma Fire Manipulation''': Storm possesses the ability to control and manipulate fiery plasma, which he can use to transform himself into the Human Torch directly.
+***'''Plasma Fire Mimicry''': Storm possesses the physical ability to envelop his entire body or portions of his body with fiery plasma without harm to himself.
+****'''Fire Projection''': Storm is able to release concentrated streams of fire from parts of his body. He can use his control over the fire to project it willingly from his hands in the form of concussive blasts.
+****'''Pyrokinetic Flight''': Storm is able to propel himself off the ground by manipulating the fire his body produces, generating enough force to defy gravity and allow for stable propulsion and gliding. He is shown to be able to fly at impressive speeds.
+****'''Fire Absorption''': Storm has shown the ability to not only generate fire but also contain the energy coming from outside sources by absorbing its output. When a power plant caught on fire, Storm absorbed the flames.
+
+===Abilities===
+*'''Bilingualism''': Johnny is fluent in his native English and greatly proficient in the Zenn-Lavian language after he managed to decipher it.
+*'''Skilled Tactician''': Johnny has shown capabilities in research and planning, as he was able to fully understand and communicate with Shalla-Bal and empathize with how she became the Silver Surfer.
+
+==Equipment==
+*'''[[Fantastic Four Uniform]]''': One of the many things that comes with Johnny being a member of the [[Fantastic Four]] includes receiving a matching blue and white uniform with a large 4 emblem.
+*'''[[Digi-Calc]]''': ''To be added''
+
+===Vehicles===
+*'''[[Excelsior]]''': ''To be added''
+*'''[[Fantasticar]]''': ''To be added''
+
+==Facilities==
+*'''[[Baxter Building]]''': Along with the rest of the [[Fantastic Four]], Johnny lives in the Baxter Building, as a living quarters and a headquarters for their operations.
+
+==Relationships==
+{{Col-begin}}{{Col-2}}
+===Family===
+*[[John F. Storm]] † - Grandfather
+*[[Franklin Storm]] - Father
+*[[Mary Storm]] † - Mother
+*[[Invisible Woman|Sue Storm/Invisible Woman]] - Sister and Teammate
+*[[Mister Fantastic|Reed Richards/Mister Fantastic]] - Brother-in-Law and Teammate
+*[[Franklin Richards]] - Nephew
+
+===Allies===
+*[[Fantastic Four]]
+**[[Thing|Ben Grimm/Thing]] - Teammate and Best Friend
+*[[Boy Scouts of America/Earth-828|Boy Scouts of America]]
+*[[American National Space Agency]]
+*[[Future Foundation]]
+**[[Lynne Nichols]]
+*[[K.E.R.B.I.E.]] †
+*[[H.E.R.B.I.E.]]
+*[[Mole Man|Harvey Elder/Mole Man]] - Former Enemy
+*[[Moloids]] - Former Enemies
+*[[John F. Kennedy/Earth-828|John F. Kennedy]]
+*[[Jackie Kennedy]]
+*[[Jimmy (Fan)|Jimmy]] - Fan
+*[[Flaming Hearts Fan Club]] - Fans
+**''[[Flaming Hearts Club Fanzine]]'' - Interviewers
+*''[[Fantastic Fans]]''
+**[[Tommy Hanson]] - Interviewer
+*''[[Teen Living]]'' - Interviewers
+*''[[The Ted Gilbert Show]]''
+**[[Ted Gilbert]] - Interviewer
+**[[Sally (Makeup Artist)|Sally]]
+*[[American Broadcasting Company/Earth-828|American Broadcasting Company]]
+**[[William Russell]]
+*''[[Post]]''
+**[[Austin Thorogold]]
+*[[New York City Police Department/Earth-828|New York City Police Department]]
+*[[Fire Department of New York City/Earth-828|Fire Department of New York City]]
+*[[Donna (Child)|Donna]]
+*[[Silver Surfer|Shalla-Bal/Silver Surfer]] - Crush and Former Enemy
+{{Col-2}}
+
+===Enemies===
+*[[Giganto]]
+*[[Mad Thinker|René Rodin/Mad Thinker]]
+*[[Diablo|Esteban Corazón de Pablo/Diablo]]
+*[[Puppet Master|Phillip Masters/Puppet Master]]
+*[[Wizard|Bentley Wittman/Wizard]]
+*[[Red Ghost|Ivan Kragoff/Red Ghost]]
+*[[Super-Apes]]
+**[[Peotor]]
+*[[Galactus|Galan/Galactus]]
+{{Col-end}}
+
+==Appearances==
+{| class="mw-collapsible mw-collapsed wikitable" width="100%"
+! Appearances for Human Torch
+|-
+|
+{{Scroll box|content=
+In chronological order:
+*{{Appearance|TFFFS}} <small>(flashbacks)</small>
+*{{Appearance|FFFS}}
+**{{Appearance|TFFFS}} <small>(flashbacks)</small>
+**{{Appearance|FFFF}} <small>(flashbacks)</small>
+*{{Appearance|FFFF}}
+**{{Appearance|TFFFS}} <small>(flashbacks)</small>
+*{{Appearance|FFFFSB}} <small>(mentioned)</small>
+*{{Appearance|FFFFDM}} <small>(unreleased)</small>
+*{{Appearance|TFFFS}}
+**{{Appearance|FFPA}} <small>(concurrent events)</small>
+*{{Appearance|AD}} <small>(unreleased)</small>
+*{{Appearance|ASW}} <small>(unreleased)</small><ref name="F4Avengers"/>
+}}
+|}
+
+==Trivia==
+*In the comics, Johnny Storm is a member of the [[Fantastic Four]] and brother of [[Sue Storm]] with the ability to generate fire throughout his body. He has also served as a frequent ally and friend to [[Spider-Man]], who is around his age. 
+*While Human Torch does not say his comic book catchphrase "Flame on!" in ''[[The Fantastic Four: First Steps]]'', his [[Fantastic Four Action Figures|action figure]] does say the quote before [[Ben Grimm]] crushes the toy. His catchphrase is also used in the comic ''[[Fantastic Four: First Steps]]''.
+
+==Behind the Scenes==
+*Human Torch in the [[Marvel Cinematic Universe]] is the fourth live-action incarnation of the character, following incarnations portrayed by [[Jay Underwood]], [[Chris Evans]], and [[Michael B. Jordan]].
+
+==References==
+{{Gallery|Human Torch/Gallery}}
+{{Reflist}}
+
+==External Links==
+*{{Marvel}}
+*{{WP}}
+
+[[es:Jonathan Storm]]
+[[fr:Johnny Storm]]
+
+[[Category:Characters]]
+[[Category:The Fantastic Four: First Steps Characters]]
+[[Category:Avengers: Doomsday Characters]]
+[[Category:Avengers: Secret Wars Characters]]
+[[Category:Comic Characters]]
+[[Category:Humans]]
+[[Category:Males]]
+[[Category:Blond Hair]]
+[[Category:Blue Eyes]]
+[[Category:Astronauts]]
+[[Category:Boy Scouts of America Members/Earth-828]]
+[[Category:American National Space Agency Members]]
+[[Category:Fantastic Four Members]]
+[[Category:Future Foundation Members]]
+[[Category:Enhanced Individuals]]
+[[Category:Multilingual Characters]]

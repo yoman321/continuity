@@ -1,0 +1,151 @@
+{{DISPLAYTITLE:Blade {{!}} Universe Defender Blade}}
+{{Otheruses|Blade}}
+{{CharHub|Blade|Eric Brooks}}
+{{MarvelLegacy|New Line Cinema|the "[[Universe Defender Blade Universe]]"|4=Characters|6=''Blade'', ''Blade II'', or ''Blade: Trinity''}}
+{{Character
+|name = Blade
+|image = Blade - Universe Defender Blade Infobox.png
+|real name = {{Conjecture|Eric Brooks}}<ref>The underlined portion of the name indicates that the character's name is derived from the [[Conjecture Policy]] and comes from ''{{WPS|Blade (1998 film)|Blade}}''.</ref>
+|alias = {{Alias
+|codenames = Blade{{Ref|DW}}}}
+|species = [[Human]]-[[Vampire]] [[Hybrid]]
+|citizenship = {{Citizenship|USA}}
+|gender = Male
+|affiliation = [[Resistance]] <small>(formerly)</small>
+|movie = ''[[Deadpool & Wolverine]]''
+|actor = [[Wesley Snipes]]
+|status = Alive <!-- Do Not Change to Unknown -->}}
+{{Quote|There's only been one Blade, and there's only ever gonna be one Blade.|Blade|Deadpool & Wolverine}}
+'''{{Conjecture|Eric Brooks}}''' is a famous [[vampire]] hunter and [[Resistance]] member known as '''Blade'''.
+
+==Biography==
+{{MD|Eric Brooks (Earth-26320)||1}}
+===Early Life===
+====Vampire Hunter====
+Eric Brooks was born as a half [[human]]-half [[vampire]] hybrid. In adulthood, he operated as a notorious vampire hunter known as Blade.{{Ref|DW}}
+
+===Banished to the Void===
+====Encounter with the TVA====
+{{Quote|The [[TVA]] decided our [[Universe Defender Blade Universe|universe]] was dying, and I never got a chance to fight for it.|Blade|Deadpool & Wolverine}}
+One day, the [[Time Variance Authority]] informed Blade that his [[Universe Defender Blade Universe|world]] was dying; Blade wished to fight for his world and attempt to save it, but instead, he was sent to the [[Void (End of Time)|Void]] and denied the chance. In the Void, Blade was able to avoid being eaten by [[Alioth]].{{Ref|DW}}
+
+====Joining the Resistance====
+Blade encountered a group of other heroes who had survived in the [[Void (End of Time)|Void]] from [[Alioth]]. However, the wasteland was ruled by the oppressive mutant [[Cassandra Nova]], who forced those trapped in the Void to work for her. This group of heroes, including [[Elektra/Forgotten Elektra|Elektra]], [[Gambit]], [[X-23]], and [[Human Torch/Void-Analyzing Fantastic Four|Human Torch]] rebelled against Nova and formed a [[Resistance]], hiding out in the borderlands and trying to figure a way out of the Void. The Resistance spent years in hiding, and any attempt they made to fight Nova only ended in defeat.{{Ref|DW}}
+
+====Meeting Deadpool and Wolverine====
+[[File:Blade says the R word.png|{{AltFloat}}|Blade encounters [[Deadpool]] at the [[Hero Hideout|hideout]]]]
+{{Quote|I don't like you."<br>"You {{WPS|Blade: Trinity|never did}}.|Blade and [[Deadpool]]|Deadpool & Wolverine}}
+[[X-23]] came across an unconscious [[Deadpool]] and [[Wolverine]] close to the borderlands, so she brought them to the [[Hero Hideout]]. Blade joined [[Elektra/Forgotten Elektra|Elektra]] and [[Gambit]] to greet the new arrivals. Deadpool commented on thinking that Blade was retired, only to be misheard, leading Blade to state that he did not like Deadpool.
+[[File:Blade in the hideout.png|{{AltFloat}}|Blade discusses fighting [[Cassandra Nova]]]]
+When Deadpool learned there was another member of the [[Resistance]], he asked if it was [[Magneto/Earth-10005|Magneto]], but Blade informed him that he was dead. When X-23 joined them, Deadpool enquired about how they all ended up in the Void, so Blade explained how the [[TVA]] approached them and sent them there after learning about the end of their universes. Deadpool wanted to join the Resistance, revealing that he had been inside [[Cassandra Nova's Lair]] and knew that [[Cassandra Nova]] could get them out of the Void.
+[[File:Blade (D&W).png|{{AltFloat}}|Blade is motivated by [[Deadpool]] to fight back]]
+The Resistance did not believe Deadpool, recounting failed attempts of fighting against Nova. When [[Human Torch/Void-Analyzing Fantastic Four|Human Torch]] was brought up, Deadpool revealed that he knew him, leading the team to interrogate him about what happened to their ally. Deadpool explained how Human Torch died, and continued to motivate them to save his [[Earth-10005|world]], using [[Juggernaut's Helmet]] to block Nova's powers. Seeing this as a chance to cement their legacy, Blade and the Resistance agreed to fight back.{{Ref|DW}}
+
+====[[Assault on Cassandra Nova's Lair|Getting an Ending]]====
+[[File:There's only ever gonna be one Blade.png|{{AltFloat}}|Blade opens fire at [[Cassandra Nova's Lair]]]]
+{{Quote|Some motherfuckers still trying to ice skate uphill.|Blade|Deadpool & Wolverine}}
+The next day, the [[Resistance]], joined by [[Deadpool]] and [[Wolverine]] headed out to make their assault on [[Cassandra Nova]]'s [[Cassandra Nova's Lair|compound]]. As they made their approach, Blade equipped himself with the [[Punisher/AT4 Owner Punisher|Punisher]]'s {{WPS|AT4}}, and upon hearing Deadpool mention Variants, Blade stated that there was only one version of him.
+[[File:Resistance Assemble.png|{{AltFloat}}|Blade with the [[Resistance]] before the fight]]
+Blade destroyed the entrance to the base, killing [[Blob]] in the process, and the Resistance drove inside. Getting out of the [[Ol' Betsy|car]], the Resistance were immediately surrounded by all of Nova's [[Cassandra Nova's Henchmen|henchmen]]. As they stood together, Wolverine commented that they were all going to die, but Blade just told him to stay behind them and get inside to Nova while they retrieved [[Juggernaut]] [[Juggernaut's Helmet|helmet]]. The two sides then charged at each other, commencing the battle.
+[[File:Blade vs. Azazel.png|{{AltFloat}}|Blade fighting against [[Azazel]] in battle]]
+Blade engaged in a fight with [[Azazel]], but due to the [[mutant]]'s teleportation powers, Blade was unable to land a hit against him. When Azazel teleported away, [[Lady Deathstrike]] went to attack Blade, but he slashed at her body, defeating her. Blade was then shot at by a sniper, so he drew his Stake Pistol and fired back. The Resistance pushed forward until they were able to get Deadpool and Wolverine inside. Blade, [[Elektra/Forgotten Elektra|Elektra]], [[Gambit]], and [[X-23]] stood guard and continued fighting.
+[[File:Resistance Ending.png|{{AltFloat}}|Blade sees [[Deadpool]] and [[Wolverine]] escape]]
+Finding himself fighting against Azazel again, Blade was able to stab him with his glaive, which he also used to kill several enemies by throwing it. [[Toad]] wrapped his tongue around Blade's arm, but Blade pulled Toad towards him and repeatedly stabbed him, finishing him off by stabbing him in the head. Once X-23 secured the helmet, Blade gave her a boost up, successfully delivering it to Deadpool. As the number of henchmen dwindled, the Resistance found themselves briefly losing, with Blade being stabbed, but they ultimately won the battle and witnessed Deadpool and Wolverine escape the [[Void (End of Time)|Void]].{{Ref|DW}}
+
+====Returned Home====
+{{Quote|We couldn't have made it out of the [[Void (End of Time)|Void]] without some help from some [[Resistance|people]] that the world kind of forgot. Is there any way that you could maybe find a way to bring them home?"<br>"I'll see what I can do.|[[Deadpool]] and [[B-15]]|Deadpool & Wolverine}}
+Although they were all prepared for the battle at [[Cassandra Nova]]'s [[Cassandra Nova's Lair|lair]] to be the ending to their story, thanks to [[Deadpool]] and [[Wolverine]] saving the [[Multiverse]], the former made a request to [[B-15]] to return the members of the [[Resistance]] to their homes. B-15 honored the request and Blade, along with the rest of his team were freed from the [[Void (End of Time)|Void]].{{Ref|DW}}
+
+==Powers and Abilities==
+===Powers===
+*'''Hybrid Physiology''': As a [[human]]-[[Vampires|vampire]] hybrid, Blade possesses many vampire-like traits that afford him superhuman attributes; making him an effective vampire hunter. Amongst these attributes are a number of vampiric weaknesses.
+**'''Superhuman Strength''': One of Blade's many powers is incredible physical strength; affording him greater prowess in combat, and allowing him to perform impressive feats of strength (like hoisting up the [[Punisher/AT4 Owner Punisher|Punisher]]'s missile launcher with ease).
+**'''Superhuman Durability''': Blade's body is considerably tougher, and more resistant to harm; making him a formidable opponent. As a result, he was able to survive a shot to the chest during the battle against [[Cassandra Nova's Henchmen]].
+**'''Superhuman Speed''': Blade is able to run and move at superior speeds; this superhuman quickness enables him to manoeuvre around threats with ease.
+**'''Superhuman Agility''': Similar to his speed, Blade is superhumanly quick and agile; to the point where he was able to fight many powerful [[mutants]] at once.
+**'''Superhuman Stamina''': Blade is more resistant to pain and fatigue; he can withstand significant physical abuse without getting tired. This enabled Blade to battle Cassandra Nova's Henchmen long enough to allow [[Deadpool]] and [[Wolverine]] to obtain [[Juggernaut's Helmet]].
+**'''Superhuman Reflexes''': Blade possesses superior reflexes and reaction times; enabling him to dodge opponents in combat with ease. However, he was unable to dodge a shot to the chest, although this was of no consequence to him.
+**'''Enhanced Senses''': As a hybrid, Blade has superior senses of smell and hearing, amongst other attributes. His superhuman olfactory senses can smell very acute and minor odors, over great distances. Blade's hearing is also unmatched, as he can detect the most acute of acoustic sounds.
+**'''Regenerative Healing Factor''': Blade can heal very quickly, as he rapidly recovered from a shot to the chest without dying.
+**'''Longevity''': Due to his physiology, Blade lifespan is greatly extended; allowing him to age gradually.
+
+===Abilities===
+*'''Master Martial Artist''': Blade well trained in martial arts. This gives him an edge against his foes. Alongside his powers, his martial arts enabled him to keep up with the teleporting powers of [[Azazel]] and even deal a fatal blow to the likes of [[Toad]] and [[Lady Deathstrike]].
+*'''Sword Mastery''': Brooks being trained as a vampire slayer, gave him mastery and welding a sword as he sliced and stabbed multiple foes and his way.
+*'''Knife Mastery''': His training even allows him great proficiency, and using knives.
+*'''Master Marksman''': Brooks has excellent accuracy to use marksmanship to fire from great distances as he use his stake pistol to shoot a foe in the shoulder to be pinned against the pillar.
+*'''Master Acrobat''': Blade is highly exceptional in acrobatics, as he is able to outmaneuver his opponents.
+
+==Equipment==
+*'''[[Blade's Sword|Sword]]''': Blade carries a sword that he uses in combat, notably using it during the [[Assault on Cassandra Nova's Lair]].
+*'''Knife''': Blade carries a knife the size of a Bowie knife, which he is able to easily use in close quarters combat.
+*'''[[Blade's Glaive|Glaive]]''': Blade utilized a boomerang styled throwing weapon called a glaive, which he used against the likes of [[Toad]], using it to slice off his tongue before stabbing him in the head with it.
+*'''Stake Pistol''': Blade carries a pistol on his hip, which is designed to fire silver stakes, ideal for both killing [[vampires]] and pinning other foes to the wall.
+*'''{{WPS|AT4|Punisher's AT4 Rocket Launcher}}''': Blade used the rocket launcher from [[Punisher/AT4 Owner Punisher|Punisher]]'s [[Punisher's Arsenal|arsenal]] during the assault on Nova's [[Cassandra Nova's Lair|compound]].
+
+==Relationships==
+{{Col-begin}}{{Col-2}}
+===Allies===
+*[[Resistance]] - Former Teammates and Friends
+**[[Gambit|Remy LeBeau/Gambit]]
+**[[Elektra/Forgotten Elektra|Elektra]]
+**[[Human Torch/Void-Analyzing Fantastic Four|Johnny Storm/Human Torch]] †
+**[[X-23|X-23/Laura]]
+**[[Magneto/Earth-10005|Erik Lehnsherr/Magneto]] †
+**[[Quicksilver/Earth-10005|Peter Maximoff/Quicksilver]] †
+**[[Daredevil/Forgotten Elektra|Matt Murdock/Daredevil]] †
+**[[Punisher/AT4 Owner Punisher|Frank Castle/Punisher]] †
+**[[Wolverine|Logan/Wolverine]]
+**[[Deadpool|Wade Wilson/Deadpool]]
+{{Col-2}}
+
+===Enemies===
+*[[Time Variance Authority]]
+*[[Alioth]]
+*[[Cassandra Nova's Henchmen]]
+**[[Cassandra Nova]] †
+**[[Pyro|John Allerdyce/Pyro]] †
+**[[Azazel]] † - Victim
+**[[Juggernaut|Cain Marko/Juggernaut]] †
+**[[Toad|Mortimer Toynbee/Toad]] † - Victim
+**[[Blob|Fred Dukes/Blob]] † - Victim
+**[[Russian|Ivan/Russian]] †
+**[[Bullseye/Forehead Scar Bullseye|Lester/Bullseye]] †
+**[[Callisto]] †
+**[[Arclight|Phillipa Sontag/Arclight]] †
+**[[Lady Deathstrike|Yuriko Oyama/Lady Deathstrike]]
+**[[Psylocke|Betsy Braddock/Psylocke]] †
+**[[Quill]] †
+{{Col-end}}
+
+==Trivia==
+*In the {{WPS|Blade (franchise)|''Blade''}} franchise, Eric Brooks is a [[human]]-[[vampire]] [[hybrid]] whose mother was bitten by {{WPS|Deacon Frost}} while giving birth to Brooks, causing not only his mother's death, but Brooks to become a hybrid who has no weaknesses of vampires besides bloodlust, which he uses a serum for. Brooks eventually pursued Frost and found that Brooks' mother was alive the whole time being kept as a vampire by Frost. This forced Blade to not only kill Frost, but his own mother. Blade briefly joined a group called the Bloodpack as well as the Nightstalkers, which helped him fight Jared Nomak and {{WPS|Dracula (Marvel Comics)|Dracula}} respectively. Blade hesitantly began to work with [[w:c:marvel:Krista Starr|Krista Starr]] to defeat [[w:c:marvel:Marcus Van Sciver|Marcus Van Sciver]], [[w:c:marvel:Charlotte (Earth-26320)|Charlotte]], and the rest of the [[w:c:marvel:House of Chthon|House of Chthon]].
+*Blade is one character who was portrayed by an actor that exists in the Marvel Cinematic Universe without portraying themselves, alongside [[Mainframe]] and [[Gambit]]. [[Wesley Snipes]]' existence in the MCU was confirmed in the ''[[Luke Cage (TV series)|Luke Cage]]'' episode ''[[Now You're Mine]]''.
+*Following his appearance as Blade in ''[[Deadpool & Wolverine]]'', [[Wesley Snipes]] broke two {{WPS|Guinness World Records}}: the longest career as a live-action Marvel character, surpassing [[Hugh Jackman]], and the longest gap between character appearances in Marvel films.<ref>[https://www.guinnessworldrecords.com/news/2024/7/wesley-snipes-steals-hugh-jackmans-record-with-shock-deadpool-wolverine-cameo Wesley Snipes steals Hugh Jackman's record with shock Deadpool & Wolverine cameo]</ref>
+
+==Behind the Scenes==
+*Blade in the [[Marvel Cinematic Universe]] continues the live-action incarnation from the {{WPS|Blade (franchise)|''Blade''}} franchise from {{WPS|New Line Cinema}}, who was portrayed by [[Wesley Snipes]] and {{WPS|Sticky Fingaz}}.
+**[[Wesley Snipes]] mentioned during an interview with ''{{WPS|Deadline Hollywood}}'' back in July 2015 that he had been in discussions with [[Marvel Studios]] about reprising the role although those films don't share continuity with the [[Marvel Cinematic Universe]].<ref>[https://web.archive.org/web/20150710071119/http://deadline.com/2015/07/wesley-snipes-blade-comic-con-interview-blade-the-player-1201472733/ Comic Con: Wesley Snipes On ‘Blade’ Marvel Talks, ‘The Player’ & Spike Lee]</ref> However, when [[Mahershala Ali]] was cast as the MCU's version of [[Blade]], Snipes himself approved Ali's casting.<ref>[https://comicbook.com/marvel/2019/07/23/blade-wesley-snipes-comments-on-mahershala-ali-casting/ Exclusive! Wesley Snipes Responds to Marvel Rebooting Blade]</ref>
+
+==References==
+{{Gallery|Blade/Universe Defender Blade/Gallery}}
+{{Wq}}
+{{Reflist}}
+
+==External Links==
+*{{Marvel|Blade}}
+*{{Marvel|Eric Brooks (Earth-26320)}}
+*{{WP|Blade (character)|Blade}}
+*{{WP|Blade (New Line franchise character)|Blade}}
+[[Category:Characters]]
+[[Category:Deadpool & Wolverine Characters]]
+[[Category:Humans]]
+[[Category:Vampires]]
+[[Category:Males]]
+[[Category:Black Hair]]
+[[Category:White Hair]]
+[[Category:Brown Eyes]]
+[[category:Resistance Members]]
+[[Category:Variants Monitored by the TVA]]
+[[Category:High Body Count]]
+[[Category:Pruned]]

@@ -1,0 +1,35 @@
+[project]
+name = "continuity"
+version = "0.1.0"
+description = "A wiki maintainer agent: re-verifies claims against the live web and drafts cited, section-level edits."
+requires-python = ">=3.10"
+dependencies = [
+    "google-adk>=2.6.3",
+    "google-genai",
+    "parallel-web",
+]
+
+[project.optional-dependencies]
+dev = ["ruff", "mypy"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.10"
+files = ["src", "tests", "scripts"]
+strict = true
+# The ledger core is fully typed and must stay that way; vendor SDKs are untyped at the
+# perimeter, so adapters relax this locally rather than globally.
+warn_unused_ignores = true

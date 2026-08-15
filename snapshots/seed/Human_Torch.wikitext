@@ -1,0 +1,80 @@
+{{SomethingElse|alternate versions of Human Torch|Hub:Johnny Storm|Human Torch's Character Hub}}
+{{Upcoming}}
+{{Character
+|image = Johnny Storm.png
+|real name = Jonathan {{Conjecture|Lowell Spencer}} Storm
+|alias = {{Alias
+|primary = Johnny Storm<ref name="TF4">[https://www.marvel.com/articles/movies/fantastic-four-cast Marvel Studios Announces 'Fantastic Four' Cast]</ref>
+|codenames = Human Torch<ref name="TF4"/>}}
+|species = [[Humans|Human]]
+|citizenship = {{Citizenship|USA}}
+|gender = Male
+|DOB =
+|title =
+|affiliation = {{Affiliation|FF}}<br>{{Affiliation|FUFO}}
+|movie = ''[[The Fantastic Four: First Steps]]'' <small>(unreleased)</small><br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small><ref name="F4Avengers">[https://x.com/DiscussingFilm/status/1817378767787975016 DiscussingFilm on X - July 27, 2024]</ref><br>''[[Avengers: Secret Wars]]'' <small>(unreleased)</small><ref name="F4Avengers"/>
+|actor = [[Joseph Quinn]]
+|status = Alive}}
+{{Quote|That last voice you just heard is my baby brother Jonathan Storm, and ladies, he is very single.|[[Sue Storm]]|The Fantastic Four: First Steps}}
+'''Jonathan Lowell Spencer "Johnny" Storm''' is a charismatic and foolish member of the [[Fantastic Four]] known as '''Human Torch''', and he is also the younger brother of [[Sue Storm]].<ref name="TF4"/><ref name="SDCC 2024">[https://www.youtube.com/watch?v=kHJPo79afXE Meet The Fantastic Four: First Steps Cast and MORE at SDCC 2024!]</ref>
+
+==Biography==
+''To be added''
+
+==Personality==
+''To be added''
+
+==Powers and Abilities==
+===Powers===
+*'''Fire Manipulation''': ''To be added''
+
+===Abilities===
+''To be added''
+
+==Equipment==
+*'''[[Fantastic Four Uniforms]]''': ''To be added''
+
+==Facilities==
+''To be added''
+
+==Relationships==
+===Family===
+*[[Invisible Woman|Sue Storm/Invisible Woman]] - Sister and Teammate
+*[[Mister Fantastic|Reed Richards/Mister Fantastic]] - Brother-in-Law and Teammate
+
+===Allies===
+*[[Fantastic Four]] - Teammates
+**[[Thing|Ben Grimm/Thing]]
+*[[H.E.R.B.I.E.]]
+
+==Trivia==
+*In the comics, Johnny Storm is a member of the [[Fantastic Four]] and brother of [[Sue Storm]] with the ability to generate fire throughout his body.
+
+==Behind the Scenes==
+*Human Torch in the [[Marvel Cinematic Universe]] is the fourth live-action incarnation of the character, following incarnations portrayed by {{WPS|Jay Underwood}}, [[Chris Evans]] and [[Michael B. Jordan]].
+
+==Gallery==
+<gallery>
+Fantastic Four Announcement Poster.jpg
+Johnny and Ben.JPG
+The Fantastic Four - Johnny Storm Poster.jpg
+</gallery>
+
+==References==
+{{Reflist}}
+
+==External Links==
+*{{Marvel}}
+*{{WP}}
+[[Category:Characters]]
+[[Category:The Fantastic Four: First Steps Characters]]
+[[Category:Avengers: Doomsday Characters]]
+[[Category:Avengers: Secret Wars Characters]]
+[[Category:Humans]]
+[[Category:Males]]
+[[Category:Brown Hair]]
+[[Category:Brown Eyes]]
+[[Category:Heroes]]
+[[Category:Fantastic Four Members]]
+[[Category:Future Foundation Members]]
+[[Category:Enhanced Individuals]]

@@ -28,10 +28,20 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   satisfying the track, but the AI-usage clause bans third-party agent frameworks and the
   plain SDK already satisfies it. Gemini never fetches. Exactly one partner track is
   permitted, so no second partner may be used for its AI features.
-- **Never write to the real Fandom wiki.** Unsanctioned bot edits get banned. All writes go
-  to our own seeded MediaWiki instance.
-- **Section-level edits only, never full-page rewrites.** Full rewrites get reverted by wiki
-  communities and are illegible in a 3-minute video.
+- **Never write to any real wiki.** Unsanctioned bot edits get banned, and Wikipedia is
+  stricter than Fandom — automated editing needs Bot Approval Group sign-off. All writes go to
+  our own seeded MediaWiki instance, whatever wiki the profile points reads at.
+- **Wiki-specific behaviour lives in a profile, never in the core.** The product is
+  plug-and-play across MediaWiki sites (`summary.md` §5), so title grammar, section
+  vocabulary, source tiers, licence and auth are per-wiki config the core reads. A hardcoded
+  Fandom assumption in shared code is a rewrite, not a patch — it silently produces confident
+  wrong output on the next wiki. `EntityRef.from_title` splitting on `/` is the live example:
+  correct for Fandom subpages, wrong for `AC/DC` on Wikipedia.
+- **Section-level edits only, never full-page rewrites — and never create a section.** Full
+  rewrites get reverted by wiki communities and are illegible in a 3-minute video. Adding a
+  section the wiki's convention does not have (Box office, Reception, Accolades — absent from
+  every MCU Wiki film page) gets reverted just as fast. Patch sections that exist; if a fact
+  has no home on the page, it is out of scope, not a new heading.
 - **Source tiers and decay intervals are deterministic code, not model output.** Tiers are a
   domain → tier lookup table; the poll interval is `double on no-change, halve on change,
   clamp [6h, 6mo]`. Gemini reasons *over* the tiers; it never invents them per call. Handing
@@ -64,25 +74,67 @@ Why each was chosen, and what was rejected: `summary.md` §6 and §12.
      Update in the same task that moves a file. A stale map is worse than no map. -->
 
 ```text
-docs only — no source yet.
-  summary.md        # product truth, decision log, verified vendor facts (§12)
-  seed-plan.md      # demo subject, page list, the 6 claims that carry the video
+  pyproject.toml                     # deps, ruff + mypy config, gate settings
+  src/continuity/ledger/
+    schema.py                        # <-- read first: Claim, the record everything else serves
+    tiers.py                         # domain -> authority tier, and confidence from tiers
+    decay.py                         # Wave, and the double/halve/clamp interval logic
+  src/continuity/wiki/
+    client.py                        # MediaWiki read adapter; network confined to fetch()
+  scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
+  snapshots/
+    manifest.json                    # provenance: revid, sha256, size, drift, licence
+    seed/*.wikitext                  # 12 pages frozen at 2024-08-09 — seeds our MediaWiki
+    current/*.wikitext               # the same pages live — evidence only, never the target
+    ATTRIBUTION.md                   # CC BY-SA 3.0 notice; the text here is not MIT
+  tests/test_ledger.py               # stdlib unittest; no deps, runs today
+  tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
+  summary.md        # product truth, decision log, verified vendor facts (§12)  [gitignored]
+  seed-plan.md      # demo subject, page list, the 6 claims that carry the video [gitignored]
   .env.example      # required env vars, no values
 ```
 
-Fill this in with the first commit of source.
+The ledger core is deliberately dependency-free: no Firestore, no ADK, no network. Storage
+and vendor calls arrive later as adapters that import *from* it (`CLAUDE.md` §3). The wiki
+client is the first such adapter and follows the same shape — `fetch()` is the only method
+that opens a socket, so everything else is tested offline. Not yet written: the ADK tool
+signatures, the 6-stage graph, `action=edit` section writes, the Firestore adapter, and the
+review queue frontend.
+
+**`snapshots/seed/` is immutable.** It is pinned to historical revision ids and hash-checked
+by the test suite. Never hand-edit a file there — fix the puller and re-run.
 
 ## 5. Commands and the verification gate
 
 ```bash
-pip install google-adk google-genai parallel-web    # install
-# dev / test / typecheck / lint / build — not yet established
+python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (.venv is gitignored)
+
+PYTHONPATH=src python3 -m unittest discover -s tests         # test     — 50 passing
+.venv/bin/mypy                                               # typecheck — strict
+.venv/bin/ruff check .                                       # lint
+
+python3 scripts/pull_snapshots.py                            # rebuild snapshots/ (~24 calls)
+python3 scripts/pull_snapshots.py --only current             # refresh the live side alone
 ```
 
-Gate commands are undefined until source exists. Establish them with the first module and
-update this section in the same task.
+All three must pass before claiming done (`CLAUDE.md` §4). There is no build step yet; add
+one with the frontend and update this section in the same task.
 
-Python ≥3.10 (required by `google-adk` 2.6.3).
+The ledger core has **no runtime dependencies**, so its tests run on a bare interpreter —
+that is why `test` needs no venv and no install. The setup line pulls the vendor SDKs too,
+which the core does not use and the adapters will.
+
+Python ≥3.10; developed on 3.14.4. Resolved versions as of Aug 15, 2026: `google-adk` 2.7.0,
+`google-genai` 2.18.1, `parallel-web` 1.3.0.
+
+**Auth shape re-verified against the installed `google-genai` 2.18.1 on Aug 15, 2026**, not
+from recall: `enterprise` is a real `Client.__init__` kwarg and `GOOGLE_GENAI_USE_ENTERPRISE`
+is read by the package. The legacy `vertexai` / `GOOGLE_GENAI_USE_VERTEXAI` pair still exists
+in the source, which is exactly why the §6 gotcha stays.
+
+**Ruff and mypy conflict on frozen-dataclass mutation tests.** Ruff's B010 wants direct
+assignment, which mypy rejects as a static read-only error. Scoped `# noqa: B010` on the
+line, with a comment saying why — do not relax either tool globally.
 
 **Auth.** One-time locally: `gcloud auth application-default login`. Deployed, the Cloud Run
 service account supplies credentials via the metadata server — same client line either way:
@@ -107,6 +159,26 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   `enterprise=True` / `GOOGLE_GENAI_USE_ENTERPRISE`, and `location="global"`, not a region.
 - **`grep -r` from `.` silently skips dotfiles on this machine.** A clean recursive sweep is
   not proof a secret is absent → enumerate files explicitly, or `grep` the dotfile by name.
+- **MediaWiki titles silently resolve to the wrong page.** `Void` redirects to `Sentry`, not
+  the D&W location; `Elektra Natchios` redirects to the 136KB Daredevil page, not the D&W
+  variant → always pass `redirects=1` and read back the resolved title. D&W's cameo
+  characters live on variant subpages (`Human Torch/Void-Analyzing Fantastic Four`), and the
+  main character page is a different subject with different claims.
+- **`/` means different things on different wikis.** Fandom uses it for variant subpages
+  (`Human Torch/Void-Analyzing Fantastic Four`); Wikipedia disables mainspace subpages, so
+  `AC/DC` and `Face/Off` are ordinary titles → never parse a title without the wiki's profile.
+  Verified Aug 15, 2026: `EntityRef.from_title("AC/DC")` returns base `AC`, variant `DC`
+  against a real 202KB article.
+- **Fandom throttles anonymous `User-Agent`s.** Set a real one with contact info on every
+  MediaWiki call, seeding included.
+- **`siprop=rightsinfo` will not tell you the CC licence version.** It answers a bare
+  `CC-BY-SA` and links `fandom.com/licensing`, which is JS-rendered and unreadable to a plain
+  fetch → read the wiki's own `Project:Copyrights` through the API instead. MCU Wiki states
+  **CC BY-SA 3.0 Unported** there (revision 3728), and `pull_snapshots.py` re-derives it every
+  run rather than trusting this note.
+- **`Special:Export` on Fandom is behind Cloudflare** — returns a "Just a moment…" HTML
+  challenge, not XML, so `importDump.php` cannot be used to seed → pull content through
+  `api.php` (unchallenged) and create pages on our instance with `action=edit`.
 
 ## 7. Code conventions
 

@@ -1,0 +1,355 @@
+{{Otheruses|Deadpool}}
+{{SomethingElse|alternate versions of Deadpool|Hub:Wade Wilson|Deadpool's Character Hub}}
+{{Spoiler|''[[Deadpool & Wolverine]]''}}
+{{Character
+|image = Deadpool Infobox.png
+|real name = Wade Winston Wilson{{Ref|DW}}
+|alias = {{Alias
+|codenames = Deadpool{{Ref|DW}}<br>Dancepool{{Ref|DW}}
+|nicknames = Merc with a Mouth{{Ref|DW}}<br>[[Marvel Studios|Marvel]] {{WPS|Jesus}}{{Ref|DW}}
+|organizational = Variant WW1076<ref>[[:File:Deadpool TVA Case File.png|Deadpool's TVA Case File]]</ref>}}
+|species = [[Mutants|Mutant]]
+|citizenship = {{Citizenship|CAN}}
+|gender = Male
+|title = [[Drive Max]] Sales Consultant <small>(formerly)</small>
+|affiliation = {{Affiliation|XABW}} <small>(formerly)</small><br>{{WPS|X-Force#Film|X-Force}} <small>(formerly)</small><br>[[Drive Max]] <small>(formerly)</small><br>[[Resistance]] <small>(formerly)</small><br>{{Affiliation|TVA}}
+|movie = ''[[Deadpool & Wolverine]]''
+|game = ''[[What If...? – An Immersive Story]]''
+|actor = [[Ryan Reynolds (actor)|Ryan Reynolds]]<br>[[Nick Pauley]]
+|status = Alive}}
+{{Quote|I care. I know I turn everything into a joke, but I care, and I want to use that feeling for something important. I want to matter.|Wade Wilson to [[Happy Hogan]]|Deadpool & Wolverine}}
+'''Wade Winston Wilson''' is a [[Mutants|mutant]] working as a mercenary. He left behind his vigilante identity of '''Deadpool''' behind to find a stable and fulfilling job as a civilian until he was taken from his reality and offered a place in the [[Sacred Timeline]] by [[Mr. Paradox]], a rogue [[Time Variance Authority]] agent and well as gaining a [[Deadpool Suit|new suit]] from the TVA. However, after learning that Paradox plotted to annihilate his [[Anchor Being Wolverine|home timeline]], Deadpool was sent to the [[Void]] alongside a [[Wolverine|Variant]] of his [[Wolverine/Anchor Being Wolverine|Wolverine]], with whom he formed a very uneasy alliance to escape. The two new friends were able to thwart Paradox's plans and kill [[Cassandra Nova]] before she could erase all timelines, and thus, Wilson invited Logan into his world and continued working for the TVA.
+
+==Biography==
+===Early Life===
+====Becoming Deadpool====
+{{Quote|You had a girlfriend?"<br>"Yeah, [[Vanessa Carlysle|Vanessa]], we met when she was a dancer.|[[Wolverine]] and Deadpool|Deadpool & Wolverine}}
+Wade Wilson was born in [[Canada]] and served in the {{WPS|Special Forces}}, but eventually used his superior skills for killing to become a mercenary. Wilson then met and fell in love with [[Vanessa Carlysle]], but was later diagnosed with cancer, ending up abandoning her and seeking an experimental treatment run by [[Francis Freeman]] that resulted in his [[Mutants|mutation]]. This mutation gave him a regenerative healing factor, but also disfigured his entire body in the process. After these events occurred, Wilson then met and moved in with [[Blind Al]], as he was too ashamed of his appearance to return to Vanessa. In addition to that, he befriended a cab driver named [[Dopinder]] whom he offered guidance and advice. He then dedicated his time to hunting down Francis and demanding that he fix his face, now donning a red and black [[Deadpool Suit|suit]] and dubbing himself as Deadpool. Eventually Wilson finally worked up the courage to return to Carlysle despite his looks, but she had then been kidnapped by Francis now going as [[Ajax]] as a bait for Wilson. Deadpool was aided by [[X-Men/Anchor Being Wolverine|X-Men]] members [[Colossus]] and [[Negasonic Teenage Warhead]] in the fight against Ajax and was reunited with Carlysle. After killing Ajax, the two then continued their romantic relationship.{{Ref|DW}}
+
+====Life as Deadpool====
+{{Quote|I was... mainly I was team leader... founder, really, of {{WPS|X-Force#Film|X-Force}}.|Wade Wilson to [[Happy Hogan]]|Deadpool & Wolverine}}
+Eventually [[Vanessa Carlysle]] was killed sometime later during an attack on Wilson by [[Sergei Valishnikov]]. In an attempt to move on, Wilson joined the [[X-Men/Anchor Being Wolverine|X-Men]] as a trainee, but dissagreed with their rules, so he decided to form the {{WPS|X-Force#Film|X-Force}}, which included characters [[Shatterstar]] and [[Peter Wisdom]]. However, on their first mission dealing with {{WPS|Cable (character)#Film|Cable}}, all of the members of X-Force besides {{WPS|Domino (character)#Film|Domino}} were killed while parachuting. Wilson ended up allying with Cable and was able to acquire his [[Time Travel|time travel]] [[Cable's Time-Travel Device|device]]. Wilson used the device to go back in time and save Carlysle from dying, as well as Wisdom and Shatterstar. In addition to this, Wilson also killed a [[Weapon XI|different version]] of him that was about to face off with [[Wolverine/Anchor Being Wolverine|Wolverine]]. Wilson then made another stop to a different universe and killed [[Ryan Reynolds]] as he read the script to ''{{WPS|Green Lantern (film)|Green Lantern}}'' before returning to his [[Anchor Being Wolverine|original universe]].{{Ref|DW}}
+
+====Applying to the Avengers====
+[[File:Wade and Happy.jpg|{{AltFloat}}|Wilson meets with [[Happy Hogan]]]]
+{{Quote|I found my place, find your place.|[[Happy Hogan]] to Wade Wilson|Deadpool & Wolverine}}
+On [[2018|March 14, 2018]], Wilson traveled to [[Sacred Timeline|Earth-616]] in hopes of becoming an [[Avengers|Avenger]]. He met with [[Happy Hogan]], telling him that he wanted to become a member of the team because he needed it. However, Hogan told him that the Avengers weren't members because they needed it, but because others needed them; Hogan ultimately turned Wilson down. Wilson then left the [[Sacred Timeline]] and returned to [[Anchor Being Wolverine|his universe]] dejected and depressed.{{Ref|DW}}
+
+====Retired Mercenary====
+{{Rewrite}}
+{{Quote|I'm done, and I'm fine with being done.|Wade Wilson to [[Peter Wisdom]]|Deadpool & Wolverine}}
+A depressed Wade Wilson broke [[Cable's Time-Travel Device]] shortly after returning to [[Anchor Being Wolverine|his timeline]], where his depression for being denied by the [[Avengers]] resulted in him breaking up with [[Vanessa Carlysle|Vanessa]] and eventually retiring from his mercenary life and gaining a job at [[Drive Max]] where his former teammate and best friend, [[Peter Wisdom]], worked.{{Ref|DW}}
+
+===Normal Life===
+====Celebrating his Birthday====
+[[File:Wade and Peter Talk.jpg|{{AltFloat}}|Wilson assures [[Peter Wisdom|Wisdom]] he is done with being Deadpool]]
+{{Quote|I'm happy. You know, that's because of each and every one of you. I guess what I'm trying to say is how proud I am, how grateful I am, to be standing in a room with every single person I love... I'm the luckiest man alive.|Wade Wilson|Deadpool & Wolverine}}
+In 2024, Wilson tried to sell a {{WPS|Kia Carnival}} to the Chipman family. Because of his constant vulgarity, Wilson failed, [[Peter Wisdom|Wisdom]] reminding him of the possibility of continuing his heroics and showing him his [[Deadpool Suit|suit]] he keeps in his locker "just in case." Wilson quickly closed the locker and reassured him that he is done with being Deadpool.
+[[File:Surprise Wade.jpg|{{AltFloat}}|Wilson arrives at his birthday party]]
+That night, Wisdom insisted on Wilson going on a mission once a month, telling him to go all out while he is on what he calls his mid-life crisis like his friend once did. Wilson was distracted by construction workers taking photos of him by a subway entrance while Wisdom asked if he was grumpy because it is his birthday. The two eventually went upstairs to [[Wade Wilson's Apartment|Wilson's apartment]], where he is surprised by his friends that made him a birthday party. After taking a group picture, Wilson caught up with [[Dopinder]] and [[Shatterstar]]. He talked about ''{{WPS|The Great British Bake Off}}'' and how it prevented him from suicide with [[Colossus]]. He gave his opinions on abortion, religious freedom, animal and privacy rights, vaccines and global climate change, turning down [[Buck]]'s chance to give his as he doesn't have any speaking lines. He attempted to convince [[Negasonic Teenage Warhead]] that his toupee is a French hair system that [[Yukio]] complimented. He denied [[Blind Al]]'s request to use cocaine and restricted her mention of the drug and its synonyms per [[Kevin Feige]]'s request. Finally, he conversated with his ex-girlfriend [[Vanessa Carlysle|Vanessa]] about their living situations.
+[[File:Deadpool & Wolverine Teaser Trailer (30).png|{{AltFloat}}|Wilson is taken by the [[Time Variance Authority]]]]
+Everybody having sung "Happy Birthday" to Wilson around the cake, Wilson gave a speech about how grateful he was to have such a friend group, hearing a knock on the door as he blew out the candles. He opened it to a squad of [[TVA]] [[Minutemen]] whom he assumed were the dancers Dopinder ordered. Telling them that things were going to get sexual, especially when the Minutemen brought out their [[Time Stick|Time Sticks]], Wilson was grabbed in a chokehold by a Minuteman through a [[Timedoor]] behind him and his toupee was removed as was taken through it.{{Ref|DW}}
+
+===[[Preservation of Earth-10005]]===
+====An Offer====
+[[File:Paradox & Wade at the TVA.jpg|{{AltFloat}}|Wilson is shown the [[Time Variance Authority Office]] by [[Mr. Paradox]]]]
+{{Quote|I brought you here, Mr. Wilson, to tell you that you're special. In fact, you been choosing for a higher purpose unclear even to me. But one that could save the entire [[Sacred Timeline]] from a possible grisly fate sometime in the future which may very well need to be... [[Avengers|avenged]]."<br>"The [[Sacred Timeline]]? I assume I am going to... [[Marvel Cinematic Universe|Marvel]] at how... cinematic it feels? Gratuitous cameos? Indiscriminate used of [[Glossary#V|variants]]? The whole package?|[[Mr. Paradox]] and Wade Wilson|Deadpool & Wolverine}}
+Wilson was brought to the [[Time Variance Authority Office]], where he awakened to [[Mr. Paradox]] in his office, Paradox being a [[TVA]] agent that explained to him that they are a "watchdog organization" in charge of defending the [[Sacred Timeline]]. Remarking the amounts of exposition for he gave for this [[Deadpool & Wolverine|threequel]], Wilson questioned if he was kidnapped as a consequence to his tampering of [[Earth-10005]]'s timeline with [[Cable's Time-Travel Device]]. Paradox denied it and asked Wilson to follow him to a computer room monitoring different points in the Sacred Timeline. Paradox further explained that Wilson was brought to the TVA for a higher purpose that would save the Sacred Timeline from a possible terrible fate in its future. Wilson was given the opportunity to join the [[Marvel Cinematic Universe]], thus finally meaning something, and excitedly dubbed himself "{{WPS|Marvel Entertainment|Marvel}} {{WPS|Jesus}}" before insulting {{WPS|20th Century Studios|20th Century Fox}}.
+[[File:Deadpool (TVA).jpg|{{AltFloat}}|Deadpool wears his [[Deadpool Suit|new suit]]]]
+Upon donning an [[Deadpool Suit|improved suit]] with [[adamantium]] [[Deadpool's Katanas|katanas]] tailored by a bearded man that often groped him, Deadpool came out of an elevator telling everybody to admire his suit, including [[Ralph (TVA)|Ralph]], of whom he was convinced he was attracted to him. When Deadpool requested to use Paradox's [[TemPad]] so he can let his friends in Earth-10005 know, he was told that he is not going back to his home universe, as there won't be one to go back to. Paradox showed him his timeline, receding and decaying due to the loss of the [[Wolverine/Anchor Being Wolverine|Wolverine]], the [[Glossary#A|Anchor Being]] of his world. He also told Wilson that he was tasked with overseeing said decay, which takes a couple millennia. Paradox thusly decided to accelerate the process with the [[Time Ripper]] as a compromise to the now overruled [[Reset Charge|pruning tactic]]. In response, Deadpool punched Paradox in the face, took his TemPad and teleported back to his universe during the 2030s.{{Ref|DW}}
+
+====[[Battle at Logan's Grave|Fighting the TVA]]====
+[[File:Deadpool & Wolverine Teaser Trailer (48).png|{{AltFloat}}|Deadpool arrives at [[Wolverine/Anchor Being Wolverine|Logan]]'s grave]]
+{{Quote|I guess we're getting this team up after all.|Deadpool to [[Wolverine/Anchor Being Wolverine|Logan]]|Deadpool & Wolverine}}
+While approaching [[Wolverine/Anchor Being Wolverine|Logan]]'s grave, Deadpool narrated how he never thought he'd be back again after the events that occurred behind the scenes regarding [[Walt Disney Studios]] and {{WPS|20th Century Studios|20th Century Fox}} and the rights issues, but he was mainly surprised because the studios wanted the "guy who shouldn't even have his own movie" back. Deadpool dug up Logan's grave, convinced he is not dead considering his regenerative healing factor and thusly not dishonoring his memory. He was enraged to find his skeleton, exclaiming the fact that his [[Anchor Being Wolverine|universe]] will end.
+[[File:Deadpool & Wolverine TV Spot (7).png|{{AltFloat}}|Deadpool kisses a dead [[Time Variance Authority|TVA]] [[Minutemen|Minuteman]]]]
+He sat by a log, conversating with the corpse, until [[TVA]] [[Minutemen]] appeared behind him. As they approached, Deadpool hid the corpse behind the log, halting the Minutemen. He refused to turn in his weapons, promising not to use them. Noting that the average human body contains 207 bones, Deadpool attacked the Minutemen with Logan's bones while dancing to the {{WPS|Bye Bye Bye|opening credits song}} of the film. He eventually came to use Logan's retractable bone claws, but had trouble using them, stabbing his own arm once and trying to fidget both claws out of one Minuteman's rectum and the other's crotch. Scolded for his actions by a Minuteman whom praised Logan for being the only thing worth something hailing from [[Canada]], Deadpool wielded his katana and simply bounced it onto the ground up through his face. He told him to keep his country's name, and his sword, out of his mouth before using the [[TemPad]] he stole to start looking for another Wolverine.{{Ref|DW}}
+
+====[[Search for Wolverine|Multiversal Trip]]====
+[[File:Deadpool approaches a shack.png|{{AltFloat}}|Deadpool approaches [[Old Man Logan]]]]
+{{Quote|I gotta find me another Logan, a live one.|Deadpool|Deadpool & Wolverine}}
+Deadpool kicked off his search in a universe where Wolverine is, "comic-accurately," short. Deadpool mocked the [[Glossary#V|Variant]] and left through a [[Timedoor]] upon his approach, starting a montage. Deadpool appeared in a city set ablaze, approaching [[Weapon X]], whom immediately attacked him. He met a gambling "[[Patch]]," whom clawed through his skull. He greeted [[Old Man Logan]], whom shot him in his torso. He plummeted into a place filled with bloody skulls, looking up to see a [[Crucified Wolverine]]. To his discomfort, Deadpool subsequently left to another universe, aweing at a [[Classic Suited Wolverine|Wolverine]]'s classic {{WPS|John Byrne (comics)|John Byrne}} [[Wolverine Suit|brown-and-tan suit]] before being knocked away by an alternate [[Hulk/Classic Suited Wolverine|Hulk]] whom prepared to fight Wolverine. He lastly arrived in a reality in which a Wolverine resembling actor [[Henry Cavill]] resided, revving up his motorbike. "[[Cavillrine]]," as Deadpool called him, was promised to be treated better than the "{{WPS|DC Entertainment|shit-fucks down the street}}." But Cavillrine simply punched him through a pillar while using his claws, and Deadpool teleported through another Timedoor.
+[[File:Deadpool and Logan.jpg|{{AltFloat}}|Deadpool greets [[Wolverine|Logan]]]]
+Deadpool fell into a bar, observing another [[Wolverine]] that looked "promising" even though he was drunk. Nearing this version of Logan, instructed to leave the bar, Deadpool insisted the bartender leave the bottle. He told Logan he must come with him because his [[Anchor Being Wolverine|world]] needed him. The bartender asking if they are going to fight or have sex, Deadpool turned to Wolverine, surprised he didn't react. With little time, Deadpool carried Logan upward, causing Logan to enable his claws, although they were remarkably short. Because he refused to come along, Deadpool pointed his gun at his forehead, Logan gulping down an entire bottle of beer despite that fact. He passed out, Deadpool dragging him and finding out he, after 20 years, finally has his [[Wolverine Suit|iconic suit]] on, much to his amusement.
+[[File:Deadpool and Wolverine at the TVA.jpg|{{AltFloat}}|Deadpool threatens [[Mr. Paradox]] while [[Wolverine]] awakens]]
+Deadpool arrived back at the [[Time Variance Authority Office]] with Wolverine, taking off his clothes so that the Wolverine suit is showing in full. [[Mr. Paradox]] scoffed at the thought of replacing an [[Glossary#A|Anchor Being]] and told him he selected the worst variant, the one who let down his entire world. Paradox repeating that there is no stopping the decay of Earth-10005, Deadpool commanded Paradox to call his boss and tell them that he denies the deal, only to hear a deafening silence in the room that made him deduce that the bosses are unaware of Mr. Paradox's sector's actions. Telling Paradox that he was going to tell them, Paradox pruned Deadpool and Wolverine, who tried to attack him.{{Ref|DW}}
+
+====Sent to the Void====
+{{Rewrite}}
+[[File:Deadpool & Wolverine Trailer (36).png|{{AltFloat}}|Deadpool argues with [[Wolverine]]]]
+{{Quote|I'm about to lose everything I've ever cared about."<br>"Not my fucking problem."<br>"Is that what you said when your world went to shit?"<br>"Come again?|Deadpool and [[Wolverine]]|Deadpool & Wolverine}}
+Deadpool awakened in the [[Void]], a point at the end of time where all things pruned go, seeing [[Wolverine]] approach him. He insulted him in his request to help him stand up, prompting Wolverine to enable his claws, scaring Deadpool. He was stabbed and lifted upward, forced to answer where the two are. Deadpool says he doesn't know, but compared the place to the setting in {{WPS|Mad Max|''Mad Max'' franchise}}, though it would be IP infringement were that the case. Fed up with his humor, Wolverine stabbed his testicles, took a knee and injured his back with the other before pushing him off of it. Deadpool stood up, repeating [[Mr. Paradox|Paradox]]'s words despite Wolverine not caring. He then offended Wolverine by commenting on how he "let down his world" as per Paradox, being stabbed in the back when he looked away. Deadpool flipped to his back and slapped him to the floor, shooting his sides. Asking if he will be calm now, Wolverine answered by slamming the back of his head against Deadpool's and throwing him through the wall of an abandoned structure. Deadpool rolled against the late {{WPS|20th Century Studios|20th Century Fox}} logo, paying his respects to the former name of 20th Century Studios.
+[[File:Deadpool & Wolverine Trailer (87).png|{{AltFloat}}|Deadpool fights [[Wolverine]]]]
+Deadpool and Wolverine faced each other, Deadpool loading his gun magazines as Wolverine readied his claws. Telling the nerdy viewers to get their "special socks," Deadpool and Wolverine begin their duel. Deadpool fought Wolverine with his [[Deadpool's Katanas|katanas]] and "baby knife" against Wolverine's claws until his weapons are stuck inside of Wolverine's body. He was once again stabbed and almost decapitated. Deadpool stopped him by telling that he can make the [[TVA]] fix whatever happened in Wolverine's world. A cloaked figure called their attention. The man that Deadpool calls "The One" among other things told the two that "[[Cassandra Nova's Henchmen|they]]" are coming. The figure uncloaked himself after performing a superhero landing, confronting a group following a person named [[Cassandra Nova|Cassandra]]. Whom Deadpool thought was [[Hub:Steve Rogers|Captain America]] suddenly shouted the [[Human Torch]]'s catchphrase before attempting to attack [[Pyro]] using his flame powers. After watching Johnny Storm injure himself, Deadpool noticed [[Sabretooth]] catching Wolverine's eye. Deadpool paused the [[Deadpool & Wolverine|movie]] to tidy Wolverine up for a fight that fans have waited decades for, collecting his weapons and encouraging him to put up a good fight. Toying with Sabretooth's decapitated head in another ''Mad Max'' reference, Deadpool and Wolverine were eventually caught in a magnet, captured alongside Johnny Storm, and brought to [[Cassandra Nova's Compound]].{{Ref|DW}}
+
+====[[Escape from Cassandra Nova's Compound]]====
+{{Rewrite}}
+[[File:Deadpool Wolverine.jpg|{{AltFloat}}|Deadpool and [[Wolverine]] meet [[Cassandra Nova]]]]{{Quote|If there's a chance [[Resistance|they]] know how to get out of [[Void|here]], we find [[Mr. Paradox|him]] and make those [[Time Variance Authority|TVA fuckers]] fix my shit like you fucking promised."<br>"I smell quest.|[[Wolverine]] and Deadpool|Deadpool & Wolverine}}
+Arriving at [[Cassandra Nova's Compound]], a seated person, whom Deadpool and [[Wolverine]] suspect is Charles Xavier, slowly exits a giant [[Ant-Man Suit]]. They are actually introduced to [[Cassandra Nova]], a twin of [[Professor X/Cassandra Nova Birthed|Xavier]]'s pruned in her infancy. She told the two how she has attempted to catch [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm]] for a long time, prompting Deadpool to inform Nova of Storm's insults regarding her. Storm nervously tried to deny Deadpool's accusations, Deadpool watching his skin get torn off by Nova's psionic abilities. Deadpool pointed the impact of his least favorite [[Chris Evans]] portrayal out on the [[Deadpool & Wolverine|film]]'s budget. Silenced as Nova spotted [[Alioth]] from afar, Deadpool told her about Wolverine being a back-up Anchor Being and how he has to stop [[Mr. Paradox]] from ending his [[Anchor Being Wolverine|universe]]. He was delighted to hear that she could help him, but was saddened when she revealed she didn't want to, Nova phasing her hand through Deadpool's head to view his thoughts, manipulating his memory to have [[Vanessa Carlysle|Vanessa]] say that he will never matter. Deadpool equipped his baby knife as Wolverine stabbed Nova's back. Nova simply pushed the objects that stabbed her out, warning the duo of Alioth's approach. Deadpool grabbed onto Wolverine, who escaped using a rocket attached to a mech's leg.
+[[File:Deadpool & Wolverine -BestFriendsDay (5).png|{{AltFloat}}|[[Logan]] and [[Wilson]] rest in [[Joe's Diner]]]]
+Deadpool and Wolverine crash-landed upon a cliff, Deadpool lied on top of Wolverine, stating that he is almost done getting his knife out of his buttock. He vowed to tell [[Blake Lively]], about Wolverine's inappropriate thoughts. Wolverine instigated a new rule in which only he would speak from now on, Deadpool advising him that the rule is in the audience's disfavor. Wolverine created the plan of finding the [[Resistance]] Storm mentioned on the way to the compound and entered a pruned [[Joe's Diner]] with Deadpool. Wilson taking his mask off to eat spam, the spots of hair from his toupee were questioned, Wilson stating that nobody knew he was even wearing one. Logan was convinced that everybody surely did After his request to know what was "haunting" him was denied, Wilson reluctantly said that, in his world, [[Wolverine/Anchor Being Wolverine|Wolverine]] was "well-regarded." Wolverine responded that it's the opposite in his case. Deadpool could relate, being rejected by the [[Avengers]], the [[X-Men/Anchor Being Wolverine|X-Men]] and his now ex-girlfriend.
+[[File:Wolverine, Dogpool & Wade Wilson.jpg|{{AltFloat}}|Deadpool holds [[Dogpool]]]]
+Deadpool and Wolverine continued their travels, Deadpool informing Wolverine of how his Logan died while trying to save [[X-23]], Logan's genetically engineered daughter, reminding him of how [[Blind Al]] told him that pain teaches people who they are. After Wolverine remarked Blind Al's name, Deadpool detected a [[Dogs|dog]] running towards him in a little [[Deadpool Suit|Deadpool costume]]. He took off his mask to let Mary Puppins, A.K.A. [[Dogpool]], lick his face. A Deadpool [[Glossary#V|Variant]], who introduced himself as [[Nicepool]], ran after him and mentioned [[Ladypool]], remarking how she recently had a baby and can't even tell she did, which Wilson noted that might be offensive. Irritated by the answer why Nicepool doesn't wear a mask, it being because he has a gorgeous face unlike the other Variants, Wilson asked for a group of survivors of Alioth. Nicepool confirmed that they are out here, but that they shouldn't encounter a member of the hostile [[Deadpool Corps]]. Upon asking the location of the Borderlands, Nicepool offered them a {{WPS|Honda Odyssey (North America)|Honda Odyssey}} nicknamed the ''[[Ol' Betsy]]'' in which Deadpool couldn't take Mary Puppins, much to his disappointment.{{Ref|DW}}
+
+====Meeting the Resistance====
+{{Rewrite}}
+[[File:Deadpool Come At Me.jpg|{{AltFloat}}|Deadpool taunts a violent [[Wolverine]]]]
+{{Quote|This is what I'm talking about; big slow-motion action sequence, sad music, everybody working together, who knows if you live or die, that sort of thing. Who's ready!?|Deadpool to the [[Resistance]]|Deadpool & Wolverine}}
+While heading for the Borderlands, Deadpool kept talking about [[Wolverine]]'s [[Wolverine Suit|suit]] though being asked to stop. Looking for another conversation topic, Deadpool questioned what Wolverine will do "if" the [[TVA]] can fix his world. Wolverine abruptly pushed the brakes. Figuring out that Deadpool was lying to him the whole time, unsure if they even could fix things, Wolverine stabbed him, prompting Deadpool to yell that he did not lie, but rather made an "educated wish" because he needs him to replace the currently deceased [[Anchor Being Wolverine|Logan]] so he can save his friends from [[Anchor Being Wolverine|Earth-10005]] from extinction. Despite this, Wolverine focused on Deadpool's mention of an "educated wish," proceeding to give a gravely long and personal insult to him. After being left speechless and a little ticked, Deadpool gently told Wolverine that he will fight him now. Though Wolverine scoffed, Deadpool punched him in the nose and was punched back, his head banged against the ''[[Ol' Betsy]]''<nowiki>'s</nowiki> radio until "{{WPS|You're the One That I Want}}" by [[John Travolta]] and [[Olivia Newton-John]] plays. A second fight between Deadpool and Wolverine ensued, Deadpool now having grown akin to the {{WPS|Honda Odyssey (North America)|Honda Odyssey}}.
+[[File:Deadpool & Wolverine Trailer (124).png|{{AltFloat}}|Deadpool encourages the [[Resistance]]]]
+Fighting until they both tire, Deadpool and Wolverine are driven to the [[Resistance Hideout]], meeting the last standing [[Resistance]] members: [[Elektra/Forgotten Elektra|Elektra]], [[Blade/Universe Defender Blade|Blade]], whom he thought retired, and [[Gambit]], mocking him for his {{WPS|Gambit (unproduced film)|unproduced film}} and his incomprehensible accent. Deadpool turned around to see [[X-23]] when asking who brought him and Wolverine here. Deadpool inserted himself into the team so that they can think of a way out of the [[Void]] together, despite Wolverine's warning. Deadpool repeating that his lie was an educated wish, he went on to say that he had entered [[Cassandra Nova's Compound]] and escaped, something the other Resistance members, which included [[Human Torch]], couldn't manage to pull off. He planned to have Nova forced to send them elsewhere and let the Resistance, at least, avenge their fallen universes by blocking Nova's powers with [[Magneto's Helmet]]. After having already told him that [[Magneto]] has passed, Blade informed him that his helmet was melted after killing him, much to Deadpool's distress. Elektra proposed [[Juggernaut's Helmet]] as a substitute, though Gambit confirmed that the helmet would be hard to remove from his head. Despite the odds, Deadpool managed to convince their chance at pertaining a legacy for the Resistance.{{Ref|DW}}
+
+====[[Attack on Cassandra Nova's Compound|Escaping the Void]]====
+{{Rewrite}}
+[[File:Deadpool & Wolverine Trailer (119).png|{{AltFloat}}|Deadpool and [[Wolverine]] charge into battle]]
+{{Quote|I just need to get [[Anchor Being Wolverine|home]].|Deadpool to [[Cassandra Nova]]|Deadpool & Wolverine}}
+Driving towards [[Cassandra Nova's Compound]], Deadpool translated [[Gambit]]'s comment on the gloves of the [[Ant-Man Suit]] to the removal of [[Juggernaut's Helmet]] not being easy, making stuff up as he still doesn't understand what he is saying. Telling the cameramen to tilt towards [[Blade/Universe Defender Blade|Blade]], Deadpool noticed the [[Punisher/Resistant Punisher|Punshier]]'s {{WPS|AT4|AT4 Rocket Launcher}}, questioning which [[Hub:Frank Castle|Punisher]] it belonged to as there had been so many iterations. Blade added that there has only been one version of him and that there consistently will be, leading to Deadpool spiking the camera, indirectly referring to the [[Marvel Cinematic Universe]] [[Blade|character]]. Blade fired at the hands, the ''[[Ol' Betsy]]'' driving through the flames and debris. Deadpool and the [[Resistance]] exited the car, with [[Wolverine]] stepping out of its trunk. The Resistance fought all of [[Cassandra Nova's Henchmen]] as Deadpool and Wolverine charged into the compound.
+[[File:Deadpool and Wolverine jumping into a portal.png|{{AltFloat}}|Deadpool and [[Wolverine]] enter [[Anchor Being Wolverine|Earth-10005]]]]
+A surprised [[Cassandra Nova]] told Deadpool that returning home is no option, only death or enslavement, before smashing him against the ceiling and then into a wall. Nova, barging into Wolverine's mind, is stopped by Deadpool putting the helmet gifted by [[X-23]] on her head. Nova laughed, noting that she can't send anyone anywhere under influence of the helmet. Wolverine, resisting the urge to kill her, told Deadpool to take the helmet off. Wolverine eventually did it himself in honor of [[Professor X/Mutant Genocide|Charles Xavier]]. When released from Deadpool's grasp, Deadpool took cover when she pointed toward him. Owing them for sparing her life, Nova uses a [[Sling Ring]] from a pruned and later killed [[Doctor Strange/Pruned Doctor Strange|Doctor Strange]] [[Glossary#V|Variant]], creating an [[Inter-Dimensional Portal]] to [[Anchor Being Wolverine|Earth-10005]]. Deadpool and Wolverine leapt through it.{{Ref|DW}}
+
+====Fighting the Deadpool Corps====
+{{Rewrite}}
+[[File:Deadpool & Wolverine Everyone (18).png|{{AltFloat}}|Deadpool and [[Wolverine]] arrive in [[Anchor Being Wolverine|Earth-10005]]]]
+{{Quote|Holy shit. You saved the good stuff for special occasions?"<br>"Killing mostly."<br>"What's the wind resistance on those blowjob handles? Sorry, I'm just a catty bitch when I'm jealous! All right, let's do this. Maximum effort.|Deadpool and [[Wolverine]]|Deadpool & Wolverine}}
+Upon entering to [[Anchor Being Wolverine|his home universe]], Deadpool and [[Wolverine]] fell onto a {{WPS|Kia Carnival}} [[Peter Wisdom|Wisdom]] was selling. The [[Elliot Chipman|Chipman]] [[Kevin Chipman|kids]] Deadpool sat next to earlier recognized him and Wolverine, Deadpool telling them that Wolverine was brought back by [[Walt Disney Studios]] so that [[Hugh Jackman]] can play him till he's 90 years old. Deadpool and Wolverine left to confront [[Paradox]], Deadpool asking why [[Thor]] was crying while holding him in a possible future on a monitor he saw when he first arrived in the [[Time Variance Authority Office]]. Another [[Inter-Dimensional Portal]] leading to this world appears from which [[Cassandra Nova]], furious regarding [[Paradox]]'s breach of the agreement they had, takes Paradox down to the [[Time Ripper]] so she can use it to destroy the [[Multiverse]] so that only the [[Void]] is left.
+[[File:Deadpool & Wolverine Tickets on Sale TV Spot (1).png|{{AltFloat}}|Deadpool reunites with [[Dogpool]]]]
+Blown away into a foot cream establishment, [[Liefeld's]], Deadpool and Wolverine get up to see [[Dogpool]] exiting the portal as well.  Embracing her, Deadpool was once again annoyed to see [[Nicepool]] running after her. Attempting to retrieve her, Deadpool stopped Nicepool so that Dogpool may decide between him or whom he mockingly called "Van Milder," prompting Nicepool to exhibit his fourth wall awareness as well, simply looking towards the camera and stating "''{{WPS|The Proposal (2009 film)|The Proposal}}''," offending Deadpool.
+[[File:Deadpool & Wolverine Purpose (28).png|{{AltFloat}}|[[Wolverine]] chastises Deadpool]]
+Wolverine silenced the two as the [[Deadpool Corps]] walked out of the portal, sent to prevent Deadpool and Wolverine from following Nova. "Deadpool Prime" tried to assure them that their fight wasn't with them, receiving an affront from [[Kidpool]]. Deadpool asked if it can be over, by that he meant the amount of Multiverse-related films as they can't compare to ''{{WPS|The Wizard of Oz}}''. The corps fired their guns, Deadpool blocking the bullets by using Nicepool as a human shield before diving behind a car with Wolverine and Dogpool. Dismissing the claim that he did that to Nicepool on purpose, Deadpool used him as a human shield again when "bringing him to safety" by a donut stand. By then, Nicepool's head exploded after Deadpool took a breath and tried to encourage him.
+[[File:Deadpool & Wolverine Trailer (73).png|{{AltFloat}}|Deadpool and [[Wolverine]] confront the [[Deadpool Corps]]]]
+Wolverine simply followed with Dogpool in hand, the corps holding their fire because of her. Stealing his gold-plated guns, Deadpool and Wolverine faced the corps, clawing, slashing and shooting their way through the multiple Variants until they eventually leaped out of a bus' back window. Deadpool didn't stick his landing and was very disappointed because of that. Questioning why [[Babypool]] was laughing at them, Deadpool watched all of his Variants revive, unlike Nicepool. Subsequently, [[Peter Wisdom]] arrived as "Peterpool," telling the corps that Deadpool Prime is a friend of his. Deadpool and Wolverine made their way down to the subway station as the corps praised Wisdom.{{Ref|DW}}
+
+====Saving All Timelines====
+{{Rewrite}}
+{{Quote|Everyone wants to matter. Turns out that you don't need to be [[Marvel Studios|Marvel]] {{WPS|Jesus}} to do it. You just need to open your eyes and look around. And, if you're lucky, you'll find a few friends. Old friends and some [[Logan|new]] [[Resistance|ones]] too. Turns out... I am the world-saving type. Just look around this table if you want proof. The best part? Sometimes the people we save... save us right back.|Deadpool|Deadpool & Wolverine}}
+Deadpool and [[Wolverine]] met [[Mr. Paradox]] in the subway station, forcing him to reveal how to stop [[Cassandra Nova]] from using the [[Time Ripper]]. Paradox explained that the Time Ripper was powered by matter and anti-matter feeds converging inside the device, with Nova redirecting them so that it eliminates every timeline. The Ripper would be shut down if one created a circuit between the two feeds, the released energy destroying the machine. Deadpool's assurance that either one of their regenerative healing factors would let them live was debunked when Paradox further explained that whoever formed the circuit would be vaporized in an instant.
+[[File:Deadpool & Wolverine Final Trailer (3).png|{{AltFloat}}|Deadpool decides to sacrifice himself]]
+Heading towards the room the feeds resided in, Wilson offered his sacrifice, claiming that Wolverine didn't deserve to die. Wolverine, however, insisted as he didn't have a world to get back to, unlike Wilson. Being called the "best" [[Hub:Logan|Wolverine]] and told to say hi to Deadpool's friends for him, Wolverine was pushed out of the door by Deadpool, sacrificing himself for the ones he loved. Breaking the glass protecting one feed, Deadpool grabbed it and desperately attempted to stretch it to reach the other, while Wolverine tried to break through the door. With time running out, Wolverine managed to burst through just before Nova completed her annihilation of the timeline, holding the other feed with his claws while holding tight to Deadpool's hand. The energy surged through their bodies as they were reminded of their loved ones, screaming and twitching their heads until the Time Ripper was destroyed.
+
+Deadpool and Wolverine came out unaffected due to their sharing of the matter and anti-matter between them and the power {{WPS|Madonna}}'s "{{WPS|Like a Prayer}}" brought as [[Ralph]] and another [[TVA]] agent stared in awe at Wolverine's exposed abs. [[B-15]], who had recently arrived at the scene, told her team of [[Minutemen]] to prune Deadpool. However, [[Peter Wisdom]] stopped them once he told them that Deadpool belonged in Earth-10005. B-15 procceeded to arrest Paradox before advising Deadpool and Wolverine to rest before continuing more work due to having successfully saved the timeline. Deadpool asked for multiple favors, such as returning the [[Resistance]] [[:Category:Resistance Members|members]] to their homes and the regeneration of Wolverine's [[Mutant Genocide|universe]]; the former request was granted, but the latter was denied as Wolverine's experiences in his universe made him the man who saved the [[Multiverse]].{{Ref|DW}}
+
+====Celebrating Victory====
+{{Rewrite}}
+[[File:Wade smiling at Vanessa.png|{{AltFloat}}|Wilson and [[Vanessa Carlysle|Vanessa]] rekindle their relationship]]
+{{Quote|Give me the fucking [[Dogpool|dog]], talk to the [[Vanessa Carlysle|girl]].|[[Wolverine]] to Deadpool|Deadpool & Wolverine}}
+Deadpool and [[Logan]] later went out for shawarma; Deadpool was surprised to see Mary Puppins leap into his arms again outside the restaurant. Logan decided to leave but was invited to meet [[Blind Al]], still traumatized by the massacre of [[Deadpool Corps|Deadpools]] she heard earlier. Introducing his roommate to Mary Puppins, Wilson hung out with Logan and his friends, including the newly-freed [[Laura]]. While holding Puppins and conversating with [[Laura]], Logan told Wilson to give him the dog so that he could rekindle his relationship with [[Vanessa Carlysle]]. Wilson then turned toward Carlysle and the two shared a smile.{{Ref|DW}}
+
+===Working with the TVA===
+====Setting the Record Straight====
+{{Quote|I'm tired of these absolutely vile rumors that I got [[Human Torch/Void Analyzing Fantastic Four|Johnny]] killed. Let's look at the tape.|Deadpool|Deadpool & Wolverine}}
+Frustrated with people believing he lied to [[Cassandra Nova]] about what [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm]] said about Nova, Wilson used a [[TemPad]] to pull up footage from their conversation with Storm in order to set the record straight. The footage played on a [[Chrono Monitor]] as Storm said precisely what Wilson claimed he did. Satisfied, Wilson walked away.{{Ref|DW}}
+
+====New Coworker====
+{{Quote|My eyes are over here. There you go. Give yourself permission. Surrender to it. Slide into my DM. That's right, just lose ourselves in tangled sheets and bodies. We'll ignore each other at work for four or five days, and then we'll come back hungry.|Deadpool to the [[Hero of the Multiverse/Destiny Defying Multiverse Hero|Hero of the Multiverse]]|What If...? – An Immersive Story}}
+A [[Hero of the Multiverse/Destiny Defying Multiverse Hero|person]] in the [[Multiverse]] created a series of new timelines, attracting the attention of the [[Time Variance Authority]]. [[Miss Minutes]] decided to recruit the person and contacted Deadpool on a [[Chrono Monitor]], as Deadpool was being recruited to be the person's new coworker. Deadpool walked out of an elevator in the [[Time Variance Authority Office]]'s elevator. He showed off for his new coworker and did a flip, before posing and farting. Deadpool flirted with his new coworker, horrifying Miss Minutes. The Chrono Monitor then quickly turned off.{{Ref|WIAIS}}
+
+===Sacrifice on Svartalfheim===
+[[File:Future Deadpool (TVA Monitor).png|{{AltFloat}}|Deadpool looking at [[Thor]]]]
+{{Quote|Apparently, you have some important future purpose to serve."<br>"With [[Thor]]. He holds me.|[[Mr. Paradox]] and Deadpool|Deadpool & Wolverine}}
+Deadpool eventually found himself on [[Svartalfheim]] accompanied by [[Thor]]. Deadpool got very injured to the point where his mask was ripped in half. Thor looked down upon Deadpool mimicking himself [[2013|many years prior]] when [[Loki]] faked his death, and wept over Deadpool's body.{{Ref|DW}}{{Ref|ThorFuture}}
+
+==Personality==
+{{Quote|I mean, you are a ridiculous, immature half-wit moron. And I have never met a sadder, more attention-starved jabbering little prick in my life, and that says a lot 'cause I have been alive for more than 200 fucking years.|[[Wolverine]] to Deadpool|Deadpool & Wolverine}}
+Wade is maniacally comedic, sarcastic and has an extremely irreverent sense of humor that can easily irritate and annoy most of his enemies, and even some of his own allies and friends like [[Wolverine]]. He regularly insults and belittles his enemies for his own amusement. He also feels no shame and can make a joke out of any situation, even one that is not at all in his favor. He is also unable to act appropriately according to the situations at hand, exhibiting a poor ability of self-monitoring, exemplified when he used foul language in front of a family with children while selling cars, and provoking an already irritated Wolverine in the [[Void]]. Wilson is also highly arrogant to a fault, as he is unwilling to accept responsibility of his wrongdoings, self-proclaims to be the "prime" Deadpool while confronting the [[Deadpool Corps]], and thinks that he is the [[Glossary#A|Anchor Being]] of his [[Anchor Being Wolverine|reality]] when conversing with [[Mr. Paradox]]. Not only does Wade attack those around him with vulgar language, he often responds to others' insults with the same comedic sense of self-sarcasm. This is shown when he often uses a joke to respond to others' serious criticisms, even if it meant insulting himself. However, Wilson puts the line on those he genuinely care and love. He does not accept others' insults to them, as reflected in a rare occasion where he became serious and decided to fight Wolverine, putting their mission at risk, when Wolverine used extremely harsh language to insult not only Wade but also [[Vanessa Carlysle]], whom he called a "goddamn stripper." 
+
+However, beneath all his maniacal comedy and sarcasm, lies a tortured person who deeply cares for his friends and loved ones and desperately wants to matter in the world, even trying to join the [[Avengers]] to satiate the latter need, only to be rejected. The rejection eventually led Deadpool into a depressive spiral, culminating in a mid-life crisis where he gives up the superhero identity and resorts to a boring life as a car salesman. During this period of self-doubt, the love of his life, Vanessa, also broke up with him. This desire to matter and contribute to something meaningful is not absolute, as Wade is unwilling to give up on certain fundamental principles, which he sees as absolute and that he must follow whatever the circumstance. One of these principles is a strong sense to protect those he love and care about. His care for his friends was so great that he rejected the opportunity to join the [[Sacred Timeline]] offered by Paradox and sought to instead save his friends, even if it meant allying with a dejected Wolverine and going against Paradox, breaking his nose in a fit of rage. During Wade and [[Wolverine]]'s final confrontation with [[Cassandra Nova]], Wade was even willing to sacrifice himself to cause a short-circuit in the [[Time Ripper]], reflecting that he is willing to sacrifice himself to save those he love, and that he sees Wolverine genuinely as a friend after their adventures together. 
+
+Wade had wanted a team-up with Logan for many years. But while this wish finally became a reality when he was forced to partner with a reluctant Wolverine to save his reality, it was not all smooth sailing. Wade's irreverent sense of humour stood in stark contrast to the alternate Logan's no-nonsense attitude and hostility which was further augmented by Logan's dark past. This led them into multiple fights with each other and a number of exchanges of hurtful insults. But as Deadpool's love for his family moved Logan and led to Wolverine's self-redemption, Logan's actions had also changed Wade for the better. As Wade pointed out, the Logan that he saved had also saved him, in that the adventures with Wolverine had led to Wade finally contributing and actually meaning something. Following the [[Preservation of Earth-10005]], Wade has recovered his confidence and regained a sense of purpose, eventually leading to him having the courage to reconcile with Vanessa. 
+
+However, at times Wade had a tendency for inadvertently or intentionally causing the deaths of some people he familiarized himself with in a short time and who did not harm him in anyway, showing a complete lack of remorse. Instances include revealing [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm]]'s badmouthing and insulting of Cassandra Nova to the latter, leading to Storm's death. He also displayed a one-sided rivalry and hostility towards his variant [[Nicepool]], and intentionally got him killed by his other variants by using his body as a shield from their gunfire, soon taking the latter's pistols for his own use and also finally getting to own [[Dogpool]], which were his ultimate goals. On both instances, this behavior was reprimanded by Wolverine, even when he denied his own part in causing Storm's death. 
+
+==Powers and Abilities==
+===Powers===
+{{Quote|Motherfucker, I wish I could say you'll die alone, but it's one of God's best jokes that you can't die! Except that's on all of US!|[[Logan]] to Deadpool|Deadpool & Wolverine}}
+*'''Mutant Physiology''': Wilson was naturally born with mutant genes. However, his physiology was drastically altered after he survived experimentation, becoming deformed in the process and also awakening several special abilities.
+**'''Superhuman Strength''': Wilson's strength and endurance have been enhanced to superhuman levels, as he effortlessly broke [[Mr. Paradox]]'s nose with a headbutt. He also systematically broke off pieces of his [[Wolverine/Anchor Being Wolverine|Logan]]'s [[Adamantium]] skeleton as improvised weapons against TVA soldiers, and was even able to use the blunt ends of his bones to pierce their armor; in one instance, he impaled one soldier through his helmet and kicked it out the other side of his head. Throughout his fights against [[Wolverine]], Wilson was able to match his rival's equally superhuman physical strength, notably giving him a nosebleed with a single punch and even kicking him several meters through the windshield of [[Nicepool]]'s Honda Odyssey.
+**'''Superhuman Durability''': Wilson's durability and endurance have been enhanced to superhuman levels. Coupled with his regenerative factor, the extremely high level of durability meant that Deadpool could engage in fights with enemies for a very long period of time, as shown when he fought Wolverine in point-blank range without rest for a few hours.
+**'''Superhuman Speed''': Wilson can run very fast, as he and Wolverine were able to reach [[Cassandra Nova]]'s portal in four seconds before they could be consumed by [[Alioth]].
+**'''Superhuman Agility''': Wilson's agility and body coordination are enhanced well-beyond the natural physical limits of a common human being. 
+**'''Superhuman Stamina''': Wilson can exert himself for longer than anyone normal human, as he [[Duel in Ol' Betsy|fought]] [[Wolverine]] for the majority of a day in the confined space of [[Nicepool]]'s Honda Odyssey.
+**[[File:Deadpool & Wolverine Teaser Trailer (90).png|thumb|250px|Deadpool catching a magazine]]'''Superhuman Reflexes''': Wilson has superhumanly acute reflexes as a result of his artificial mutation. Hence, he can react quickly in a combat scenario, enough to keep pace with multiple [[Time Variance Authority|TVA]] soldiers, slice bullets mid air with his katanas (albeit with minimal success) and contend with [[Wolverine]]. In one instance, he caught two spare magazines with his pistols. He was able to catch an axe thrown at him while walking through a [[Timedoor]].
+**'''Enhanced Senses''': ''To be added''
+**'''Regenerative Healing Factor''': As a result of his artificial mutation, Wilson's body was enhanced and he developed extremely accelerated healing and regenerative powers. He can heal from any injury (both internal and external), such as bullet wounds, slashes, and other forms of cuts in seconds. For example, he could almost immediately realign his arm which was forcefully broken by Wolverine. He even managed to regrow lost organs and bodily parts, but those take more time to recover when compared to injuries that do not involve the loss of body parts.
+***'''Pain Suppression''': Due to his healing factor, his body can suppress the immense amount of pain caused during fights, which usually end with him seriously injured.
+**'''Nigh-Immortality''': Due to his regenerative capabilities, Wilson is immune to physical aging. He is also virtually impossible to kill and cannot be infected by any kind of disease.
+{{Quote|I smell what you're stepping in. Your little [[Marvel Cinematic Universe|cinematic universe]] is about to change forever.|Deadpool to [[Mr. Paradox]]|Deadpool & Wolverine}}
+*[[File:Deadpool & Wolverine Nice (7).png|thumb|250px|Deadpool pauses the [[Deadpool & Wolverine|movie]]]]'''4th Wall Awareness''': Deadpool possesses an awareness that he is a fictional character existing within a film franchise. This ability penetrates deeper into the real world than [[She-Hulk]], who is only able to access a lesser version of reality that mirrors the real world. Before he was given the offer to join the Sacred Timeline, Wilson was already aware of its existence. Wilson is not only aware of the existence of Marvel, the Fox X-Men, and Disney owned Marvel Cinematic Universe, he also understands and references the real life circumstances of their coexistence and is aware that his franchise has been acquired by Disney, even adhering to specific guidelines set by [[Kevin Feige]]. Wilson is aware of the existence of the [[Avengers]], [[Thor]], and [[Steve Rogers|Captain America]] despite their complete absence from his universe, mistaking a [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm]] variant for Steve Rogers, with whom he bears a striking, uncanny resemblance. Before encountering [[Alioth]], Wilson was already aware that it first appeared and existed in [[Journey Into Mystery|Loki, Season 1 Episode 5]]. This multiversal awareness extends beyond the aforementioned timelines as he was also aware of all the cinematic [[Hub:Frank Castle|Punishers]] that existed in other film franchises. Wilson understands that the people existing in his reality are characters portrayed by actors and is able to explain reasons for inconsistencies in his world due to budgetary or practicality constraints in the real world. Deadpool is also able to communicate his thoughts with the audience members watching his adventures and has been shown to be able to interact with the "cameraman" broadcasting his reality. This power also provides Wilson with limited precognition, giving him the ability to predict or foreshadow certain events that fit narratively within his story, as well as events that transpire in the real world. However, it is unknown if he possesses this ability at all times as he seemingly only uses this power for comedic effect, rather than for practical or logistical reasons.
+
+===Abilities===
+{{Quote|I'm gonna fight you now.|Wade Wilson to [[Wolverine]]|Deadpool & Wolverine}}
+*[[File:Deadpool & Wolverine Trailer (81).png|thumb|250px|Deadpool blocks a [[Minutemen|Minuteman]]'s attack]]'''Master Martial Artist''': Due to his special forces training, Wilson is highly skilled in unarmed combat. As a result of his unpredictable nature, Wilson is highly dangerous in combat. Wilson's overall fighting style incorporates {{WPS|Taekwondo}}, {{WPS|Boxing}}, {{WPS|Brazilian Jiu-Jitsu}}, and {{WPS|Niten Ichi-ryū}}. Wilson was able to kill several Minutemen with the adamantium bones of the former variation of [[Wolverine]]. He later engaged in duels against Wolverine several times; however, he was consistently outmatched by the latter due to his extensive combat experience.
+{{Quote|I'm not gonna give [[Minutemen|you]] my weapons. But I promise not to use [[Deadpool's Katanas|them]].|Wade Wilson to Minuteman Leader|Deadpool & Wolverine}}
+*[[File:Deadpool & Wolverine Trailer (89).png|thumb|250px|Deadpool blocks [[Wolverine]]'s strike]]'''Sword Mastery''': Wilson is a highly trained swordsman. His swords allow him to cut through several trained shooters with ease. He was able to kill several TVA Minutemen using his dual katanas. Wilson used his swordsmanship skills to fight against Wolverine, who only survived Wilson's multiple stab wounds due to his healing factor. He was able to kill the Minuteman leader by ricocheting one of his swords with a single strike.
+{{Quote|Baby knife!|Deadpool to [[Wolverine]]|Deadpool & Wolverine}} 
+*'''Knife Mastery''': Wilson is highly skilled at using knives in combat. He used a knife to stab [[Wolverine]] during both of their fights. Wilson also demonstrated knife-throwing skills, such as when he dug up Logan's corpse and used some of his bones as throwing projectiles to kill multiple TVA agents.
+*'''Nunchaku Mastery''': Wilson has demonstrated proficiency with nunchucks. After digging up [[Logan|Logan's]] corpse, Wilson used Logan's adamantium bones as a pair of nunchucks to kill multiple TVA Minutemen.
+{{Quote|Unless you want to take a deep breath through your fucking forehead, I suggest you reconsider.|Wade Wilson to [[Wolverine]]|Deadpool & Wolverine}}
+*'''Master Marksman''': Because of his special forces training, Wilson is highly proficient with firearms. Wilson typically prefers dual pistols while shooting in combat. He was able to shoot Wolverine and multiple members of the [[Deadpool Corps]] with great accuracy, all of whom only survived due to their healing factors. 
+*[[File:Deadpool & Wolverine -BestFriendsDay (16).png|thumb|250px|Deadpool dodges an attack]]'''Master Acrobat''': Wilson's enhanced reflexes and agility make him highly evasive and mobile in battle. He is capable of performing complex aerial movements while in combat. Using a variety of free-running and parkour maneuvers, Wilson is challenging to anticipate with his erratic and spontaneous movement.
+{{Quote|I know how to fuck people up for money, but you, you know how to save them.|Wade Wilson to [[Wolverine]]|Deadpool & Wolverine}}
+*'''Master Assassin''': Wilson is an extremely skilled assassin. His special forces training combined with his trait of talking too much gained him the nickname of "Merc with a Mouth." Wilson was able to kill several TVA Minutemen using only Logan's adamantium bones. 
+
+==Equipment==
+===Weapons===
+{{Quote|Keep my [[Canada|country]]'s name out of your fucking mouth! Any my [[Deadpool's Katanas|sword]]. Give me that.|Wade Wilson to Minuteman Leader|Deadpool & Wolverine}}
+*'''[[Deadpool's Katanas|Twin Katanas]]''': Wilson carries two katanas made of [[adamantium]] on his back created by the TVA. He used these swords to kill multiple Minutemen and fight against Wolverine. He later used these swords to fight against members of the [[Deadpool Corps]]. 
+{{Quote|And all I have to remember [[Nicepool|him]] by are these two gold plated 50 caliber hippie Desert Eagle pistolero's.|Deadpool to [[Wolverine]]|Deadpool & Wolverine}}
+*[[File:Deadpool with two golden guns.png|thumb|250px|Deadpool wielding [[Nicepool]]'s {{WPS|Desert Eagle}} pistols]]'''{{WPS|Desert Eagle|Desert Eagle Mark XIX}}''': Wilson uses a pair of .50 AE pistols when operating as Deadpool. He utilized these pistols while fighting Wolverine. After [[Nicepool|Nicepool's]] death, he used his pair of gold plated Desert Eagle pistols to fight against the [[Deadpool Corps]] with Wolverine.
+*'''Baby Knife''': Wilson carries a combat knife holstered in his right boot, which he dubbed as “Baby Knife.” Wilson used it to fight against Wolverine.
+*'''Punch Daggers''': Wilson carries a pair of punch daggers, which he used to fight against Wolverine. The punch daggers are more commonly used in close-quarters combat in case the twin katanas are less effective, such as in his fight with Wolverine in the Honda Odyssey.
+*'''[[Wolverine/Anchor Being Wolverine|Wolverine]]'s Corpse''': In an effort to salvage the anchor being of his universe, that being Wolverine, Wilson exhumed his body from its resting place near the Canadian border only to find it completely skeletonized. Confronted by the [[Time Variance Authority|TVA]]'s [[Minutemen]], he improvised weapons using Wolverine's bones, such as nunchucks, maces, throwing "stars," and gauntlets bearing his claws, using their [[adamantium]] composition to his advantage.
+
+===Other Equipment===
+{{Quote|So what made you finally wear an honest to god [[Wolverine Suit|costume]]? [[Deadpool Suit|Mine]]'s red so they can't see me bleed. But I can see how yellow would be useful too.|Wade Wilson to [[Wolverine]]|Deadpool & Wolverine}}
+[[File:Deadpool.jpg|thumb|250px|Wilson in his new suit]]
+*'''[[Deadpool Suit]]''': Wilson wears a red and black suit when operating as the mercenary Deadpool to hide his disfigured form. Wilson designed the suit to be red so that his enemies wouldn't be able to tell if he was bleeding when he got injured. After being taken from his reality by [[Paradox]], Wade received an upgraded version of his costume with a brighter red and bright black.
+
+===Former Equipment===
+{{Quote|Is this because I used {{WPS|Cable (character)#Film|Cable}}'s [[Cable's Time-Travel Device|time machine]]? I brought a couple of people back to life and then I destroyed it.|Wade Wilson to [[Mr. Paradox]]|Deadpool & Wolverine}}
+*'''[[Cable's Time-Travel Device]]''': Wade used a time-travel device owned by {{WPS|Cable (character)#Film|Cable}} to reverse the deaths of his now ex-fiancée [[Vanessa Carlysle]], alongside two members of the {{WPS|X-Force#Film|X-Force}}, [[Peter Wisdom]] and [[Shatterstar]]. He later used it to kill a [[Weapon XI|variant]] of himself before that variant could fight against [[Wolverine/Anchor Being Wolverine|Wolverine]] and [[Ryan Reynolds]] before he could sign for {{WPS|Green Lantern (film)|Green Lantern}}. He also used the device to visit the [[Sacred Timeline]] in an attempt to join the [[Avengers]] but was ultimately turned down, leading him into a depressive spiral that led to the device being destroyed.
+*'''[[TemPad]]''': Wade used a TemPad that he stole from [[Paradox]] after learning about his plan to speed up his world's destruction, leading him on a mission to find a Wolverine that can become his world's new anchor being. The TemPad was lost after Deadpool was pruned by Mr. Paradox into the Void.
+
+==Facilities==
+*'''[[Wade Wilson's Apartment]]''': Wade currently resides in an apartment located in [[New York City]].
+*'''[[Drive Max]]''': Wade formerly worked at Drive Max after being rejected from joining the [[Avengers]] by [[Happy Hogan]]. Upon teaming up with a [[Wolverine|variant]] of [[Wolverine/Anchor Being Wolverine|Wolverine]], he quit his job and returned as Deadpool.
+*'''[[Time Variance Authority Office]]''': Wade was brought to the Time Variance Authority by [[Paradox]], per his superior's requests, as they believed he's special and is needed in battling against a "grizzly fate sometime in the future". After the crisis revolving the [[Time Ripper]] was resolved, Wade continued to work for the TVA.
+
+==Relationships==
+{{Col-begin}}{{Col-2}}
+===Allies===
+*[[Buck]] - Friend
+*[[Vanessa Carlysle]] - Ex-Fiancée and Love Interest
+*[[Blind Al]] - Friend and Roommate
+*[[Dopinder]] - Friend
+*[[X-Men/Anchor Being Wolverine|X-Men]] - Former Teammates
+**[[Colossus|Piotr Rasputin/Colossus]] - Friend
+**[[Negasonic Teenage Warhead|Ellie Phimister/Negasonic Teenage Warhead]] - Friend
+**[[Yukio]] - Friend
+**[[Wolverine/Anchor Being Wolverine|Logan/Wolverine]] † - Idol
+*{{WPS|X-Force#Film|X-Force}} - Former Teammates
+**[[Shatterstar|Rusty/Shatterstar]] - Friend
+**{{WPS|Cable (character)#Film|Nathan Summers/Cable}} - Situational Enemy and Friend 
+*[[Drive Max]] - Former Co-Workers
+**[[Peter Wisdom]] - Best Friend, Former Teammate and Former Colleague
+*[[Stark Industries]]
+**[[Happy Hogan]]
+*[[Tammy Chipman]] - Customer
+*[[Mr. Chipman]] - Customer
+*[[Elliot Chipman]] - Fan
+*[[Kevin Chipman]]
+*[[Wolverine|Logan/Wolverine]] - Former Enemy and Close Friend
+*[[Dogpool|Mary Puppins/Dogpool]] - Alternate Self and Pet
+*[[Resistance]] - Former Teammates
+**[[X-23|Laura/X-23]] - Friend
+**[[Elektra/Forgotten Elektra|Elektra]]
+**[[Blade/Universe Defender Blade|Eric Brooks/Blade]]
+**[[Gambit|Remy LeBeau/Gambit]]
+**[[Human Torch/Void Analyzing Fantastic Four|Johnny Storm/Human Torch]] † - Indirect Victim
+*[[Time Variance Authority]] - Former Enemies
+**[[B-15]]
+**[[Ralph (TVA)|Ralph]] - Fan
+**[[Miss Minutes]]
+**[[Hero of the Multiverse/Destiny Defying Multiverse Hero|Hero of the Multiverse]]
+*[[Thor]] - Future Friend and Ally{{Ref|ThorFuture}}
+{{Col-2}}
+
+===Enemies===
+*[[Ajax|Francis Freeman/Ajax]] † - Victim
+*[[Sergei Valishnikov]] † - Victim
+*[[Weapon XI|Wade Wilson/Weapon XI]] † - Alternate Self and Victim
+*[[Ryan Reynolds]] † - Victim
+*[[Mr. Paradox]]
+*[[Minutemen]]
+*[[Comic Accurate Wolverine|Logan/Wolverine]]
+*[[Patch|Logan/Patch]]
+*[[Weapon X|Logan/Weapon X]]
+*[[Old Man Logan|Logan/Wolverine]]
+*[[Crucified Wolverine|Logan/Wolverine]]
+*[[Classic Suited Wolverine|Logan/Wolverine]]
+*[[Cavillrine|Logan/Cavillrine]]
+*[[Hulk/Classic Suited Wolverine|Bruce Banner/Hulk]]
+*[[Cassandra Nova's Henchmen]]
+**[[Cassandra Nova]] † - Attempted Killer and Victim
+**[[Pyro|John Allerdyce/Pyro]] †
+**[[Sabretooth|Victor Creed/Sabretooth]] †
+**[[Toad|Mortimer Toynbee/Toad]] †
+**[[Azazel]] †
+**[[Callisto]] †
+**[[Juggernaut|Cain Marko/Juggernaut]] †
+**[[Lady Deathstrike|Yuriko Oyama/Lady Deathstrike]] †
+**[[Psylocke|Betsy Braddock/Psylocke]] † 
+**[[Blob|Fred Dukes/Blob]] †
+**[[Arclight|Phillipa Sontag/Arclight]] †
+**[[Bullseye/Faithful Elektra|Lester/Bullseye]] †
+**[[Russian|Ivan/Russian]] †
+**[[Quill]] †
+*[[Alioth]] - Attempted Killer
+*[[Nicepool|Wade Wilson/Nicepool]] † - Alternate Self, Rival, and Indirect Victim
+*[[Deadpool Corps]] - Alternate Selves
+**[[Ladypool|Wanda Wilson/Ladypool]]
+**[[Kidpool|Wanda Wilson/Kidpool]]
+**[[Headpool|Wade Wilson/Headpool]]
+**[[Babypool|Wade Wilson/Babypool]]
+**[[Golden Age Deadpool|Fredrick Wilson/Golden Age Deadpool]]
+**[[Cowboypool|Wade Wilson/Cowboypool]]
+**[[Deadpool 2099|Warda Wilson/Deadpool 2099]]
+**[[Welshpool|Wade Wilson/Welshpool]]
+**[[Zenpool|Wade Wilson/Zenpool]]
+**[[Canadapool|Wade Wilson/Canadapool]]
+**[[Scottishpool|Wade Wilson/Deadpool]]
+**[[Piratepool|Wade Wilson/Deadpool]]
+**[[Fool|Watari/Fool]]
+**[[Kingpool|Wade Wilson/Kingpool]]
+**[[Richpool|Wade Wilson/Richpool]]
+**[[Shortpool|Wade Wilson/Shortpool]]
+**[[Frenchpool|Wade Wilson/Frenchpool]]
+**[[Haroldpool|Wade Wilson/Haroldpool]]
+{{Col-end}}
+
+==Trivia==
+*In the comics, Wade Wilson became a test subject of Weapon X program scientist {{WPS|Emrys Killebrew|Dr. Killbrew}} and his assistant {{WPS|Ajax (Francis Freeman)|Francis Fanny}} to cure his cancer. He was injected with a serum developed from [[Wolverine]]'s DNA, causing him to develop a healing factor that saved his life but horribly mutated him and drove him insane, leading Wilson to adopt the moniker of Deadpool and turn into a comedic mercenary. Despite being associated with [[mutants]], he's not a mutant (''Homo Superior'') himself, but a mutate or enhanced [[Humans|human]].
+*Deadpool is the fifth character in the [[Marvel Cinematic Universe]] to break the {{WPS|fourth wall}}, after [[Groot]], [[Pizza Poppa]], [[She-Hulk]] and [[Rocket Raccoon]].
+**Unlike the first two, Deadpool is the second character to break the fourth wall on a regular basis, following She-Hulk.
+*The muzzles on Deadpool's twin pistols read ''"Smile"'' and ''"Wait for the Flash."''
+*Deadpool being offered to join The Avengers and meeting with Happy Hogan in “Deadpool and Wolverine” confirms the X-Men Cinematic Universe is another world within in the MCU multiverse. 
+
+==Behind the Scenes==
+*Deadpool in the [[Marvel Cinematic Universe]] continues the live-action incarnation of the character from {{WPS|20th Century Studios|20th Century Fox}}'s {{WPS|X-Men (film series)|''X-Men'' film series}}, who was portrayed by [[Ryan Reynolds (actor)|Ryan Reynolds]]. 
+**He was also portrayed by [[Scott Adkins]] as [[Weapon XI]] in ''{{WPS|X-Men Origins: Wolverine}}''.
+*[[Taika Waititi]] initially wanted Deadpool to appear in ''[[Thor: Ragnarok]]''. However, this was not allowed, as the film was made prior to {{WPS|The Walt Disney Company}}'s {{WPS|Acquisition of 21st Century Fox by Disney|acquisition}} of {{WPS|20th Century Fox}}.<ref>[https://screenrant.com/thor-ragnarok-deadpool-crossover-mcu/ Thor: Ragnarok Director Wishes He Could Use Deadpool]</ref>
+*One of the concept artworks for ''[[Shang-Chi and the Legend of the Ten Rings]]'' featured Deadpool fighting [[Proxima Midnight]] at the [[Golden Daggers Club]] arena.<ref>[https://www.andrewkimart.com/#/new-gallery-1/ Andrew Kim Art]</ref>
+*There were talks about possibly including Deadpool in ''[[Doctor Strange in the Multiverse of Madness]]'' according to writer [[Michael Waldron]], but the filmmakers ultimately agreed that the film was not the ideal place to introduce Deadpool and thus scrapped his inclusion.<ref>[https://comicbook.com/marvel/news/doctor-strange-2-writer-michael-waldron-confirms-deadpool-cameo/ Doctor Strange 2 Writer Confirms They Talked About a Deadpool Cameo (Exclusive)]</ref>
+*To keep the film's tone from not taking seriously the rest of the cast, director [[Shawn Levy]] opted to have Deadpool as the only character who can break the {{WPS|fourth wall}}, not wishing to undermine [[Wolverine]] as the deuteragonist or [[Cassandra Nova]] as the antagonist.<ref>[https://www.vanityfair.com/hollywood/story/deadpool-wolverine-ryan-reynolds-hugh-jackman-shawn-levy ''Deadpool & Wolverine'': Inside the Superhero Movie That Plays Rough]</ref>
+*[[Alex Kyshkovych]] and [[Erol Ismail]] were stunt doubles for [[Ryan Reynolds (actor)|Ryan Reynolds]] in the role of Deadpool.
+*[[John King]] was a stand-in and double for [[Ryan Reynolds (actor)|Ryan Reynolds]] in the role of Deadpool.
+
+==References==
+{{Gallery|Deadpool/Gallery}}
+{{Wq}}
+{{Reflist}}
+
+==External Links==
+*{{Marvel}}
+*{{Marvel|Wade Wilson (Earth-TRN414)}}
+*{{WP}}
+
+[[es:Wade Wilson]]
+[[pt-br:Deadpool]]
+
+[[Category:Characters]]
+[[Category:Deadpool & Wolverine Characters]]
+[[Category:Video Games Characters]]
+[[Category:Mutants]]
+[[Category:Males]]
+[[Category:Brown Hair]]
+[[Category:No Hair]]
+[[Category:Brown Eyes]]
+[[Category:Mercenaries]]
+[[Category:Vigilantes]]
+[[Category:Heroes]]
+[[Category:Drive Max Employees]]
+[[Category:Resistance Members]]
+[[Category:LGBTQIA+ Characters]]
+[[Category:High Body Count]]
+[[Category:Time-Travelers]]
+[[Category:X-Men Members/Anchor Being Wolverine]]

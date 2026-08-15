@@ -119,7 +119,7 @@ recovery, run two different inputs to prove the plan isn't hardcoded.
 
 ---
 
-## 5. Chosen project — fandom wiki maintainer agent
+## 5. Chosen project — wiki maintainer agent
 
 **Audience:** wiki maintainers (the "fans" lane, read as *people whose job is fans*).
 
@@ -131,6 +131,42 @@ Sources contradict each other. Maintaining this by hand is slow and error-prone.
 is honest rather than bolted on. Runner-up: ClickHouse (as a claim/provenance store).
 
 ### Key framing decisions
+
+**Wiki-agnostic by design — decided Aug 15, 2026.** The product is not a *Deadpool &
+Wolverine* demo. It is an agent any wiki maintainer can point at their own wiki: give it an
+endpoint and a profile, and it maintains their pages. D&W is the demo instance, not the
+product.
+
+This is cheaper than it sounds, because **MediaWiki is the common denominator** — it powers
+Wikipedia, all of Fandom, and thousands of independent wikis, all exposing the same
+`api.php`. Verified Aug 15, 2026: the existing `MediaWikiReader` pulled live *and* 2024
+historical revisions from Wikipedia, MCU Fandom, Star Wars Fandom and Memory Alpha with **no
+code changes** — only a different `api_url`. The read layer already generalizes.
+
+What does *not* generalize is everything that encodes one wiki's conventions, and those are
+currently hardcoded:
+
+| Varies per wiki | Today | Elsewhere |
+|---|---|---|
+| Title conventions | `/` splits a variant subpage | Wikipedia disables mainspace subpages — `AC/DC` is a real 202KB article our parser splits into `AC` + `DC` |
+| Section vocabulary | no Box office / Reception anywhere | Wikipedia has all three, so §5's "that claim has no home" reasoning inverts |
+| Source tiers | entertainment trade press | meaningless on a medical or software wiki |
+| Licence | Fandom CC BY-SA 3.0 | Wikipedia CC BY-SA 4.0 — different attribution |
+| Write policy | our own instance | Wikipedia needs Bot Approval Group sign-off; stricter, not looser |
+
+So the architectural unit is a **wiki profile**: endpoint, title grammar, section vocabulary,
+tier table, licence, auth. The agent core stays wiki-agnostic and reads the profile. Anything
+wiki-specific that leaks into the core is the bug (`AGENTS.md` §2).
+
+**Build general, demo specific.** Generality is proved by a second profile running as a smoke
+test, not by a broader video. The 3-minute demo still runs entirely on D&W, because a concrete
+story about one page beats an abstract claim about all wikis — and §9's beats depend on
+specific, verified staleness that only exists on a real instance.
+
+**On MCP.** MCP is a *transport* for reaching a wiki, not the interface itself. Support it
+where a wiki offers one, but `api.php` is the fallback and the default, because it is what
+actually exists on every MediaWiki today — and `CLAUDE.md` §3 requires every external source
+to have a deterministic fallback. A profile names its transport; the core does not care which.
 
 **No source of truth exists, and that's the point.** Wikis run on *verifiability*, not
 truth. The agent's output is a **sourced claim with a confidence level and a citation**,
@@ -149,9 +185,11 @@ logic the agent reasons over.
 
 Gemini has no web access of its own. It processes what it's handed; it doesn't fetch.
 
-**Use your own MediaWiki instance** on Cloud Run, seeded with pages. Never write to the
-real Fandom wiki — unsanctioned bot edits get banned. Judges care that you write to real
-state, not whose.
+**Use your own MediaWiki instance** on Cloud Run, seeded with pages. Never write to *any*
+real wiki — unsanctioned bot edits get banned, and Wikipedia is stricter than Fandom, not
+looser: automated editing there needs Bot Approval Group sign-off. Judges care that you write
+to real state, not whose. Generalising the product widens what the agent can *read*; it does
+not widen what it may write.
 
 **Section-level edits, never full-page rewrites.** Full rewrites get reverted by wiki
 communities and are unreadable in a 3-minute video. A diff view with per-change citations
@@ -245,15 +283,19 @@ Give it one sentence in the writeup: *"at production scale, Monitor would replac
 polling loop for high-velocity claims."* Reads as good scoping.
 
 ### Claims mature in waves
-| When | What stabilises |
-|---|---|
-| Day 0 | Cast, runtime, release date, official synopsis |
-| Week 1 | Plot, ending, character fates, reception (spoiler policy applies) |
-| Month 1–3 | Box office, home release, reshoot/deleted-scene reporting |
-| Month 6+ | Awards, retcons from later installments |
+Not the film's commercial lifecycle — this wiki does not track that (`seed-plan.md` §8).
+What moves a claim is another release or another announcement.
+
+| Wave | What moves it | Settles |
+|---|---|---|
+| Settled | nothing | immediately; decays to the 6-month ceiling in two runs |
+| In-universe, slow | a later installment retcons it | rarely |
+| Release-driven | a new film or series ships | re-tested each release, then quiet |
+| Announcement-driven | casting and slate reporting | never fully — this is where `unresolved` lives |
 
 So the question is never "is there enough data yet" — it's "which claims have enough data
-*right now*," which the confidence threshold already answers.
+*right now*," which the confidence threshold already answers. Claim counts per wave and the
+mapping onto the 50-claim set are in `seed-plan.md` §3.
 
 ### Unresolved-claim revisit queue
 When the agent can't adjudicate, it writes `status: unresolved` plus the objective it was
@@ -267,21 +309,27 @@ behaviour in the design** — an agent that knows what it doesn't know yet and c
 Don't monitor the web. Monitor **the sources that carry the claims your page depends on** —
 derived per claim from the sources already recorded in the ledger. Self-maintaining.
 
-- Box office → Box Office Mojo, The Numbers
-- Cast/crew → TMDB, official credits
-- Awards → awarding bodies
-- Plot/canon → trade press, official studio channels
-- Production news → Variety, THR, Deadline
+- Cast/crew and role identification → TMDB, official credits
+- Casting and slate announcements → Variety, THR, Deadline
+- Plot/canon and retcons → trade press, official studio channels
+- Production news → Variety, THR, Deadline, studio principals' own accounts (lowest tier)
+- Release dates and slate composition → studio announcements, trade press
+- **Later installments themselves** → the release of a new film is the event that re-tests
+  every cross-reference on the page (`seed-plan.md` §3, release-driven wave)
 
 ~12 domains covers most of a page. Plus one periodic broad Parallel search
 ("significant developments regarding [film] since [date]") for recall.
 
+**Box office and awards bodies are not monitored.** MCU Wiki records neither, on any film
+page — see `seed-plan.md` §8. Dropping them is a scope decision derived from the target
+wiki's conventions, not an omission.
+
 **Twitter: cut it.** Expensive/restricted API, bad signal-to-noise, weak wiki citation.
 Say so explicitly — it reads as editorial judgment, not omission.
 
-**Recheck the claim, not the source.** "Has the reported worldwide gross changed?" is one
-call answering one question. Most claims never move and decay to a 6-month interval within
-a couple of runs.
+**Recheck the claim, not the source.** "Has Channing Tatum's Gambit been cast in a further
+film?" is one call answering one question. Most claims never move and decay to a 6-month
+interval within a couple of runs.
 
 **Hackathon scope: one wiki, one film, ~12 source domains, ~50 tracked claims.**
 
@@ -289,12 +337,20 @@ a couple of runs.
 
 ## 9. Demo video plan (3 min max)
 
+Beat order follows `seed-plan.md` §4, which names the specific claim behind each.
+
 1. Audit picks ~14 claims out of ~300 — and says why
-2. One claim where two sources disagree; agent goes back out for a third
-3. Diff queue with citations and confidence badges
-4. **Break something live** — revoke the Parallel key, or edit the page underneath it —
+2. **The cascade** (§4.1): one confirmed announcement lands on three pages at once. Opens the
+   video because it reads in seconds
+3. **The claim that broke without an edit** (§4.2): a link that was right in 2024 and now
+   points at the wrong character, because a later film took the name. No page diff would
+   surface it — this is the case for the product
+4. Diff queue with citations and confidence badges
+5. **Break something live** — revoke the Parallel key, or edit the page underneath it —
    and show recovery
-5. Optionally: run twice on the same film (restricted vs full source set) to show
+6. **Close on the refusal** (§4.5): two credible outlets disagree, and the agent declines to
+   resolve it, marking `unresolved` and queueing a revisit. The most trustworthy thing it does
+7. Optionally: run twice on the same film (restricted vs full source set) to show
    confidence moving
 
 ---
@@ -305,18 +361,71 @@ a couple of runs.
       once to be certain; it's the one blocker that invalidates everything else
 - [x] Request $100 GCP credits — requested Aug 11, 2026
 - [x] Pick the demo film — Deadpool & Wolverine. See `seed-plan.md`
-- [ ] Pull the 2024-08-09 seed wikitext from MCU Wiki revision history (`seed-plan.md` §1).
-      Do early — the nearest revision may not exist, and heavy templating would complicate
-      section-level edits
+- [x] Pull the 2024-08-09 seed wikitext from MCU Wiki revision history — done Aug 15, 2026.
+      Revision `2019481` (2024-08-08T23:57:40Z, 50,454 bytes), 17 minutes inside the freeze
+      date. Templating worry closed: 15 distinct templates, nine clean `==` sections, so
+      section-level edits work. Mechanics in `seed-plan.md` §7
+- [x] Commit the whole seed corpus — done Aug 15, 2026. `snapshots/` holds both states of all
+      12 pages (seed + live) with a manifest carrying `revid`, `sha256`, size and drift.
+      Rebuilt by `scripts/pull_snapshots.py`; the seed side reproduces byte-for-byte and the
+      test suite re-hashes it, so a corrupted fixture fails the gate. Every drift figure in
+      `seed-plan.md` §2 was reproduced by the pull
+- [x] Rebuild the claim set on evidence — done Aug 15, 2026. The original six carrying claims
+      assumed box-office, budget and awards data that MCU Wiki does not record on any film
+      page. Replaced with six verified-stale claims; reasoning in `seed-plan.md` §8, new set
+      in §4
 - [x] Read the Parallel sub-page under Phase 3 — done Aug 11, 2026. Grounding is optional;
       the `parallel-web` SDK alone satisfies the track. See §5
 - [x] Decide Gemini backend — **Enterprise Agent Platform (ADC), no API key.** Verified
       Aug 11, 2026. Rules permit either; credits apply to the platform path and IAM keeps a
       key out of the public repo. See §12 for the verified call shape
-- [ ] Draft the claim ledger schema — every other interface falls out of it.
-      Fields now derivable from `seed-plan.md` §6
-- [ ] Define ADK tool signatures
-- [ ] Stand up seeded MediaWiki on Cloud Run
+- [x] Draft the claim ledger schema — done Aug 15, 2026. `src/continuity/ledger/`: the `Claim`
+      record with `claim_kind` and `entity_ref`, the domain→tier table with deterministic
+      confidence, and the double/halve/clamp decay logic. Dependency-free and frozen; 31 tests
+      pass, mypy strict and ruff clean
+- [x] Establish the verification gate — done Aug 15, 2026, with the first module. Commands in
+      `AGENTS.md` §5
+- [ ] **Build the wiki profile** — endpoint + transport, title grammar, section vocabulary,
+      tier table, licence, auth (§5). Lifts the hardcoded Fandom assumptions out of the core:
+      `EntityRef.from_title`'s `/` split and `ledger/tiers.py`'s trade-press table are both
+      wiki-specific today. Ship two profiles (MCU Fandom, one Wikipedia) so "plug and play" is
+      demonstrated rather than asserted
+- [ ] Define ADK tool signatures — Parallel search, MediaWiki read (built), MediaWiki
+      section-write, ledger read/write. All take the profile; none hardcode a wiki
+- [ ] Build the 6-stage ADK graph — nodes, the two backward edges, and the publish gate as
+      the HITL pause (§6, `AGENTS.md` §7)
+- [ ] Build the ledger persistence adapter — Firestore, importing *from* the pure core
+- [ ] Stand up seeded MediaWiki on Cloud Run — create the 12 pages from `snapshots/seed/` via
+      `action=edit`. Redirects are already resolved in the manifest, and `Special:Export` /
+      `importDump.php` is not an option (Cloudflare), so the seeding script posts the wikitext
+- [ ] **Build the review queue frontend — this is the hosted project URL**, which is pass/fail
+      (§2: "a concept or tech demo alone fails"), and Design is one of four equally weighted
+      judging criteria, so it carries real score rather than being plumbing. Two surfaces:
+      the **queue** — each drafted edit with its diff, citations, confidence badge and
+      approve/reject, which is the §6 publish gate made visible — and a **ledger view** over
+      the 50 claims showing status, wave and next check, which is what demonstrates the agent
+      is stateful rather than a prompt chain. Now also the surface where **plug-and-play**
+      becomes visible: a wiki picker or profile input, so a judge sees the agent pointed at a
+      wiki rather than wired to one (§5).
+      *What does not need building:* MediaWiki renders wiki pages and native `?diff=` views
+      itself, so link through to the seeded instance instead of reimplementing page display
+- [ ] Deploy and confirm the hosted URL is publicly reachable, unauthenticated, on web
+- [ ] Add a build step to the verification gate, in the same task as the frontend
+      (`AGENTS.md` §5)
+- [x] Pin the Fandom CC BY-SA version — done Aug 15, 2026. **CC BY-SA 3.0 Unported**, from
+      the wiki's own `Project:Copyrights` (revision 3728), since `siprop=rightsinfo` reports it
+      unversioned and the licensing page is JS-rendered. Notice written:
+      `snapshots/ATTRIBUTION.md`. Share-alike carries onto the agent's own edits
+- [ ] Pick the specific contested cameo for `seed-plan.md` §4.5 at ledger-seed time — it has
+      to be one that is genuinely split in trade reporting that week
+- [ ] Write `README.md` — setup, commands, routes, env vars (`CLAUDE.md` §2)
+- [ ] Submission artifacts — ≤3-min video per the §9 beats, text description (features, tech,
+      data sources, findings), and confirm the repo is public with the MIT licence detectable
+      in the About section (§2)
+
+**23 days left** as of Aug 15, 2026. The deterministic core and the seed corpus are real and
+verified; what remains is the vendor perimeter — ADK graph, Parallel, wiki writes, frontend.
+The build is the risk now, not the plan.
 
 ---
 

@@ -1,0 +1,144 @@
+{{AltUniverse|3=Characters}}
+{{Character
+|image = Gambit Infobox.png
+|real name = Remy {{Conjecture|Etienne}} LeBeau{{Ref|DW}}
+|alias = {{Alias
+|codenames = Gambit{{Ref|DW}}
+|nicknames = Le Diable Blanc<ref name="Devil"/>{{Ref|DW}}}}
+|species = [[Mutant]]
+|gender = Male
+|affiliation = [[Resistance]] <small>(formerly)</small>
+|movie = ''[[Deadpool & Wolverine]]''<br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small>
+|actor = [[Channing Tatum]]
+|status = Alive}}
+{{Quote|The name's Remy LeBeau. Le diable blanc.<ref name="Devil">Translates from Cajun/Creole French to "''The White Devil.''"</ref> But you can call me the Gambit.|Gambit to [[Deadpool]]|Deadpool & Wolverine}}
+'''Remy {{Conjecture|Etienne}} LeBeau''' is a [[mutant]] with the ability to manipulate kinetic energy, displaying a talent for card throwing and using a [[Gambit's Bō Staff|bō staff]]. Having eventually taken the name '''Gambit''', he was banished to the [[Void (End of Time)|Void]] by the [[Time Variance Authority]], where he joined the [[Resistance]] to battle [[Cassandra Nova]] and [[Cassandra Nova's Henchmen|her forces]]. He and his team forged an alliance with [[Deadpool]] and [[Wolverine]] to defeat Cassandra and escape the Void.
+
+==Biography==
+{{MD|Remy LeBeau (Earth-TRN1401)}}
+===Banished to the Void===
+====Life in the Void====
+{{Quote|Maybe I was born [[Void (End of Time)|here]], it's hard to know for sure.|Gambit|Deadpool & Wolverine}}
+Remy LeBeau resided in the [[Void (End of Time)|Void]] as a kinetic energy manipulative [[mutant]] dubbed Gambit with no knowledge of his prior life. While in the Void, Gambit affiliated himself with the [[Resistance]], a group of heroes that opposed the rule of oppressive omega-level mutant [[Cassandra Nova]] and her [[Cassandra Nova's Henchmen|henchmen]]. Gambit took residence at the Resistance's [[Hero Hideout|hideout]], where he amassed a collection of liquor. Gambit later fought alongside the Resistance members in battle against Nova and her forces, and witnessed the deaths of [[Quicksilver/Earth-10005|Quicksilver]], [[Punisher/AT4 Owner Punisher|Punisher]], [[Daredevil/Forgotten Elektra|Daredevil]] and [[Magneto/Earth-10005|Magneto]].{{Ref|DW}}
+
+====Meeting Deadpool and Wolverine====
+[[File:Gambit meets Deadpool.png|{{AltFloat}}|Gambit encounters [[Deadpool]] in the [[Hero Hideout|hideout]]]]
+{{Quote|They call me the Gambit."<br>"Do they? You sure you didn't just really, really want them to, but it {{WPS|Gambit (unproduced film)|never quite worked out}}?|Gambit and [[Deadpool]]|Deadpool & Wolverine}}
+[[X-23]] came across an unconscious [[Deadpool]] and [[Wolverine]] close to the borderlands, so she brought them to the [[Hero Hideout]]. Gambit joined [[Elektra/Forgotten Elektra|Elektra]] and [[Blade/Universe Defender Blade|Blade]] to greet the new arrivals. Deadpool addressed Gambit, referring to him as the "superhero version of [[Hawkeye]]." Gambit introduced himself to Deadpool, who couldn't understand him.
+[[File:Remy the Gambit.png|{{AltFloat}}|Gambit notices [[Wolverine]] drinking his liquor]]
+Gambit noticed Wolverine drinking from his liquor collection, so he charged a card and threw it at the bottle he was holding, destroying it. Deadpool questioned Gambit about his abilities, demeaning it as close-up magic. After X-23 joined them, the Resistance explained how they all ended up in the [[Void (End of Time)|Void]], with Gambit noting that he could not remember his past. Deadpool revealed that he had been inside [[Cassandra Nova]]'s [[Cassandra Nova's Lair|lair]], which the Resistance did not believe. 
+[[File:Remy LeBeau.jpg|{{AltFloat}}|Gambit learns about [[Human Torch/Void-Analyzing Fantastic Four|Human Torch]]'s fate]]
+Gambit mentioned those who had been killed by Nova, and brought up that [[Human Torch/Void-Analyzing Fantastic Four|Human Torch]] had gone missing. Deadpool revealed that he knew Human Torch, but when Wolverine disclosed that he was dead because of Deadpool, Gambit threateningly charged a card, demanding to know what happened to Human Torch. Deadpool explained that Nova killed Human Torch, and then tried to motivate the Resistance to help him save his [[Earth-10005|world]]. Elektra believed that they had a chance to get inside Nova's lair and defeat her once and for all, but Gambit felt that it would only result in all of their deaths.
+[[File:Gambit born ready.png|{{AltFloat}}|Gambit motivated by [[Deadpool]] to fight back]]
+The group discussed using [[Juggernaut]]'s [[Juggernaut's Helmet|helmet]] to block Nova's telepathic powers, although Gambit noted that the only way to obtain the helmet would be to remove Juggernaut's head. Deadpool once again criticised Gambit's accent, joking that his dialect coach was the {{WPS|Minions (Despicable Me)|Minions}}. The Resistance decided to join Deadpool in fighting back against Nova, with Gambit vulgarly describing how he is ready for the upcoming battle, although Wolverine thought they were all going to die.{{Ref|DW}}
+
+====[[Assault on Cassandra Nova's Lair]]====
+[[File:Resistance Riders.png|{{AltFloat}}|The [[Resistance]] near [[Cassandra Nova]]'s [[Cassandra Nova's Lair|lair]]]]
+{{Quote|You know how long I've been waiting for this? Whoo! I'm about to make a name for myself here.|Gambit|Deadpool & Wolverine}}
+The next day, the [[Resistance]], joined by [[Deadpool]] and [[Wolverine]] headed out to make their assault on [[Cassandra Nova]]'s [[Cassandra Nova's Lair|compound]]. As they made their approach, Gambit commented on the difficulty of getting inside, although Deadpool thought he was talking about removing [[Juggernaut]]'s [[Juggernaut's Helmet|helmet]]. Gambit passed [[Blade/Universe Defender Blade|Blade]] a {{WPS|AT4|rocket launcher}}, which he used to destroy the entrance, allowing the Resistance to get inside.
+[[File:Resistance Assemble.png|{{AltFloat}}|Gambit with the [[Resistance]] before the fight]]
+Getting out of the [[Ol' Betsy|car]], the Resistance were immediately surrounded by all of Nova's [[Cassandra Nova's Henchmen|henchmen]]. As they stood together, Gambit declared that he was finally going to make a name for himself from this battle, but Wolverine commented that they were all going to die. Gambit simply told Wolverine to make sure people knew about their efforts once they escaped the [[Void (End of Time)|Void]], and requested that he had a drink in his honor. The two sides then charged at each other.
+[[File:Bloody explosion.png|{{AltFloat}}|Gambit manages to kill multiple [[Cassandra Nova's Henchmen|henchmen]]]]
+Gambit blocked an attack from [[Arclight]] before fighting against [[Callisto]] with his [[Gambit's Bō Staff|bō staff]]. As they pushed forwards, Gambit charged up multiple playing cards and threw them at several enemies, instantly defeating them. He then placed charged cards on more enemies and exploded them all at once, killing all of them. Gambit then threw another charged card at some henchmen shooting at him from above. Once Deadpool and Wolverine were inside, Gambit and the others stood guard and continued fighting.
+[[File:Remy LeBo Staff.png|{{AltFloat}}|Gambit defeats the [[Russian]]]]
+Gambit found himself fighting against the [[Russian]], who attacked him with a giant hammer, sending Gambit flying backwards. Gambit told his attacker he should not have done that and charged up his bō staff before he plunged it into the Russian's chest, causing his body to explode as Gambit walked away. The Resistance managed to kill almost all of the henchmen, although they briefly became overwhelmed, with Gambit being tackled to the ground. However, Gambit got back up, and he, along with the rest of the Resistance, were able to defeat the last of their enemies.
+[[File:Gambit Sparkle Circle.png|{{AltFloat}}|Gambit sees an [[Inter-Dimensional Portal]]]]
+The Resistance then looked up and witnessed as Deadpool and Wolverine escaped the Void by jumping through an [[Inter-Dimensional Portal]] just before they could be devoured by [[Alioth]].{{Ref|DW}} Following their victory in the epic battle, Gambit walked around the compound, passing over the bodies of [[Psylocke]] and [[Toad]]. He turned around to discover that a new Inter-Dimensional Portal had opened up behind him. Gambit stared into the portal and smiled to himself.<ref name="PCS">[https://x.com/VancityReynolds/status/1828411571665612988 Ryan Reynolds on X - August 27, 2024]</ref>
+
+==Powers and Abilities==
+===Powers===
+{{Quote|I charge the playing cards, make them go boom."<br>"Your power's close-up [[magic]].|Gambit and [[Deadpool]]|Deadpool & Wolverine}}
+*'''Mutant Physiology''': Remy LeBeau is a mutant whose physical capabilities are pushed beyond human limits, partially due to the constant internal flow of kinetic energy.
+**'''Enhanced Strength''': Gambit possesses strength beyond a normal human, allowing him to send fully armored opponents flying with a single kick or staff strike. He can effortlessly swing his bō staff with enough force to shatter stone or metal when kinetically charged.
+**'''Enhanced Durability''': Gambit is more physically resilient than a human. He easily shrugged off the impact of the [[Russian]] hitting him with his sledgehammer with enough force to send him flying away.
+**'''Enhanced Speed''': He moves with blistering speed, capable of clearing distances and engaging multiple Void raiders before they can effectively react.
+**'''Enhanced Agility''': Gambit's ability to tap energy also grants him superhuman agility and dexterity. This gives him an added edge that he has used to his advantage by developing a unique acrobatic fighting style.
+**'''Enhanced Stamina''': Gambit can engage in prolonged, high-intensity combat without showing signs of fatigue, as seen during the massive "Resistance" battle in the Void.
+**'''Enhanced Reflexes''': His reaction time allows him to deflect projectiles and track fast-moving targets in the heat of a chaotic melee.
+**'''Enhanced Accuracy''': Gambit throws cards with deadly mastery, using them as his main ranged weapon.
+**'''Regenerative Healing Factor''': While not as potent as Deadpool’s, Gambit possesses an accelerated healing rate. This allows him to recover from blunt force trauma and exhaustion much faster than a baseline human.
+**'''Molecular Acceleration''': [[File:Make the cards go boom.png|thumb|250px|Gambit charges his playing cards]] Gambit has the power to charge any object he touches with kinetic energy, making them incredibly powerful and potentially explosive. He prefers to charge smaller objects, such as his ever-present playing cards. He is able to charge his cards depending on the amount of kinetic acceleration he gives, from the power of a very small explosion to the power of a large grenade. He can also concentrate kinetic energy into his bō-staff, enabling him to strike people and objects with explosive force.
+
+===Abilities===
+*'''Master Martial Artist''': Gambit is a formidable hand-to-hand combatant, utilizing a style that incorporates Savate (French kickboxing) and street-fighting tactics tailored to his Cajun roots.
+*'''Staff Mastery''': He is a master of Bōjutsu. He uses his staff not just as a bludgeon, but as a conduit for his energy, often planting it into the ground to create localized shockwaves.
+{{Quote|What'd you do to [[Human Torch/Void-Analyzing Fantastic Four|Johnny]], huh? Talk or I'm gonna start dealin'.|Gambit|Deadpool & Wolverine}}
+*'''Master Marksman''': Gambit can throw his kinetically-charged playing cards with great accuracy, enough to slice a bottle of whiskey in half from across a room. He can also throw them in rapid succession to take down his enemies.
+*'''Master Acrobat''': His movement is parkour-like; he frequently uses the environment to gain height and momentum, performing mid-air twists to dodge incoming fire.
+{{Quote|Ooh, you nasty! Mon petit rouge. Laissez les bons temps rouler, huh?<ref>Translates from Cajun Creole/French to ''"My little red. Let the good times roll, huh?"''</ref>|Gambit to [[Deadpool]]|Deadpool & Wolverine}}
+*'''Bilingualism''': Gambit is fluent in Cajun Creole/French and English, albeit with a thick accent.
+
+==Equipment==
+===Weapons===
+*'''[[Gambit's Bō Staff|Bō Staff]]''': A collapsible metal staff used for reach and defense. When charged, it glows with purple kinetic energy and can trigger explosions upon impact with targets.
+*'''[[Gambit's Playing Cards|Playing Cards]]''': A standard deck of cards that Gambit keeps on his person. Because they are thin and light, they require very little time to "charge," making them his most efficient projectile.
+
+==Relationships==
+{{Col-begin}}{{Col-2}}
+===Family===
+*Father
+*Mother
+
+===Allies===
+*[[Resistance]] - Former Teammates and Friends
+**[[Elektra/Forgotten Elektra|Elektra]]
+**[[Blade/Universe Defender Blade|Eric Brooks/Blade]]
+**[[X-23|X-23/Laura]]
+**[[Human Torch/Void-Analyzing Fantastic Four|Johnny Storm/Human Torch]] †
+**[[Magneto/Earth-10005|Erik Lehnsherr/Magneto]] †
+**[[Punisher/AT4 Owner Punisher|Frank Castle/Punisher]] †
+**[[Quicksilver/Earth-10005|Peter Maximoff/Quicksilver]] †
+**[[Daredevil/Forgotten Elektra|Matt Murdock/Daredevil]] †
+**[[Deadpool|Wade Wilson/Deadpool]]
+**[[Wolverine|Logan/Wolverine]] 
+{{Col-2}}
+
+===Enemies===
+*[[Time Variance Authority]]
+*[[Alioth]]
+*[[Cassandra Nova's Henchmen]]
+**[[Cassandra Nova]] †
+**[[Pyro|John Alerdyce/Pyro]] †
+**[[Toad|Mortimer Toynbee/Toad]] †
+**[[Azazel]] †
+**[[Callisto]] †
+**[[Juggernaut|Cain Marko/Juggernaut]] †
+**[[Lady Deathstrike|Yuriko Oyama/Lady Deathstrike]] 
+**[[Psylocke|Betsy Braddock/Psylocke]] †
+**[[Arclight|Philippa Sontag/Arclight]] †
+**[[Russian|Ivan/Russian]] † - Victim
+**[[Bullseye/Forehead Scar Bullseye|Lester/Bullseye]] †
+**[[Blob|Fred Dukes/Blob]] †
+**[[Quill]] †
+{{Col-end}}
+
+==Trivia==
+*In the comics, Gambit is depicted as a former thief and long-standing member of the [[X-Men]]. He is also a love interest to [[Rogue]].
+*Gambit is one character who was portrayed by an actor that exists in the Marvel Cinematic Universe without portraying themselves, alongside [[Mainframe]] and [[Blade/Universe Defender Blade|Blade]]. [[Channing Tatum]]'s existence in the MCU was confirmed in the ''[[Jessica Jones (TV series)|Jessica Jones]]'' episode ''[[AKA Ladies Night]]''.
+
+==Behind the Scenes==
+*Gambit in the [[Marvel Cinematic Universe]] is the second live-action incarnation of the character, following an incarnation portrayed by {{WPS|Taylor Kitsch}}.
+*Gambit in the Marvel Cinematic Universe fulfills [[Channing Tatum]]'s long desire to portray Gambit on screen in a film rather than continue the previous on-screen version. Tatum was originally supposed to portray Gambit in a {{WPS|Gambit (unproduced film)|long in-development film}} that was subsequently cancelled following the {{WPS|Acquisition of 21st Century Fox by Disney|acquisition of 20th Century Fox by Disney}}.
+*[[David MacDonald]] was a stunt double for Channing Tatum in the role of Gambit.
+
+==References==
+{{Gallery|Gambit/Gallery}}
+{{Wq}}
+{{Reflist}}
+
+==External Links==
+*{{Marvel}}
+*{{WP|Gambit (Marvel Comics)|Gambit}}
+[[es:Remy LeBeau]]
+[[ru:Гамбит]]
+[[Category:Characters]]
+[[Category:Deadpool & Wolverine Characters]]
+[[Category:Avengers: Doomsday Characters]]
+[[Category:Mutants]]
+[[Category:Males]]
+[[Category:Brown Hair]]
+[[Category:Green Eyes]]
+[[Category:Resistance Members]]
+[[Category:Variants Monitored by the TVA]]
+[[Category:Pruned]]
+[[Category:Multilingual Characters]]

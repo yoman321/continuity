@@ -1,0 +1,123 @@
+{{Spoiler|''[[Deadpool & Wolverine]]''}}
+{{Character
+|image = Gambit Infobox.png
+|real name = Remy {{Conjecture|Etienne}} LeBeau
+|alias = {{Alias
+|codenames = Gambit{{Ref|DW}}
+|nicknames = Le Diable Blanc<ref name="Devil"/>{{Ref|DW}}}}
+|species = [[Mutants|Mutant]]
+|citizenship = {{Citizenship|USA}}
+|gender = Male
+|affiliation = [[Resistance]] <small>(formerly)</small>
+|movie = ''[[Deadpool & Wolverine]]''
+|actor = [[Channing Tatum]]
+|status = Alive<!-- Do Not Change to Unknown. He is in the post-credits scene -->}}
+{{Quote|The name's Remy LeBeau. Le diable blanc.<ref name="Devil">Translates from Cajun/Creole French to "''The White Devil.''"</ref> But you can call me the Gambit.|Gambit to [[Deadpool]]|Deadpool & Wolverine}}
+'''Remy Etienne LeBeau''' is a [[Mutants|mutant]] with the ability to manipulate kinetic energy, displaying a talent for card throwing and using a [[Gambit's Bō Staff|bō staff]]. Having eventually taken the name '''Gambit''', he was banished to the [[Void]] by the [[Time Variance Authority]], where he joined a resistance group to battle [[Cassandra Nova]] and her forces. He and his team forged an alliance with [[Deadpool]] and [[Wolverine]] to defeat Cassandra and escape the Void.
+
+==Biography==
+===Life in the Void===
+{{Quote|Maybe I was born [[Void|here]], it's hard to know for sure.|Gambit|Deadpool & Wolverine}}
+Remy LeBeau resided in the [[Void]] as a kinetic energy manipulative mutant dubbed Gambit, with no knowledge of his prior life. While in the Void, he met [[Elektra/Forgotten Elektra|Elektra]], [[Blade/Universe Defender Blade|Blade]], [[Human Torch/Void Analyzing Fantastic Four|Human Torch]], [[Quicksilver/Anchor Being Wolverine|Quicksilver]], [[Punisher/Resistant Punisher|Punisher]] and [[Daredevil/Forgotten Elektra|Daredevil]], who were members of the [[Resistance]], a group that opposed the rule of oppresive omega-level mutant [[Cassandra Nova]]. Gambit fought alongside the Resistance members, and witnessed the deaths of Quicksilver, Punisher and Daredevil.{{Ref|DW}}
+
+===Meeting Deadpool===
+{{Quote|They call me the Gambit."<br>"Do they? You sure you didn't just really, really want them to, but it {{WPS|Gambit (unproduced film)|never quite worked out}}?|Gambit and [[Deadpool]]|Deadpool & Wolverine}}
+{{Rewrite}}
+Gambit and the other resistance members met [[Deadpool]] and [[Wolverine]], who did the impossible and escaped Nova's lair alive. They also learned that [[Human Torch/Void Analyzing Fantastic Four|Human Torch]] was killed by Cassandra, but Deadpool left out the reason why he died. Eventually, Deadpool convinced him and the others to invade [[Cassandra Nova's Compound]] to avenge Storm's death and take her down using [[Juggernaut]]'s [[Juggernaut's Helmet|helmet]] to block her powers. However, Wolverine scoffed that their plan was doomed to fail and refused to join them.{{Ref|DW}}
+
+===[[Attack on Cassandra Nova's Compound|Getting an Ending]]===
+{{Quote|You know how long I been waiting for this? Whoo, I'm aboutta make a name for myself here.|Gambit|Deadpool & Wolverine}}
+Gambit traveled in the [[Nicepool]]'s {{WPS|Honda Odyssey (North America)|Honda Odyssey}}, [[Ol' Betsy]] with the Resistance to finally invade Cassandra's fortress. [[Blade/Universe Defender Blade|Blade]] used [[Punisher/Resistant Punisher|Punisher]]'s {{WPS|AT4|AT4 Rocket Launcher}} to break into their base and them held off [[Cassandra Nova's Henchmen|Nova's forces]], as Deadpool and Wolverine went off to confront her while [[X-23|X-23]] secured the helmet. Later in the battle as [[Alioth]] approached the compound, Gambit witnessed [[Deadpool]] and [[Wolverine]] jump into a [[Inter-Dimensional Portal]] created by Cassandra who gave the duo a way home after they saved her life from [[Pyro]]. He was later returned to his home reality by the [[Time Variance Authority]] at Deadpool's request.{{Ref|DW}}
+
+==Personality==
+{{Quote|I ain't know my daddy, but I'm sure I shot out of his dick ready."<br>"Jesus Christ, that is graphic."<br>"Yeah, he was layin' them buttery nuts all up in my mama and I shot out there and I said 'what's up, Doc?'|Gambit and [[Deadpool]]|Deadpool & Wolverine}}
+''To be added''
+
+==Powers and Abilities==
+===Powers===
+{{Quote|I charge the playing cards, make them go boom."<br>"Your power's close-up [[magic]].|Gambit and [[Deadpool]]|Deadpool & Wolverine}}
+*'''Mutant Physiology''': ''To be added''
+**'''Enhanced Strength''': ''To be added''
+**'''Enhanced Durability''': ''To be added''
+**'''Enhanced Speed''': ''To be added''
+**'''Enhanced Agility''': ''To be added''
+**'''Enhanced Stamina''': ''To be added''
+**'''Enhanced Reflexes''': ''To be added''
+**'''Regenerative Healing Factor''': ''To be added''
+**'''Molecular Acceleration''': Gambit has the power to charge any object he touches with kinetic energy, making them incredibly powerful and potentially explosive. He prefers to charge smaller objects, such as his ever-present playing cards which he can charge dependeding on the amount of kinetic acceleration he gives from the power of a very small explosion to the power of a large grenade and his bo-staff making hit with explosive force.
+
+===Abilities===
+*'''Master Martial Artist''': ''To be added''
+*'''Staff Mastery''': ''To be added''
+*'''Master Marksman''': ''To be added''
+*'''Master Acrobat''': ''To be added''
+
+==Equipment==
+===Weapons===
+*'''[[Gambit's Bō Staff|Bō Staff]]''': ''To be added''
+*'''Playing Cards''': ''To be added''
+
+==Relationships==
+{{Col-begin}}{{Col-2}}
+===Family===
+*Father
+*Mother
+
+===Allies===
+*[[Resistance]] - Former Teammates and Friends
+**[[Elektra/Forgotten Elektra|Elektra]]
+**[[Blade/Universe Defender Blade|Eric Brooks/Blade]]
+**[[X-23|Laura/X-23]]
+**[[Human Torch/Void Analyzing Fantastic Four|Johnny Storm/Human Torch]] †
+**[[Magneto|Erik Lehnsherr/Magneto]] †
+**[[Punisher/Resistant Punisher|Frank Castle/Punisher]] †
+**[[Quicksilver/Anchor Being Wolverine|Peter Maximoff/Quicksilver]] †
+**[[Daredevil/Forgotten Elektra|Matt Murdock/Daredevil]] †
+**[[Deadpool|Wade Wilson/Deadpool]]
+**[[Wolverine|Logan/Wolverine]] 
+{{Col-2}}
+
+===Enemies===
+*[[Time Variance Authority]]
+*[[Alioth]]
+*[[Cassandra Nova's Henchmen]]
+**[[Cassandra Nova]] †
+**[[Pyro|John Alerdyce/Pyro]] †
+**[[Toad|Mortimer Toynbee/Toad]] †
+**[[Azazel]] †
+**[[Callisto]] †
+**[[Juggernaut|Cain Marko/Juggernaut]] †
+**[[Lady Deathstrike|Yuriko Oyama/Lady Deathstrike]] †
+**[[Psylocke|Betsy Braddock/Psylocke]] †
+**[[Arclight|Philippa Sontag/Arclight]] †
+**[[Russian|Ivan/Russian]] † - Victim
+**[[Bullseye/Faithful Elektra|Lester/Bullseye]] †
+**[[Blob|Fred Dukes/Blob]] †
+**[[Quill]] †
+{{Col-end}}
+
+==Trivia==
+*In the comics, Gambit is depicted as a former thief and long-standing member of the [[X-Men]]. He is also a love interest to Rogue.
+*Gambit is one character who was portrayed by an actor that exists in the Marvel Cinematic Universe without portraying themselves, alongside [[Mainframe]] and [[Blade/Universe Defender Blade|Blade]]. [[Channing Tatum]]'s existence in the MCU was confirmed in the ''[[Jessica Jones (TV series)|Jessica Jones]]'' episode ''[[AKA Ladies Night]]''.
+
+==Behind the Scenes==
+*Gambit in the [[Marvel Cinematic Universe]] fulfills [[Channing Tatum]]'s long desire to portray Gambit on screen in a film rather than continue the previous on-screen version. Tatum was originally supposed to portray Gambit in a {{WPS|Gambit (unproduced film)|long in-development film}} that was subsequently cancelled following the {{WPS|Acquisition of 21st Century Fox by Disney|acquisition of 20th Century Fox by Disney}}.
+*Gambit in the [[Marvel Cinematic Universe]] is the second live-action incarnation of the character, following an incarnation portrayed by {{WPS|Taylor Kitsch}}.
+*[[David MacDonald]] was a stunt double for [[Channing Tatum]] in the role of Gambit.
+
+==References==
+{{Gallery|Gambit/Gallery}}
+{{Wq}}
+{{Reflist}}
+
+==External Links==
+*{{Marvel}}
+*{{WP|Gambit (comics)|Gambit}}
+[[es:Remy LeBeau]]
+[[Category:Characters]]
+[[Category:Deadpool & Wolverine Characters]]
+[[Category:Mutants]]
+[[Category:Males]]
+[[Category:Heroes]]
+[[Category:Multilingual Characters]]
+[[Category:Resistance Members]]

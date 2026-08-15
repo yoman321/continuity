@@ -1,0 +1,366 @@
+{
+  "source": {
+    "wiki": "Marvel Cinematic Universe Wiki",
+    "api": "https://marvelcinematicuniverse.fandom.com/api.php",
+    "generator": "MediaWiki 1.43.9",
+    "licence": {
+      "declared": {
+        "url": "https://www.fandom.com/licensing",
+        "text": "CC-BY-SA"
+      },
+      "generator": "MediaWiki 1.43.9",
+      "sitename": "Marvel Cinematic Universe Wiki",
+      "copyright_page": {
+        "title": "Marvel Cinematic Universe Wiki:Copyrights",
+        "revid": 3728,
+        "text": "Except where otherwise specified, the text on Wikia sites is licensed under the Creative Commons Attribution-Share Alike License 3.0 (Unported) (CC-BY-SA). \n\n* [http://creativecommons.org/licenses/by-sa/3.0/ Read the license summary]\n* [http://creativecommons.org/licenses/by-sa/3.0/legalcode Read the full legal code of the license].\n\nPlease see [[w:Wikia:Licensing|Wikia:Licensing]] for details."
+      },
+      "version": "3.0"
+    }
+  },
+  "freeze": "2024-08-09T00:00:00Z",
+  "pulled_at": "2026-08-15T19:18:50Z",
+  "states": [
+    "seed",
+    "current"
+  ],
+  "pages": [
+    {
+      "requested_title": "Deadpool & Wolverine",
+      "role": "trunk",
+      "resolved_title": "Deadpool & Wolverine",
+      "redirected_from": null,
+      "pageid": 320659,
+      "slug": "Deadpool_Wolverine",
+      "seed": {
+        "revid": 2019481,
+        "timestamp": "2024-08-08T23:57:40Z",
+        "user": "Bryschec",
+        "comment": "",
+        "size": 50454,
+        "sha256": "2a810876f2532efcf088c347f73d318d8d9b38057308677d983453a13b727407",
+        "file": "snapshots/seed/Deadpool_Wolverine.wikitext"
+      },
+      "current": {
+        "revid": 2537080,
+        "timestamp": "2026-07-30T21:51:45Z",
+        "user": "Logan's Bot",
+        "comment": "Black Widow \u2192 Natasha Romanoff (MassEdit)",
+        "size": 60864,
+        "sha256": "a35b3851e97653e5a19ea26fe1b5175718e2802070f21f6143ea4e04b2ad5320",
+        "file": "snapshots/current/Deadpool_Wolverine.wikitext"
+      },
+      "drift_bytes": 10410,
+      "drift_pct": 20.6
+    },
+    {
+      "requested_title": "Gambit",
+      "role": "lead beat \u2014 cast in Avengers: Doomsday",
+      "resolved_title": "Gambit",
+      "redirected_from": null,
+      "pageid": 398469,
+      "slug": "Gambit",
+      "seed": {
+        "revid": 2018030,
+        "timestamp": "2024-08-07T15:17:34Z",
+        "user": "Soliy1",
+        "comment": "/* Powers */",
+        "size": 8179,
+        "sha256": "67f9d6032cb7894c1a0d8c4ed5ef92ccb5a915c98158c5fb51bf2a6d4d5331c2",
+        "file": "snapshots/seed/Gambit.wikitext"
+      },
+      "current": {
+        "revid": 2551755,
+        "timestamp": "2026-08-15T05:02:32Z",
+        "user": "Spider-Dude2006",
+        "comment": "/* Trivia */",
+        "size": 15473,
+        "sha256": "b6271a06674828591cd58e7c9d0d7637fb8bbc66f73724ad46406650dfe22047",
+        "file": "snapshots/current/Gambit.wikitext"
+      },
+      "drift_bytes": 7294,
+      "drift_pct": 89.2
+    },
+    {
+      "requested_title": "Void (End of Time)",
+      "role": "disambiguation cascade",
+      "resolved_title": "Void (End of Time)",
+      "redirected_from": null,
+      "pageid": 334682,
+      "slug": "Void_End_of_Time",
+      "seed": {
+        "revid": 2018250,
+        "timestamp": "2024-08-07T20:44:06Z",
+        "user": "GarrettPlayzRBLX",
+        "comment": "The image fits | Undo revision 2018237 by [[Special:Contributions/NP2293|NP2293]] ([[User talk:NP2293|talk]])",
+        "size": 15102,
+        "sha256": "ef9dcdd404b1a3612b90797f6dda108733ee981e7ab144131d9d8789410046d3",
+        "file": "snapshots/seed/Void_End_of_Time.wikitext"
+      },
+      "current": {
+        "revid": 2518404,
+        "timestamp": "2026-06-21T02:49:37Z",
+        "user": "Logo8th",
+        "comment": "",
+        "size": 20768,
+        "sha256": "2a2b69cf5d0c5987dac6af65a75bafbf032af41ea25859b9f58502b1ed3f3c03",
+        "file": "snapshots/current/Void_End_of_Time.wikitext"
+      },
+      "drift_bytes": 5666,
+      "drift_pct": 37.5
+    },
+    {
+      "requested_title": "Human Torch",
+      "role": "variant-vs-prime precision test",
+      "resolved_title": "Human Torch",
+      "redirected_from": null,
+      "pageid": 393304,
+      "slug": "Human_Torch",
+      "seed": {
+        "revid": 2010786,
+        "timestamp": "2024-07-31T02:05:42Z",
+        "user": "Hi. So how are you guys?",
+        "comment": "",
+        "size": 2990,
+        "sha256": "35a1a39aaa20ee03b71cf46f018210fc2b2a349b2cd9782cb3ffa3111e866c8d",
+        "file": "snapshots/seed/Human_Torch.wikitext"
+      },
+      "current": {
+        "revid": 2550665,
+        "timestamp": "2026-08-13T09:23:39Z",
+        "user": "MJLogan95",
+        "comment": "/* Encountering Silver Surfer */",
+        "size": 18028,
+        "sha256": "0897fd3c9e78a36300e7a216a99edc1bdf26b89d97e4452b93541ea4fa644412",
+        "file": "snapshots/current/Human_Torch.wikitext"
+      },
+      "drift_bytes": 15038,
+      "drift_pct": 502.9
+    },
+    {
+      "requested_title": "Human Torch/Void-Analyzing Fantastic Four",
+      "role": "the variant half of that test",
+      "resolved_title": "Human Torch/Void-Analyzing Fantastic Four",
+      "redirected_from": null,
+      "pageid": 398605,
+      "slug": "Human_Torch_Void-Analyzing_Fantastic_Four",
+      "seed": {
+        "revid": 2018849,
+        "timestamp": "2024-08-08T16:17:43Z",
+        "user": "Raff2159",
+        "comment": "Reverted edits by [[Special:Contributions/NBProductions17|NBProductions17]] ([[User talk:NBProductions17|talk]]) to last revision by [[User:Jessica3801|Jessica3801]]",
+        "size": 12994,
+        "sha256": "49110083b50b4e9f67243af5d197ea0783b180733de5d9669277ad15943a41f0",
+        "file": "snapshots/seed/Human_Torch_Void-Analyzing_Fantastic_Four.wikitext"
+      },
+      "current": {
+        "revid": 2515454,
+        "timestamp": "2026-06-12T02:59:10Z",
+        "user": "Hi. So how are you guys?",
+        "comment": "",
+        "size": 15193,
+        "sha256": "a5c9fc557c871b3c5600468b395328b3a1e5af1505b9372bd90525f403c0f0d4",
+        "file": "snapshots/current/Human_Torch_Void-Analyzing_Fantastic_Four.wikitext"
+      },
+      "drift_bytes": 2199,
+      "drift_pct": 16.9
+    },
+    {
+      "requested_title": "Phase Six",
+      "role": "slate composition",
+      "resolved_title": "Phase Six",
+      "redirected_from": null,
+      "pageid": 362998,
+      "slug": "Phase_Six",
+      "seed": {
+        "revid": 2009721,
+        "timestamp": "2024-07-29T23:39:02Z",
+        "user": "Farizhf27",
+        "comment": "",
+        "size": 1580,
+        "sha256": "7c50de78dc10c744a3459d8d5ef3e42356acde75b4f4e1dc2a5702926a2fdd6c",
+        "file": "snapshots/seed/Phase_Six.wikitext"
+      },
+      "current": {
+        "revid": 2547231,
+        "timestamp": "2026-08-08T21:52:44Z",
+        "user": "MJLogan95",
+        "comment": "Source? \u2022 Undo revision [[Special:Diff/2547229|2547229]] by [[Special:Contributions/Mikael88k|Mikael88k]] ([[User talk:Mikael88k|talk]])",
+        "size": 7309,
+        "sha256": "79cb9b00aef8f2474fe6661f3190c028370b538f697e8496232f9c3b0dd6fb3f",
+        "file": "snapshots/current/Phase_Six.wikitext"
+      },
+      "drift_bytes": 5729,
+      "drift_pct": 362.6
+    },
+    {
+      "requested_title": "Deadpool",
+      "role": "character ripple from the trunk",
+      "resolved_title": "Deadpool",
+      "redirected_from": null,
+      "pageid": 392977,
+      "slug": "Deadpool",
+      "seed": {
+        "revid": 2019441,
+        "timestamp": "2024-08-08T23:05:16Z",
+        "user": "DemKnux",
+        "comment": "",
+        "size": 67530,
+        "sha256": "fd9545f0b5e45aec2178efb8a5f0856852ebeb811290027e06cc5a5eb47340e3",
+        "file": "snapshots/seed/Deadpool.wikitext"
+      },
+      "current": {
+        "revid": 2549626,
+        "timestamp": "2026-08-12T21:30:48Z",
+        "user": "Logo8th",
+        "comment": "",
+        "size": 80534,
+        "sha256": "0a25399f0471435f6ed5533013dbc6055a3fb68c163abc8b9e282535c047264b",
+        "file": "snapshots/current/Deadpool.wikitext"
+      },
+      "drift_bytes": 13004,
+      "drift_pct": 19.3
+    },
+    {
+      "requested_title": "Blade/Universe Defender Blade",
+      "role": "variant subpage",
+      "resolved_title": "Blade/Universe Defender Blade",
+      "redirected_from": null,
+      "pageid": 398606,
+      "slug": "Blade_Universe_Defender_Blade",
+      "seed": {
+        "revid": 2019139,
+        "timestamp": "2024-08-08T19:50:52Z",
+        "user": "GarrettPlayzRBLX",
+        "comment": "/* Early Life */ Removed pagename link",
+        "size": 9379,
+        "sha256": "65220feacf238b0d8071696e398493a0929a178c2f0851f844e2d967bb1a8fe6",
+        "file": "snapshots/seed/Blade_Universe_Defender_Blade.wikitext"
+      },
+      "current": {
+        "revid": 2515580,
+        "timestamp": "2026-06-13T03:50:26Z",
+        "user": "Hi. So how are you guys?",
+        "comment": "",
+        "size": 16221,
+        "sha256": "b2df1badf4f98f3ef0436a713cff35da6a6b247b67fc81c5d48933ddea377f2d",
+        "file": "snapshots/current/Blade_Universe_Defender_Blade.wikitext"
+      },
+      "drift_bytes": 6842,
+      "drift_pct": 73.0
+    },
+    {
+      "requested_title": "Wolverine",
+      "role": "control",
+      "resolved_title": "Wolverine",
+      "redirected_from": null,
+      "pageid": 392973,
+      "slug": "Wolverine",
+      "seed": {
+        "revid": 2018287,
+        "timestamp": "2024-08-07T21:53:43Z",
+        "user": "MJLogan95",
+        "comment": "Reverted edits by [[Special:Contributions/Kobott|Kobott]] ([[User talk:Kobott|talk]]) to last revision by [[User:MJLogan95|MJLogan95]]",
+        "size": 46371,
+        "sha256": "50c8556cbc4544f78d5e54e76f1dcde3b55f2b574bb23e33a9bde498a794ee72",
+        "file": "snapshots/seed/Wolverine.wikitext"
+      },
+      "current": {
+        "revid": 2551055,
+        "timestamp": "2026-08-14T12:41:01Z",
+        "user": "Lucifer141214",
+        "comment": "/* Powers */",
+        "size": 47507,
+        "sha256": "5ccb0daec7f76be3a4e75ffeab2c1dc245139386950a154666629669537c9bda",
+        "file": "snapshots/current/Wolverine.wikitext"
+      },
+      "drift_bytes": 1136,
+      "drift_pct": 2.4
+    },
+    {
+      "requested_title": "Cassandra Nova",
+      "role": "control",
+      "resolved_title": "Cassandra Nova",
+      "redirected_from": null,
+      "pageid": 395107,
+      "slug": "Cassandra_Nova",
+      "seed": {
+        "revid": 2018648,
+        "timestamp": "2024-08-08T04:57:20Z",
+        "user": "GarrettPlayzRBLX",
+        "comment": "/* Trivia */ Removed link to the Movies category",
+        "size": 27417,
+        "sha256": "e30f99942c581208db09c16bc980b1b2201d777b548eb89ce35bfa44f2b6b0be",
+        "file": "snapshots/seed/Cassandra_Nova.wikitext"
+      },
+      "current": {
+        "revid": 2549623,
+        "timestamp": "2026-08-12T21:28:55Z",
+        "user": "Logo8th",
+        "comment": "",
+        "size": 28358,
+        "sha256": "e532f91deec4c2cf5a89da144499d11fb49ca8d4308fd0bfb27ac354a7838da7",
+        "file": "snapshots/current/Cassandra_Nova.wikitext"
+      },
+      "drift_bytes": 941,
+      "drift_pct": 3.4
+    },
+    {
+      "requested_title": "Time Variance Authority",
+      "role": "control",
+      "resolved_title": "Time Variance Authority",
+      "redirected_from": null,
+      "pageid": 297364,
+      "slug": "Time_Variance_Authority",
+      "seed": {
+        "revid": 2018528,
+        "timestamp": "2024-08-08T03:26:50Z",
+        "user": "NarendraMartosudarmo",
+        "comment": "",
+        "size": 24512,
+        "sha256": "58c7eb74e1937584996f255a55ef22ee54423f5e6b0cd35d9fa5b3e1b91971eb",
+        "file": "snapshots/seed/Time_Variance_Authority.wikitext"
+      },
+      "current": {
+        "revid": 2530357,
+        "timestamp": "2026-07-20T19:02:51Z",
+        "user": "Eaglevion",
+        "comment": "/* Resistance from Mr. Paradox */",
+        "size": 25131,
+        "sha256": "a48e4feb5f9643a9e3b65440798066f1f1634a7d7e9a3f243bae8b0734b2c6a9",
+        "file": "snapshots/current/Time_Variance_Authority.wikitext"
+      },
+      "drift_bytes": 619,
+      "drift_pct": 2.5
+    },
+    {
+      "requested_title": "Phase Five",
+      "role": "control",
+      "resolved_title": "Phase Five",
+      "redirected_from": null,
+      "pageid": 362992,
+      "slug": "Phase_Five",
+      "seed": {
+        "revid": 2019149,
+        "timestamp": "2024-08-08T20:04:51Z",
+        "user": "GarrettPlayzRBLX",
+        "comment": "/* Season One (TBA) */ Added link to the Quantum Virus",
+        "size": 15292,
+        "sha256": "2d520d09a7a7a6c24ef915657366042f9faba8f7de308344b665813973c6fc8e",
+        "file": "snapshots/seed/Phase_Five.wikitext"
+      },
+      "current": {
+        "revid": 2533802,
+        "timestamp": "2026-07-26T18:50:38Z",
+        "user": "MJLogan95",
+        "comment": "Undo revision [[Special:Diff/2533800|2533800]] by [[Special:Contributions/Dixonearlher|Dixonearlher]] ([[User talk:Dixonearlher|talk]])",
+        "size": 15555,
+        "sha256": "6446e2859f6413d0ebb08d8c9d17236fa768b47928a35bb9667ad63854c0c2ed",
+        "file": "snapshots/current/Phase_Five.wikitext"
+      },
+      "drift_bytes": 263,
+      "drift_pct": 1.7
+    }
+  ],
+  "failures": []
+}
