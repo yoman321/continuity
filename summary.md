@@ -245,6 +245,40 @@ list leads with it; Parallel's own SDK because the wrapper routes carry complian
 Firestore because the ADK 2.0 Event schema keeps growing (§12); a human approval gate because
 that is the judging criterion, not a nicety.
 
+### Deployment shape — decided Aug 15, 2026
+
+The topology itself is in `AGENTS.md` §3. What matters here is why it is one Python container
+rather than the obvious two-tier web app.
+
+**The agent decides the stack, not the frontend.** ADK is Python-only, so a Python process has
+to exist no matter what the UI is written in. Next.js was the instinctive choice and is the
+wrong one here: it would add a second runtime, a second deploy and a second cold start, plus
+CORS between them, to host a UI that has no server-side work to do. React without Next was
+rejected separately — a React SPA compiles to static files and would cost nothing extra to
+*host*, but at three views it buys component structure this UI is too small to need while
+costing a Node toolchain in the image and a build step in the gate. So: vanilla files, served
+by the same FastAPI process that runs the agent.
+
+**Scale-to-zero is what makes the budget work.** Idle cost is the whole game for a demo nobody
+looks at between judging sessions. Cloud Run bills per request-second, so the app costs nothing
+when unwatched; Firestore, Scheduler, Secret Manager and Artifact Registry all sit inside free
+tiers at this size. The consequence is that the $100 credits are effectively a *Gemini token
+budget*, not a hosting budget — which reframes cost control as "cap the agent's research", not
+"cap the infrastructure".
+
+**MediaWiki is the one piece that fights this.** It wants a database, and Cloud SQL cannot
+scale to zero — the smallest instance bills around $9/mo whether or not anyone visits, which
+over the run-up to judging is real money spent on an idle demo. MediaWiki supports SQLite, so
+the DB file lives on a GCS bucket mounted as a Cloud Run volume with a single instance. One
+writer, no idle bill.
+
+**Two costs are deferred, not avoided.** Cold start is 5-15s if the container imports the
+vendor SDKs at module load, which a judge would experience as a broken link; the fix is lazy
+imports rather than a paid warm instance (`AGENTS.md` §7). And because judging requires the
+service be publicly reachable without auth, IAM cannot protect the scheduler endpoint — the
+tick route has to authenticate itself, which is an invariant rather than a nicety
+(`AGENTS.md` §2).
+
 ### Guardrails (double as "bounded autonomy" judging points)
 - Max 3 research rounds per claim
 - Confidence threshold below which nothing auto-applies
@@ -413,13 +447,8 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       start pays 5-15s before it can serve `index.html`
 - [ ] Deploy and confirm the hosted URL is publicly reachable, unauthenticated, on web
 - [x] Decide the hosting shape — **one Cloud Run service, Python, serving `FE/` and the agent
-      from the same container.** Decided Aug 15, 2026. Scale-to-zero, so hosting is $0 at demo
-      traffic and the credits are effectively a Gemini token budget. Next.js was considered and
-      rejected: ADK is Python-only, so a JS frontend means two runtimes, two cold starts and
-      CORS between them, to host a UI that has no server-side work to do. React was considered
-      and rejected separately — at three views it is overhead, not leverage, and it costs a
-      second toolchain in the image. MediaWiki is a second service, SQLite on a GCS volume
-      rather than Cloud SQL, because Cloud SQL cannot scale to zero (~$9/mo idle)
+      from the same container**; MediaWiki a second service on SQLite. Decided Aug 15, 2026.
+      Reasoning and the rejected alternatives in §6; the topology in `AGENTS.md` §3
 - [x] Resolve the build-step question — **there is no build step, deliberately.** Recorded in
       `AGENTS.md` §5 with the reasoning, replacing the earlier "add one with the frontend" TODO,
       which assumed a framework. Node checks the FE; it never builds or serves it
@@ -429,7 +458,9 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       `snapshots/ATTRIBUTION.md`. Share-alike carries onto the agent's own edits
 - [ ] Pick the specific contested cameo for `seed-plan.md` §4.5 at ledger-seed time — it has
       to be one that is genuinely split in trade reporting that week
-- [ ] Write `README.md` — setup, commands, routes, env vars (`CLAUDE.md` §2)
+- [x] Write `README.md` — done Aug 15, 2026. What the product is, local run for both halves,
+      routes, env vars, the deploy procedure (which until now lived only in conversation), repo
+      layout and the MIT/CC BY-SA split
 - [ ] Submission artifacts — ≤3-min video per the §9 beats, text description (features, tech,
       data sources, findings), and confirm the repo is public with the MIT licence detectable
       in the About section (§2)

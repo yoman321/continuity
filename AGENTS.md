@@ -51,6 +51,12 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   migrate columns before first run.
 - **Secrets:** `.env` locally (gitignored), Secret Manager when deployed. Gemini uses ADC —
   no API key exists on either side. Parallel and MediaWiki credentials are real secrets.
+- **The scheduler endpoint authenticates itself, because IAM cannot.** Judging requires the
+  service be `--allow-unauthenticated`, which makes *every* route public — including the one
+  Cloud Scheduler posts to. `/internal/tick` must compare a shared secret with
+  `hmac.compare_digest` before doing any work. Without it, anyone who guesses the path can
+  trigger unbounded agent runs against a metered Gemini account. This is not hardening to add
+  later; an unguarded tick route is a live credit leak the moment the URL is published.
 
 ## 3. Stack
 
@@ -68,6 +74,40 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
 | Hosting | One Cloud Run service: FastAPI serves `FE/` *and* runs the agent. Scale-to-zero |
 
 Why each was chosen, and what was rejected: `summary.md` §6 and §12.
+
+### Runtime topology
+
+Two Cloud Run services, both scale-to-zero, both in `us-east1`. Nothing else runs.
+
+```text
+  continuity                                  <-- the public project URL
+    FastAPI, python:3.12-slim
+      GET  /                 StaticFiles over FE/        (no build step; ships as-is)
+      GET  /api/state        ledger + queue from Firestore
+      POST /api/queue/{id}   approve/reject -> action=edit&section=N
+      POST /internal/tick    Cloud Scheduler, hourly, shared-secret header (§2)
+    runtime SA: continuity-run@  — aiplatform.user, datastore.user, secretAccessor
+
+  mediawiki                                   <-- the wiki the agent edits; never a real one
+    MediaWiki on SQLite, DB file on a GCS volume (gen2 execution environment)
+    --max-instances 1, because SQLite has one writer
+
+  Firestore (ledger)   Secret Manager (Parallel key, tick token, bot password)
+  Cloud Scheduler (1 job)   Artifact Registry (2 images)
+```
+
+Rules that fall out of this shape:
+
+- **One container serves the frontend and runs the agent.** `FE/` is static, so there is no
+  second origin, no CORS and no second deploy. Do not split them.
+- **Region is `us-east1` for Cloud Run, Firestore and the bucket.** Gemini is the exception —
+  `location="global"`, never a region (§5).
+- **`--min-instances 0` and `--max-instances 3`.** Zero is what makes idle cost nothing; the
+  ceiling is what stops a stuck research loop from draining the credits.
+- **MediaWiki uses SQLite on a mounted bucket, not Cloud SQL.** Cloud SQL cannot scale to
+  zero, so the cheapest instance bills ~$9/mo to serve a demo nobody is looking at.
+- **Gemini tokens are the only meaningful cost.** Every other line above sits inside a free
+  tier at demo traffic — verify current figures before relying on that (`summary.md` §12).
 
 ## 4. File map
 
@@ -100,6 +140,8 @@ Why each was chosen, and what was rejected: `summary.md` §6 and §12.
     ATTRIBUTION.md                   # CC BY-SA 3.0 notice; the text here is not MIT
   tests/test_ledger.py               # stdlib unittest; no deps, runs today
   tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
+  tests/test_sections.py             # section numbering, incl. against real snapshots
+  README.md         # what it is, local run, routes, env vars, the deploy procedure
   summary.md        # product truth, decision log, verified vendor facts (§12)  [gitignored]
   seed-plan.md      # demo subject, page list, the 6 claims that carry the video [gitignored]
   .env.example      # required env vars, no values
@@ -175,6 +217,11 @@ client = genai.Client(enterprise=True, project="…", location="global")
 `location` is `"global"` for model calls. The pick-one-region rule applies to Firestore and
 Cloud Run, not to Gemini.
 
+**Unverified, and marked so deliberately:** that the Gemini IAM role is `roles/aiplatform.user`
+after the Enterprise rebrand, and the free-tier limits quoted in `summary.md` §12. Both are
+from recall, not from the console. Confirm before relying on either — a wrong role fails at the
+first model call, not at deploy, which is the expensive place to find out.
+
 ## 6. Gotchas — don't repeat these
 
 Symptom → fix. Append when something costs more than ten minutes and the cause was
@@ -220,6 +267,10 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   `except BaseException:` also traps `NodeInterruptedError` and breaks the HITL approval gate.
 - **Never append to `context.session.events`.** It circumvents the 2.0 graph engine and
   breaks determinism. Return values; let the runner emit.
+- **Import ADK, `google-genai` and `parallel-web` inside the route handlers, never at module
+  top.** Cloud Run scales to zero, so the first request after an idle period pays for whatever
+  the module imports — 5-15s of vendor SDK before `index.html` can be served. Deferring the
+  imports keeps the frontend fast on a cold container without paying for a warm one.
 - **Stages are graph nodes, not hand-rolled sub-agent calls.** The 6-stage flow with two
   backward edges is an ADK 2.0 Workflow Runtime graph; the publish gate is its HITL pause.
 - Typing strictness, design system and state rules: TBD with the first module.
