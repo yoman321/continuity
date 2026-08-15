@@ -64,7 +64,8 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
 | Ledger | Firestore (or Cloud SQL if ripple queries need joins) |
 | Scheduling | Cloud Scheduler → Cloud Run endpoint, hourly; interval logic lives in the ledger |
 | Secrets | Secret Manager — Parallel key, wiki bot credentials |
-| Frontend | Diff review queue: change + sources + confidence badge + approve/reject |
+| Frontend | Vanilla HTML/CSS/JS in `FE/` — no framework, no build step, no dependencies |
+| Hosting | One Cloud Run service: FastAPI serves `FE/` *and* runs the agent. Scale-to-zero |
 
 Why each was chosen, and what was rejected: `summary.md` §6 and §12.
 
@@ -81,7 +82,17 @@ Why each was chosen, and what was rejected: `summary.md` §6 and §12.
     decay.py                         # Wave, and the double/halve/clamp interval logic
   src/continuity/wiki/
     client.py                        # MediaWiki read adapter; network confined to fetch()
+    sections.py                      # wikitext -> the sections action=edit&section=N addresses
   scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
+  scripts/build_demo_state.py        # snapshots/ + ledger core -> FE/data/demo-state.json
+  FE/
+    index.html                       # <-- read first: shell, nav, mount point
+    app.js                           # state loading, routing, the three views
+    wikitext.js                      # deliberately partial wikitext -> HTML renderer
+    styles.css                       # all styling; no framework, no external assets
+    check.js                         # FE verification — counts, not eyeballing
+    data/demo-state.json             # generated fallback state; never hand-edit
+    README.md                        # routes, data flow, licensing scope, known limits
   snapshots/
     manifest.json                    # provenance: revid, sha256, size, drift, licence
     seed/*.wikitext                  # 12 pages frozen at 2024-08-09 — seeds our MediaWiki
@@ -98,8 +109,14 @@ The ledger core is deliberately dependency-free: no Firestore, no ADK, no networ
 and vendor calls arrive later as adapters that import *from* it (`CLAUDE.md` §3). The wiki
 client is the first such adapter and follows the same shape — `fetch()` is the only method
 that opens a socket, so everything else is tested offline. Not yet written: the ADK tool
-signatures, the 6-stage graph, `action=edit` section writes, the Firestore adapter, and the
-review queue frontend.
+signatures, the 6-stage graph, `action=edit` section writes, the Firestore adapter, and
+`app.py` + `Dockerfile` (the FastAPI shell that serves `FE/` and hosts the agent).
+
+**`FE/data/demo-state.json` is generated, never hand-edited.** `build_demo_state.py` takes
+page text verbatim from `snapshots/` and computes every status, confidence and interval by
+driving real `Claim` objects through the real transitions — so the numbers on screen are the
+core's output, not a fixture author's. It fails the build when a claim's `wikitext_anchor` is
+absent from the seed, because an anchor that does not exist is an edit that could never apply.
 
 **`snapshots/seed/` is immutable.** It is pinned to historical revision ids and hash-checked
 by the test suite. Never hand-edit a file there — fix the puller and re-run.
@@ -109,16 +126,25 @@ by the test suite. Never hand-edit a file there — fix the puller and re-run.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (.venv is gitignored)
 
-PYTHONPATH=src python3 -m unittest discover -s tests         # test     — 50 passing
+PYTHONPATH=src python3 -m unittest discover -s tests         # test     — 67 passing
 .venv/bin/mypy                                               # typecheck — strict
 .venv/bin/ruff check .                                       # lint
+node FE/check.js                                             # frontend  — render + wiring
 
 python3 scripts/pull_snapshots.py                            # rebuild snapshots/ (~24 calls)
 python3 scripts/pull_snapshots.py --only current             # refresh the live side alone
+python3 scripts/build_demo_state.py                          # rebuild FE/data/demo-state.json
+python3 -m http.server 8000 --directory FE                   # serve the FE locally
 ```
 
-All three must pass before claiming done (`CLAUDE.md` §4). There is no build step yet; add
-one with the frontend and update this section in the same task.
+All four must pass before claiming done (`CLAUDE.md` §4).
+
+**There is no build step, and this is deliberate — do not add one.** The FE is vanilla
+HTML/CSS/JS with no dependencies, so the container ships it as-is and Cloud Run serves it
+through `StaticFiles` from the same Python process that runs the agent. Node is used only to
+*check* the FE; it is never needed to build, serve or deploy it, and the runtime image
+contains no JavaScript toolchain. A framework here would buy component structure this UI is
+too small to need, and cost a second toolchain in the image and a fourth thing to break.
 
 The ledger core has **no runtime dependencies**, so its tests run on a bare interpreter —
 that is why `test` needs no venv and no install. The setup line pulls the vendor SDKs too,
@@ -176,6 +202,13 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   fetch → read the wiki's own `Project:Copyrights` through the API instead. MCU Wiki states
   **CC BY-SA 3.0 Unported** there (revision 3728), and `pull_snapshots.py` re-derives it every
   run rather than trusting this note.
+- **A section's text ends at the next heading of *any* level.** `==Films==` on Phase Six is
+  immediately followed by `===Film title===`, so slicing that section alone yields the heading
+  line and nothing else → right for `action=edit&section=N`, useless for a reviewer. Use
+  `sections.subtree()` when displaying, the bare index when writing.
+- **`[[File:…]]` captions contain wikilinks, so `[^\]]*` cannot match them.** A regex strip
+  stops at the first `]` of the *inner* link and leaves a trail of stray `]]` through every
+  Plot section → brace-match the `[[`/`]]` pairs, same as templates.
 - **`Special:Export` on Fandom is behind Cloudflare** — returns a "Just a moment…" HTML
   challenge, not XML, so `importDump.php` cannot be used to seed → pull content through
   `api.php` (unchallenged) and create pages on our instance with `action=edit`.

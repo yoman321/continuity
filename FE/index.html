@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Continuity — wiki maintainer agent</title>
+<meta name="description" content="An agent that re-verifies wiki claims against the live web and drafts cited, section-level edits.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark">C</span>
+    <div>
+      <strong>Continuity</strong>
+      <span class="tagline">wiki maintainer agent</span>
+    </div>
+  </div>
+
+  <div class="profile-picker">
+    <label for="profile">Wiki</label>
+    <select id="profile"></select>
+    <span id="profile-meta" class="profile-meta"></span>
+  </div>
+
+  <span id="source-pill" class="pill">…</span>
+</header>
+
+<nav class="main">
+  <a href="#/queue">Review queue</a>
+  <a href="#/ledger">Claim ledger</a>
+  <a href="#/wiki">Wiki pages</a>
+</nav>
+
+<div id="stub-banner" class="stub-banner" hidden>
+  <strong>Fixture data.</strong>
+  <span id="stub-note"></span>
+</div>
+
+<main id="view"><p class="empty">Loading…</p></main>
+
+<footer class="foot">
+  <p>
+    Wiki text is from the
+    <a href="https://marvelcinematicuniverse.fandom.com/" target="_blank" rel="noopener noreferrer">Marvel Cinematic Universe Wiki</a>,
+    frozen at 2024-08-09 and reproduced under
+    <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener noreferrer">CC BY-SA 3.0 Unported</a>.
+    Full notice in <code>snapshots/ATTRIBUTION.md</code>. Application code is MIT.
+  </p>
+  <p>Built for Agentic Cinema: The Blockbuster Hackathon — Google Cloud &times; Devpost.</p>
+</footer>
+
+<script src="wikitext.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

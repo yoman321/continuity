@@ -398,20 +398,31 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
 - [ ] Stand up seeded MediaWiki on Cloud Run — create the 12 pages from `snapshots/seed/` via
       `action=edit`. Redirects are already resolved in the manifest, and `Special:Export` /
       `importDump.php` is not an option (Cloudflare), so the seeding script posts the wikitext
-- [ ] **Build the review queue frontend — this is the hosted project URL**, which is pass/fail
-      (§2: "a concept or tech demo alone fails"), and Design is one of four equally weighted
-      judging criteria, so it carries real score rather than being plumbing. Two surfaces:
-      the **queue** — each drafted edit with its diff, citations, confidence badge and
-      approve/reject, which is the §6 publish gate made visible — and a **ledger view** over
-      the 50 claims showing status, wave and next check, which is what demonstrates the agent
-      is stateful rather than a prompt chain. Now also the surface where **plug-and-play**
-      becomes visible: a wiki picker or profile input, so a judge sees the agent pointed at a
-      wiki rather than wired to one (§5).
-      *What does not need building:* MediaWiki renders wiki pages and native `?diff=` views
-      itself, so link through to the seeded instance instead of reimplementing page display
+- [x] **Build the review queue frontend** — done Aug 15, 2026. `FE/`: the **queue** (each
+      drafted edit with its diff, citations, tier badges, confidence and approve/reject — the
+      §6 publish gate made visible), the **ledger view** (status, wave, confidence, interval,
+      next check, which is what shows the agent is stateful rather than a prompt chain), a
+      **page view** rendering the seeded wikitext with each claim's anchor highlighted in
+      place, and a **wiki picker** so plug-and-play is visible rather than asserted (§5).
+      Vanilla HTML/CSS/JS, no framework and no build step — reasoning below. Page text is
+      verbatim from `snapshots/` and every number on screen is computed by the ledger core,
+      not typed into a fixture. `node FE/check.js` verifies it by counting, not eyeballing
+- [ ] **Write `app.py` + `Dockerfile` + `.gcloudignore`** — the FastAPI shell that serves
+      `FE/` and hosts the agent. This is the gap between having a frontend and having a URL:
+      nothing is deployable until it exists. Import ADK *inside* the route handlers, or a cold
+      start pays 5-15s before it can serve `index.html`
 - [ ] Deploy and confirm the hosted URL is publicly reachable, unauthenticated, on web
-- [ ] Add a build step to the verification gate, in the same task as the frontend
-      (`AGENTS.md` §5)
+- [x] Decide the hosting shape — **one Cloud Run service, Python, serving `FE/` and the agent
+      from the same container.** Decided Aug 15, 2026. Scale-to-zero, so hosting is $0 at demo
+      traffic and the credits are effectively a Gemini token budget. Next.js was considered and
+      rejected: ADK is Python-only, so a JS frontend means two runtimes, two cold starts and
+      CORS between them, to host a UI that has no server-side work to do. React was considered
+      and rejected separately — at three views it is overhead, not leverage, and it costs a
+      second toolchain in the image. MediaWiki is a second service, SQLite on a GCS volume
+      rather than Cloud SQL, because Cloud SQL cannot scale to zero (~$9/mo idle)
+- [x] Resolve the build-step question — **there is no build step, deliberately.** Recorded in
+      `AGENTS.md` §5 with the reasoning, replacing the earlier "add one with the frontend" TODO,
+      which assumed a framework. Node checks the FE; it never builds or serves it
 - [x] Pin the Fandom CC BY-SA version — done Aug 15, 2026. **CC BY-SA 3.0 Unported**, from
       the wiki's own `Project:Copyrights` (revision 3728), since `siprop=rightsinfo` reports it
       unversioned and the licensing page is JS-rendered. Notice written:
@@ -423,9 +434,15 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       data sources, findings), and confirm the repo is public with the MIT licence detectable
       in the About section (§2)
 
-**23 days left** as of Aug 15, 2026. The deterministic core and the seed corpus are real and
-verified; what remains is the vendor perimeter — ADK graph, Parallel, wiki writes, frontend.
-The build is the risk now, not the plan.
+**23 days left** as of Aug 15, 2026. The deterministic core, the seed corpus and the frontend
+are real and verified. What remains is the vendor perimeter — ADK graph, Parallel, wiki
+writes — plus the FastAPI shell that turns the frontend into a URL. The build is the risk now,
+not the plan.
+
+The frontend landing first was not the planned order, and it changed what the remaining work
+looks like: the queue and ledger views define the shape the backend has to serve, so
+`/api/state` is now specified by a working consumer rather than designed in the abstract.
+The same JSON that `build_demo_state.py` writes is what Firestore has to produce.
 
 ---
 

@@ -11,15 +11,21 @@ from .client import (
     parse_timestamp,
     slug_for,
 )
+from .sections import Section, find_section, split_sections, subtree, top_level
 
 __all__ = [
     "MCU_WIKI_API",
     "USER_AGENT",
     "MediaWikiReader",
     "PageRevision",
+    "Section",
     "WikiError",
     "build_query",
+    "find_section",
     "parse_revision",
     "parse_timestamp",
     "slug_for",
+    "split_sections",
+    "subtree",
+    "top_level",
 ]

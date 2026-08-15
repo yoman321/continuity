@@ -1,0 +1,485 @@
+{
+  "generated_by": "scripts/build_demo_state.py",
+  "generated_at": "2026-08-15T12:00:00Z",
+  "stub": true,
+  "stub_note": "Claims and citations are a hand-built fixture, not the output of an agent run. Page text is verbatim from snapshots/ and the ledger numbers are computed by src/continuity/ledger/, but no research has been performed. Replaced by live Firestore state once the ADK graph runs.",
+  "source": {
+    "wiki": "Marvel Cinematic Universe Wiki",
+    "api": "https://marvelcinematicuniverse.fandom.com/api.php",
+    "generator": "MediaWiki 1.43.9",
+    "licence": {
+      "declared": {
+        "url": "https://www.fandom.com/licensing",
+        "text": "CC-BY-SA"
+      },
+      "generator": "MediaWiki 1.43.9",
+      "sitename": "Marvel Cinematic Universe Wiki",
+      "copyright_page": {
+        "title": "Marvel Cinematic Universe Wiki:Copyrights",
+        "revid": 3728,
+        "text": "Except where otherwise specified, the text on Wikia sites is licensed under the Creative Commons Attribution-Share Alike License 3.0 (Unported) (CC-BY-SA). \n\n* [http://creativecommons.org/licenses/by-sa/3.0/ Read the license summary]\n* [http://creativecommons.org/licenses/by-sa/3.0/legalcode Read the full legal code of the license].\n\nPlease see [[w:Wikia:Licensing|Wikia:Licensing]] for details."
+      },
+      "version": "3.0"
+    }
+  },
+  "freeze": "2024-08-09T00:00:00Z",
+  "profiles": [
+    {
+      "id": "mcu-fandom",
+      "label": "MCU Wiki (Fandom)",
+      "api": "https://marvelcinematicuniverse.fandom.com/api.php",
+      "article_base": "https://marvelcinematicuniverse.fandom.com/wiki/",
+      "licence": "CC BY-SA 3.0 Unported",
+      "subpages": true,
+      "seeded": true
+    },
+    {
+      "id": "wikipedia-en",
+      "label": "Wikipedia (English)",
+      "api": "https://en.wikipedia.org/w/api.php",
+      "article_base": "https://en.wikipedia.org/wiki/",
+      "licence": "CC BY-SA 4.0",
+      "subpages": false,
+      "seeded": false
+    },
+    {
+      "id": "memory-alpha",
+      "label": "Memory Alpha (Star Trek)",
+      "api": "https://memory-alpha.fandom.com/api.php",
+      "article_base": "https://memory-alpha.fandom.com/wiki/",
+      "licence": "CC BY-NC 4.0",
+      "subpages": true,
+      "seeded": false
+    }
+  ],
+  "pages": {
+    "Deadpool_Wolverine": {
+      "title": "Deadpool & Wolverine",
+      "slug": "Deadpool_Wolverine",
+      "pageid": 320659,
+      "revid": 2019481,
+      "timestamp": "2024-08-08T23:57:40Z",
+      "role": "trunk",
+      "seed_size": 50454,
+      "current_size": 60864,
+      "drift_pct": 20.6,
+      "section_count": 21,
+      "sections": [
+        {
+          "index": 0,
+          "level": 0,
+          "heading": "",
+          "text": "{{DISPLAYTITLE:''Deadpool & Wolverine''}}\n{{Spoiler|''[[Deadpool & Wolverine]]''}}\n{{Movie\n|image = Deadpool vs Wolverine Tall Poster.jpg\n|director = [[Shawn Levy]]\n|writer = [[Ryan Reynolds (actor)|Ryan Reynolds]]<br>[[Rhett Reese]]<br>[[Paul Wernick]]<br>[[Zeb Wells (writer)|Zeb Wells]]<br>[[Shawn Levy]]\n|producer = [[Kevin Feige]]<br>[[Ryan Reynolds (actor)|Ryan Reynolds]]<br>[[Shawn Levy]]<br>[[Lauren Shuler Donner]]<br>[[Louis D'Esposito]]<br>[[Wendy Jacobson]]<br>[[Mary McLaglen]]<br>[[Josh McLaglen]]<br>[[Rhett Reese]]<br>[[Paul Wernick]]<br>[[George Dewey]]<br>[[Simon Kinberg]]<br>[[Jonathon Komack Martin]]<br>[[Mitchell Bell]]\n|composer = [[Rob Simonsen]]\n|release = July 26, 2024\n|runtime = 127 minutes\n|Prev = ''[[The Marvels]]''\n|Next = ''[[Captain America: Brave New World]]''}}\n{{Quote|I gotta be honest, I've always wanted to ride with you, [[Wolverine/Anchor Being Wolverine|Log]]. You and me getting into it, Deadpool... and [[Wolverine]] just fucking shit up. Can you imagine the fun, the chaos, the residuals?|[[Deadpool]]||1}}\n'''''Deadpool & Wolverine''''' is a 2024 superhero film, based on the [[Marvel Comics]] characters of the [[Deadpool|same]] [[Wolverine|names]]. The film is a sequel to the {{WPS|20th Century Studios|20th Century Fox}} films ''{{WPS|Deadpool (film)|Deadpool}}'' and ''{{WPS|Deadpool 2}}'' from the {{WPS|X-Men (film series)|''X-Men'' film series}} and serves as a continuation of the {{WPS|X-Men (film series)#Wolverine_trilogy|''Wolverine'' trilogy of the franchise}}, the {{WPS|Blade (franchise)#Films|''Blade'' trilogy}}, the {{WPS|Daredevil (2003 film)#Future|''Daredevil-Elektra'' film series}}, the {{WPS|Fantastic Four in film#Tim Story films (2005\u20132007)|''Fantastic Four'' duology}} and the [[Loki (TV series)/Season Two|second season]] of ''[[Loki (TV series)|Loki]]''. It is the thirty-fourth film in the [[Marvel Cinematic Universe]], and the ninth installment of [[Phase Five]]. The film was released on July 26, 2024.\n\nThe film is directed by [[Shawn Levy]] and stars [[Ryan Reynolds (actor)|Ryan Reynolds]] as [[Deadpool|Wade Wilson/Deadpool]], [[Hugh Jackman]] as [[Wolverine|Logan/Wolverine]], [[Emma Corrin]] as [[Cassandra Nova]], [[Morena Baccarin]] as [[Vanessa Carlysle]], [[Rob Delaney]] as [[Peter Wisdom]], [[Leslie Uggams]] as [[Blind Al|Althea/Blind Al]], [[Aaron Stanford]] as [[Pyro|John Allerdyce/Pyro]] and [[Matthew Macfadyen]] as [[Mr. Paradox]].\n\n"
+        },
+        {
+          "index": 2,
+          "level": 2,
+          "heading": "Plot",
+          "text": "==Plot==\n[[File:Surprise Wade.jpg|{{AltFloat}}|[[Wade Wilson]] at his birthday party]]\nArriving at the [[Sacred Timeline]] in the year [[2018]], [[Wade Wilson]] meets with [[Happy Hogan]], trying to apply for the [[Avengers]]. Wilson is desperate to find a proper use for his abilities and get his life together, but Hogan is not impressed. He cites Wilson's problems with teamwork and tells him that one joins the Avengers not because he needs it, but because others need him. Wilson gets rejected, quits his life as Deadpool and starts working as a car salesman at [[Drive Max]], while [[Vanessa Carlysle]] breaks up with him. [[2024/Anchor Being Wolverine|Six years later]] in [[Anchor Being Wolverine|his universe]], his friends threw him a birthday party, where he thanks everyone for sticking up with him, but suddenly, the [[Time Variance Authority]] agents arrive at Wilson's apartment and capture him.\n[[File:Deadpool & Mr. Paradox at the TVA.jpg|{{AltFloat}}|[[Deadpool]] learns of [[Mr. Paradox]]'s plan]]\n[[Mr. Paradox]] meets Wilson at the [[Time Variance Authority Office]] and offers him a proper place on the Sacred Timeline with the Avengers. Wilson is excited about his long-awaited [[Marvel Cinematic Universe]] debut and suits up as Deadpool once again, eager to share the news with his friends. However, Paradox explains that his universe is on the brink of dying due to losing an anchor that held his reality together, said anchor being [[Wolverine/Anchor Being Wolverine|Wolverine]] who died protecting [[X-23]]. Paradox also expresses his dissatisfaction with the current leadership of the TVA and adds that he is planning to speed up the destruction of Wilson's universe by using the [[Time Ripper]].\n[[File:Deadpool and Logan.jpg|{{AltFloat}}|[[Deadpool]] attempts to recruit [[Logan]]]]\nHorrified that he is about to lose his home and friends, Deadpool goes against the TVA and decides to find Wolverine and save his universe. Stealing a [[TemPad]], Deadpool exhumes Wolverine's grave but finds out that he is completely dead, before fighting off the [[Minutemen]] pursuing him. Deadpool keeps searches for Wolverine variants across the [[Multiverse]] to replace the deceased one, but most of them are either too hostile or are not suitable enough, with the exception of one he meets at a bar in Canada. Wolverine is not interested in hearing Deadpool out, but eventually gets too drunk to fight him and passes out. Deadpool brings the unconscious Wolverine to the TVA, but Paradox only laughs at him, saying that he managed to bring the worst Wolverine variant to ever exist.\n[[File:Sabretooth and Pyro in the Void.png|{{AltFloat}}|[[Deadpool]] and [[Wolverine]] are confronted by [[Sabretooth]]]]\nDeadpool finds out that Paradox is acting without the TVA's authorization, but both he and Wolverine get pruned and sent to the [[Void]], where Wolverine comes to his senses and attacks Deadpool. The two fight for some time, until Deadpool tells Wolverine that if they make it back to the TVA, they could change his past and prevent the catastrophe that happened to him. Wolverine begrudgingly agrees, before they meet [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm]], whom Deadpool assumes to be [[Steve Rogers|Captain America]], as well as a group of rogue scavengers, led by [[Sabretooth]]. [[Pyro]] depowers Storm and Wolverine kills Sabertooth, however, Pyro and [[Toad]] manage to capture all three of them and bring them to their base in the giant corpse of [[Giant-Man/Pruned Giant-Man|Ant-Man]].\n[[File:Cassandra Nova Crew.jpg|{{AltFloat}}|[[Cassandra Nova]] introduces herself to [[Deadpool]] and [[Wolverine]]]]\nDeadpool and Wolverine get introduced to [[Cassandra Nova]], a twin sister of [[Professor X/Cassandra Nova Birthed|Charles Xavier]] who was banished to the Void by the TVA, to her own satisfaction. Deadpool claims that while they were being transported to the camp, Storm repeatedly insulted Nova and despite him denying it, she kills Storm by skinning him with her telekinesis. Nova then incapacitates Wolverine and forcefully gets into Deadpool's mind, hijacking his memories of Carlysle to tell him that he will always be nobody. Deadpool and Wolverine recover and attack Nova, but she effortlessly brushes them off and leaves them to be devoured by [[Alioth]], although they manage to escape.\n[[File:Deadpool & Wolverine Trailer (60).png|{{AltFloat}}|[[Deadpool]] tells [[Wolverine]] he needs to save his friends]]\nThey decide to find the [[Resistance]] that Storm mentioned and get out of the Void, while Deadpool keeps badgering Wolverine about his [[Wolverine Suit|suit]] and why keeps wearing it. On their way, they meet two Deadpool variants, [[Dogpool]] and her owner [[Nicepool]]. Despite Deadpool's antagonism towards Nicepool, the latter gives them directions to the Void's borderlands and provides them with a car to make it there. While driving, Deadpool accidentally slips up that he is not certain that the TVA will fix Wolverine's reality, admitting that he made an \"educated wish\". Wolverine is enraged and lashes out at Deadpool, which results in both of them fighting each other until both are too exhausted, and someone drives their car to the Resistance hideout.\n[[File:Deadpool & Wolverine Trailer (64).png|{{AltFloat}}|[[Wolverine]] reflects on his past]]\nThere, they meet [[Elektra/Forgotten Elektra|Elektra]], [[Blade/Universe Defender Blade|Blade]], and [[Gambit]] variants, led by X-23 who had been banished to the Void by the TVA. Deadpool convinces the Resistance to team up and take on Nova and avenge Storm's death, while leaving out the reason why he died. Wolverine scoffs that their plan is doomed to fail and refuses to join them, so X-23 goes to talk to him. Wolverine admits that in his universe, he abandoned his fellow X-Men, which resulted in them being killed by the anti-mutant vigilantes, much to his horror and despair, so he keeps wearing the X-Man suit since then. X-23 tells Wolverine that regardless of what he thinks about himself, he is still a good person at heart and always will be. Meanwhile, Pyro follows Deadpool and Wolverine's tracks and strikes a deal with Paradox, who decides that Nova is too dangerous and must be eliminated.\n[[File:Cassandra Nova - Boys Are So Silly.jpg|{{AltFloat}}|[[Cassandra Nova|Nova]] meets [[Deadpool]] and [[Wolverine]] again]]\nWith Wolverine joining them, the Resistance storms Nova's base, planning to acquire [[Juggernaut]]'s [[Juggernaut's Helmet|helmet]] to neutralize Nova's psychic ability. Nova knocks Deadpool out and subdues Wolverine, taking over his mind and urges him to give in to his primal instincts and let himself loose, promising to shut down his trauma. However, Wolverine rejects her and Deadpool puts Juggernaut's helmet provided by X-23 on her, rendering her completely powerless, demanding her to release them from the Void. Suddenly, Nova gets shot by Pyro and Wolverine tells Deadpool to take off the helmet and save her, claiming that the [[Professor X/Mutant Genocide|Charles Xavier]] he knew would never want him to let Nova die.\n[[File:Deadpool and Wolverine jumping into a portal.png|{{AltFloat}}|[[Deadpool]] and [[Wolverine]] return to [[Anchor Being Wolverine|Earth-10005]]]]\nAs Deadpool obliges, Nova relents and uses a [[Sling Ring]] having the [[Reality Stone|Reality]] and [[Time Stone|Time]] Stones attached to it to open an [[Inter-Dimensional Portal]] out of the Void, so he and Wolverine can escape right before Alioth devours the whole base. Nova then forces Pyro to admit that he tried to kill her on Paradox's orders, despite them having a prior agreement about her. Deadpool and Wolverine make it to Earth-10005, where Paradox finishes preparing the Time Ripper, and Nova follows suit, killing Pyro afterwards. Nova tells them that she intends to use the Time Ripper and turn the whole Multiverse into the Void that she loves so much, capturing Paradox and sending the [[Deadpool Corps]] to stop Deadpool and Wolverine.\n[[File:Deadpool & Wolverine Trailer (73).png|{{AltFloat}}|[[Deadpool]] and [[Wolverine]] confront the [[Deadpool Corps]]]]\nDeadpool and Wolverine fight through the hordes of Deadpool variants, who keep coming back due to their regeneration, however, they all cease fighting once they see [[Peter Wisdom]], who is deeply loved by all Deadpools. With them distracted, Deadpool and Wolverine make it to Paradox who tells them that Nova already took control over the Time Ripper and is preparing to unravel the entire Multiverse. He tells them that the only way to stop this is to short-circuit the chambers of matter and anti-matter that power the device, however, it is all but guaranteed to kill them even with their regeneration. Wolverine says he should be the one to do it, claiming that he has nothing to fight for anymore, however, Deadpool locks him out of the bunker and prepares to sacrifice himself instead.\n\nDespite Wolverine's protests, Deadpool decides that he must do it himself to save everyone he loves, however, Wolverine breaks in and connects the chamber with him, resulting in the destruction of the Time Ripper and Nova's death. [[B-15]] and the TVA come to investigate the incident, with Paradox claiming that Nova is solely responsible while mourning the deaths of Deadpool and Wolverine, however, they manage to survive by sharing the energy burst between each other. Paradox gets taken under custody and Deadpool asks B-15 to do good by their Resistance allies who were left in the Void and fix Wolverine's home reality. B-15 promises to consider the former but notes that Wolverine's unfortunate circumstances were what led him to save the Multiverse.\n[[File:Wade smiling at Vanessa.png|{{AltFloat}}|[[Wade Wilson|Wade]] and [[Vanessa Carlysle|Vanessa]] rekinlde their relationship]]\nWilson and Logan then go on to have some shawarma and get reunited with Dogpool, now that Nicepool got killed in the battle. Wilson takes both of them to his place with [[Blind Al]], inviting their friends and [[X-23]] to hang out together, and Wilson rekindles his relationship with Carlysle. Later on, Deadpool pulls up the footage of Storm actually cursing out Nova, proving that he did not lie or set him up to be killed.\n{{Clear}}\n\n"
+        },
+        {
+          "index": 3,
+          "level": 2,
+          "heading": "Cast",
+          "text": "==Cast==\n*[[Ryan Reynolds (actor)|Ryan Reynolds]] as [[Deadpool|Wade Wilson/Deadpool]] / [[Nicepool|Wade Wilson/Nicepool]] / [[Ryan Reynolds|Himself]] <small>(archive footage)</small>\n*[[Hugh Jackman]] as [[Wolverine|Logan/Wolverine]] / [[Comic Accurate Wolverine|Logan/Wolverine]] / [[Weapon X|Logan/Weapon X]] / [[Patch|Logan/Patch]] / [[Old Man Logan|Logan/Wolverine]] / [[Crucified Wolverine|Logan/Wolverine]] / [[Classic Suited Wolverine|Logan/Wolverine]] / [[Wolverine/Anchor Being Wolverine|Logan/Wolverine]] <small>(archive footage)</small>\n*[[Emma Corrin]] as [[Cassandra Nova]]\n*[[Matthew Macfadyen]] as [[Mr. Paradox]]\n*[[Dafne Keen]] as [[X-23|Laura/X-23]]\n*[[Jon Favreau]] as [[Happy Hogan]]\n*[[Morena Baccarin]] as [[Vanessa Carlysle]]\n*[[Rob Delaney]] as [[Peter Wisdom]]\n*[[Leslie Uggams]] as [[Blind Al]]\n*[[Jennifer Garner]] as [[Elektra/Forgotten Elektra|Elektra]]\n*[[Wesley Snipes]] as [[Blade/Universe Defender Blade|Eric Brooks/Blade]]\n*[[Channing Tatum]] as [[Gambit|Remy LeBeau/Gambit]]\n*[[Chris Evans]] as [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm/Human Torch]] / [[Steve Rogers|Steve Rogers/Captain America]] <small>(archive footage)</small>\n*[[Henry Cavill]] as [[Cavillrine|Logan/Cavillrine]] <!-- Do not credit as \"Wolverine\" -->\n*[[Wunmi Mosaku]] as [[B-15]]\n*[[Aaron Stanford]] as [[Pyro|John Allerdyce/Pyro]]\n*[[Tyler Mane]] as [[Sabretooth|Victor Creed/Sabretooth]]\n*[[Karan Soni]] as [[Dopinder]]\n*[[Brianna Hildebrand]] as [[Negasonic Teenage Warhead|Ellie Phimister/Negasonic Teenage Warhead]]\n*[[Shioli Kutsuna]] as [[Yukio]]\n*[[Stefan Kapi\u010di\u0107]] as [[Colossus|Piotr Rasputin/Colossus]]\n*[[Randal Reeder]] as [[Buck]]\n*[[Lewis Tan]] as [[Shatterstar|Rusty/Shatterstar]]\n*[[Nick Pauley]] as [[Dancepool|Wade Wilson/Dancepool]]\n*[[Sonita Henry]] as [[Tammy Chipman]]\n*[[Ryan McKen]] as [[Mr. Chipman]]\n*[[Nanak Phlora]] as [[Elliot Chipman]]\n*[[Aydin Ahmed]] as [[Kevin Chipman]]\n*[[Leemore Marrett Jr.]] as Minuteman Leader\n*[[James Dryden]] as [[Ralph (TVA)|Ralph]]\n*[[Ollie Palmer]] as Bar Patron\n*[[Greg Hemphill]] as Seedy Bartender\n*[[Aaron W. Reed]] as [[Juggernaut|Cain Marko/Juggernaut]]\n*[[Mike Waters]] as [[Blob|Fred Dukes/Blob]]\n*[[Rob McElhenney]] as TVA Soldier <small>([[List of Deleted Scenes#Deadpool & Wolverine|deleted scene]])</small><ref>[https://www.instagram.com/p/C95GSn1vFyH/?hl=en Rob McElhenney on Instagram - July 26, 2024]</ref>\n*[[Peggy]] as [[Dogpool|Mary Puppins/Dogpool]]\n*[[James Reynolds]] as Screaming Mutant\n*[[Ed Kear]] as Outpost Tech\n*[[Paul G. Raymond]] as TVA Office Agent\n*[[Blake Lively]] as [[Ladypool|Wanda Wilson/Ladypool]] <small>(voice)</small><ref>[https://www.thewrap.com/deadpool-and-wolverine-who-plays-lady-deadpool-voice/ Who Voices Lady Deadpool in \u2018Deadpool & Wolverine?\u2019 - TheWrap]</ref>\n**[[Christiaan Bettridge]] as [[Ladypool|Wanda Wilson/Ladypool]] <small>(on-set)</small>\n*[[Inez Reynolds]] as [[Kidpool|Wanda Wilson/Kidpool]]\n*[[Nathan Fillion]] as [[Headpool|Wade Wilson/Headpool]]\n*[[Matthew McConaughey]] as [[Cowboypool|Wade Wilson/Cowboypool]]\n*[[Olin Reynolds]] as [[Babypool|Wade Wilson/Babypool]]\n*[[Paul Mullin]] as [[Welshpool|Wade Wilson/Welshpool]]\n*[[Alex Kyshkovych]] as [[Canadapool|Wade Wilson/Canadapool]]\n*[[Billy Clements]] as [[Russian|Ivan/Russian]]\n*[[Jade Lye]] as [[Lady Deathstrike|Yuriko Oyama/Lady Deathstrike]]\n*[[Curtis Rowland Small]] as [[Bullseye/Faithful Elektra|Lester/Bullseye]]\n*[[Ayesha Hussain]] as [[Psylocke|Betsy Braddock/Psylocke]]\n*[[Daniel Medina Ramos]] as [[Toad|Mortimer Toynbee/Toad]]\n*[[Nilly Cetin]] as [[Quill]]\n*[[Chloe Kibble]] as [[Callisto]]\n*[[Jessica Walker (stuntwoman)|Jessica Walker]] as [[Arclight|Philippa Sontag/Arclight]]\n*[[Eduardo Gago Mu\u00f1oz]] as [[Azazel]]\n*[[Anneka Needham]] as Female TVA Analyst <small>(uncredited)</small>\n*[[Harry Holland]] as [[Haroldpool|Wade Wilson/Haroldpool]] <small>(uncredited)</small><ref>[https://comicbookmovie.com/deadpool/deadpool-wolverine/deadpool-wolverine-features-tom-hollands-brother-as-spoiler-ryan-reynolds-talks-madonna-needle-drop-a212394#gs.cbm6wg <nowiki>DEADPOOL & WOLVERINE Features Tom Holland's Brother As [SPOILER]; Ryan Reynolds Talks Madonna Needle Drop</nowiki>]</ref>\n*[[Kevin Fortin]] as [[Zenpool|Wade Wilson/Zenpool]] <small>(uncredited)</small><ref name=\"Zenpool\">[https://www.instagram.com/p/C-GKkjrPqC4/?img_index=9 Alex Kyshkovych on Instagram - July 31, 2024]</ref>\n*To-be-confirmed actor as [[Golden Age Deadpool|Frederick Wilson/Golden Age Deadpool]]\n*To-be-confirmed actor as [[Scottishpool|Wade Wilson/Deadpool]] <!-- Do not credit as \"Scottishpool\" -->\n*To-be-confirmed actor as [[Deadpool 2099|Warda Wilson/Deadpool 2099]]\n*To-be-confirmed actor as [[Fool|Watari/Fool]]\n*To-be-confirmed actor as [[Piratepool|Wade Wilson/Deadpool]] <!-- Do not credit as \"Piratepool\" -->\n*To-be-confirmed actor as [[Richpool|Wade Wilson/Richpool]]\n*To-be-confirmed actor as [[Kingpool|Wade Wilson/Kingpool]]\n*To-be-confirmed actor as [[Shortpool|Wade Wilson/Shortpool]]\n*To-be-confirmed actor as [[Frenchpool|Wade Wilson/Frenchpool]]\n*[[Chris Hemsworth]] as [[Thor]] <small>(archive footage)</small>\n*To-be-confirmed actor as [[Hulk/Classic Suited Wolverine|Bruce Banner/Hulk]]\n*[[Scott Adkins]] as [[Weapon XI|Wade Wilson/Weapon XI]] <small>(archive footage; uncredited)</small>\n*[[Thayr Harris]] as [[Sergei Valishnikov]] <small>(archive footage; uncredited)</small>\n*[[Tom Hiddleston]] as [[Loki]] <small>(archive footage; uncredited)</small>\n*[[Neal McDonough]] as [[Dum Dum Dugan]] <small>(archive footage; uncredited)</small>\n*[[JJ Feild]] as [[James Montgomery Falsworth]] <small>(archive footage; uncredited)</small>\n*[[Sebastian Stan]] as [[Bucky Barnes]] <small>(archive footage; uncredited)</small>\n*[[Kenneth Choi]] as [[Jim Morita]] <small>(archive footage; uncredited)</small>\n*[[Elizabeth Olsen]] as [[Scarlet Witch|Wanda Maximoff/Scarlet Witch]] <small>(archive footage; uncredited)</small>\n*[[Paul Rudd]] as [[Ant-Man|Scott Lang/Ant-Man]] <small>(archive footage; uncredited)</small>\n*[[Chadwick Boseman]] as [[T'Challa|T'Challa/Black Panther]] <small>(archive footage; uncredited)</small>\n*[[Georges St-Pierre]] as [[Batroc the Leaper|Georges Batroc/Batroc the Leaper]] <small>(archive footage; uncredited)</small>\n*[[Robert Downey, Jr.]] as [[Iron Man|Tony Stark/Iron Man]] <small>(archive footage; uncredited)</small>\n*[[Mark Ruffalo]] as [[Hulk|Bruce Banner/Hulk]] <small>(archive footage; uncredited)</small>\n*[[Scarlett Johansson]] as [[Black Widow|Natasha Romanoff/Black Widow]] <small>(archive footage; uncredited)</small>\n*[[Jeremy Renner]] as [[Hawkeye|Clint Barton/Hawkeye]] <small>(archive footage; uncredited)</small>\n*[[Anthony Mackie]] as [[Sam Wilson|Sam Wilson/Falcon]] <small>(archive footage; uncredited)</small>\n*[[Ed Skrein]] as [[Ajax|Francis Freeman/Ajax]] <small>(archive footage; uncredited)</small>\n\n"
+        }
+      ]
+    },
+    "Gambit": {
+      "title": "Gambit",
+      "slug": "Gambit",
+      "pageid": 398469,
+      "revid": 2018030,
+      "timestamp": "2024-08-07T15:17:34Z",
+      "role": "lead beat \u2014 cast in Avengers: Doomsday",
+      "seed_size": 8179,
+      "current_size": 15473,
+      "drift_pct": 89.2,
+      "section_count": 19,
+      "sections": [
+        {
+          "index": 0,
+          "level": 0,
+          "heading": "",
+          "text": "{{Spoiler|''[[Deadpool & Wolverine]]''}}\n{{Character\n|image = Gambit Infobox.png\n|real name = Remy {{Conjecture|Etienne}} LeBeau\n|alias = {{Alias\n|codenames = Gambit{{Ref|DW}}\n|nicknames = Le Diable Blanc<ref name=\"Devil\"/>{{Ref|DW}}}}\n|species = [[Mutants|Mutant]]\n|citizenship = {{Citizenship|USA}}\n|gender = Male\n|affiliation = [[Resistance]] <small>(formerly)</small>\n|movie = ''[[Deadpool & Wolverine]]''\n|actor = [[Channing Tatum]]\n|status = Alive<!-- Do Not Change to Unknown. He is in the post-credits scene -->}}\n{{Quote|The name's Remy LeBeau. Le diable blanc.<ref name=\"Devil\">Translates from Cajun/Creole French to \"''The White Devil.''\"</ref> But you can call me the Gambit.|Gambit to [[Deadpool]]|Deadpool & Wolverine}}\n'''Remy Etienne LeBeau''' is a [[Mutants|mutant]] with the ability to manipulate kinetic energy, displaying a talent for card throwing and using a [[Gambit's B\u014d Staff|b\u014d staff]]. Having eventually taken the name '''Gambit''', he was banished to the [[Void]] by the [[Time Variance Authority]], where he joined a resistance group to battle [[Cassandra Nova]] and her forces. He and his team forged an alliance with [[Deadpool]] and [[Wolverine]] to defeat Cassandra and escape the Void.\n\n"
+        },
+        {
+          "index": 15,
+          "level": 2,
+          "heading": "Trivia",
+          "text": "==Trivia==\n*In the comics, Gambit is depicted as a former thief and long-standing member of the [[X-Men]]. He is also a love interest to Rogue.\n*Gambit is one character who was portrayed by an actor that exists in the Marvel Cinematic Universe without portraying themselves, alongside [[Mainframe]] and [[Blade/Universe Defender Blade|Blade]]. [[Channing Tatum]]'s existence in the MCU was confirmed in the ''[[Jessica Jones (TV series)|Jessica Jones]]'' episode ''[[AKA Ladies Night]]''.\n\n"
+        },
+        {
+          "index": 16,
+          "level": 2,
+          "heading": "Behind the Scenes",
+          "text": "==Behind the Scenes==\n*Gambit in the [[Marvel Cinematic Universe]] fulfills [[Channing Tatum]]'s long desire to portray Gambit on screen in a film rather than continue the previous on-screen version. Tatum was originally supposed to portray Gambit in a {{WPS|Gambit (unproduced film)|long in-development film}} that was subsequently cancelled following the {{WPS|Acquisition of 21st Century Fox by Disney|acquisition of 20th Century Fox by Disney}}.\n*Gambit in the [[Marvel Cinematic Universe]] is the second live-action incarnation of the character, following an incarnation portrayed by {{WPS|Taylor Kitsch}}.\n*[[David MacDonald]] was a stunt double for [[Channing Tatum]] in the role of Gambit.\n\n"
+        }
+      ]
+    },
+    "Phase_Six": {
+      "title": "Phase Six",
+      "slug": "Phase_Six",
+      "pageid": 362998,
+      "revid": 2009721,
+      "timestamp": "2024-07-29T23:39:02Z",
+      "role": "slate composition",
+      "seed_size": 1580,
+      "current_size": 7309,
+      "drift_pct": 362.6,
+      "section_count": 9,
+      "sections": [
+        {
+          "index": 0,
+          "level": 0,
+          "heading": "",
+          "text": "{{Upcoming}}\n{{Phase\n|image = Phase Six Original Slate.jpg\n|directors = [[Matt Shakman]]<ref>[https://www.marvel.com/d23-2022-fantastic-four-announcement D23 Expo 2022: Marvel Studios \u2018Fantastic Four\u2019 Director Announced]</ref><br>[[Joe Russo]]<ref name=\"Doom\">[https://deadline.com/2024/07/robert-downey-jr-victor-von-doom-avengers-doomsday-1236024873/ Robert Downey Jr Playing Victor Von Doom In Russo Brothers\u2019 \u2018Avengers: Doomsday\u2019 & \u2018Avengers: Secret Wars\u2019 \u2013 Comic-Con]</ref><br>[[Anthony Russo]]<ref name=\"Doom\"/>\n|head writers = \n|showrunners = \n|tv directors = \n|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''\n|one shots = \n|tv series = \n|tv movies = \n|web series = \n|duration = \n|boxoffice = \n|runtime = \n|preceded by = [[Phase Five]]\n|followed by = -}}\n'''Phase Six''' is the sixth part of the [[Marvel Cinematic Universe]] as well as the third and final part of [[The Multiverse Saga]].\n\n"
+        },
+        {
+          "index": 1,
+          "level": 2,
+          "heading": "Overview",
+          "text": "==Overview==\n''To be added''\n\n"
+        },
+        {
+          "index": 2,
+          "level": 2,
+          "heading": "Films",
+          "text": "==Films==\n===''[[The Fantastic Four: First Steps]]'' (2025)===\n''To be added''\n\n===''[[Avengers: Doomsday]]'' (2026)===\n''To be added''\n\n===''[[Avengers: Secret Wars]]'' (2027)===\n''To be added''\n\n"
+        }
+      ]
+    },
+    "Human_Torch": {
+      "title": "Human Torch",
+      "slug": "Human_Torch",
+      "pageid": 393304,
+      "revid": 2010786,
+      "timestamp": "2024-07-31T02:05:42Z",
+      "role": "variant-vs-prime precision test",
+      "seed_size": 2990,
+      "current_size": 18028,
+      "drift_pct": 502.9,
+      "section_count": 16,
+      "sections": [
+        {
+          "index": 0,
+          "level": 0,
+          "heading": "",
+          "text": "{{SomethingElse|alternate versions of Human Torch|Hub:Johnny Storm|Human Torch's Character Hub}}\n{{Upcoming}}\n{{Character\n|image = Johnny Storm.png\n|real name = Jonathan {{Conjecture|Lowell Spencer}} Storm\n|alias = {{Alias\n|primary = Johnny Storm<ref name=\"TF4\">[https://www.marvel.com/articles/movies/fantastic-four-cast Marvel Studios Announces 'Fantastic Four' Cast]</ref>\n|codenames = Human Torch<ref name=\"TF4\"/>}}\n|species = [[Humans|Human]]\n|citizenship = {{Citizenship|USA}}\n|gender = Male\n|DOB =\n|title =\n|affiliation = {{Affiliation|FF}}<br>{{Affiliation|FUFO}}\n|movie = ''[[The Fantastic Four: First Steps]]'' <small>(unreleased)</small><br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small><ref name=\"F4Avengers\">[https://x.com/DiscussingFilm/status/1817378767787975016 DiscussingFilm on X - July 27, 2024]</ref><br>''[[Avengers: Secret Wars]]'' <small>(unreleased)</small><ref name=\"F4Avengers\"/>\n|actor = [[Joseph Quinn]]\n|status = Alive}}\n{{Quote|That last voice you just heard is my baby brother Jonathan Storm, and ladies, he is very single.|[[Sue Storm]]|The Fantastic Four: First Steps}}\n'''Jonathan Lowell Spencer \"Johnny\" Storm''' is a charismatic and foolish member of the [[Fantastic Four]] known as '''Human Torch''', and he is also the younger brother of [[Sue Storm]].<ref name=\"TF4\"/><ref name=\"SDCC 2024\">[https://www.youtube.com/watch?v=kHJPo79afXE Meet The Fantastic Four: First Steps Cast and MORE at SDCC 2024!]</ref>\n\n"
+        }
+      ]
+    }
+  },
+  "claims": [
+    {
+      "claim_id": "GAM-APP-01",
+      "page": "Gambit",
+      "page_slug": "Gambit",
+      "entity_ref": {
+        "title": "Gambit",
+        "base": "Gambit",
+        "variant": null
+      },
+      "kind": "prose",
+      "wave": "announcement_driven",
+      "text": "Gambit's only film appearance is Deadpool & Wolverine.",
+      "wikitext_anchor": "|movie = ''[[Deadpool & Wolverine]]''",
+      "section_index": 0,
+      "section_heading": "(lead)",
+      "status": "drafted",
+      "confidence": 0.98,
+      "auto_appliable": true,
+      "objective": "Which announced films does Channing Tatum's Gambit appear in?",
+      "research_rounds": 1,
+      "ripple_targets": [
+        "PS6-FILMS-01"
+      ],
+      "last_verified": "2026-08-15T12:00:00Z",
+      "next_check_at": "2026-08-16T00:00:00Z",
+      "check_interval_hours": 12,
+      "sources": [
+        {
+          "url": "https://thewaltdisneycompany.com/marvel-studios-announces-robert-downey-jr-and-the-russo-brothers-to-return-for-avengers-doomsday/",
+          "domain": "thewaltdisneycompany.com",
+          "tier": 1,
+          "excerpt": "Studio announcement of Avengers: Doomsday.",
+          "as_of": "2024-07-27T00:00:00Z",
+          "placeholder": true
+        },
+        {
+          "url": "https://deadline.com/2024/07/robert-downey-jr-victor-von-doom-avengers-doomsday-1236024873/",
+          "domain": "deadline.com",
+          "tier": 2,
+          "excerpt": "Trade reporting on the Doomsday cast announcement.",
+          "as_of": "2024-07-27T00:00:00Z",
+          "placeholder": true
+        }
+      ],
+      "contradictions": [],
+      "conflict_note": "",
+      "rationale": "The infobox lists one film. A second is announced, so the field is incomplete rather than wrong \u2014 appended in the wiki's existing <br> convention, no new field and no new section.",
+      "pending_selection": false
+    },
+    {
+      "claim_id": "DW-VOID-01",
+      "page": "Deadpool & Wolverine",
+      "page_slug": "Deadpool_Wolverine",
+      "entity_ref": {
+        "title": "Deadpool & Wolverine",
+        "base": "Deadpool & Wolverine",
+        "variant": null
+      },
+      "kind": "link",
+      "wave": "release_driven",
+      "text": "The Plot section's [[Void]] link points at the D&W location.",
+      "wikitext_anchor": "sent to the [[Void]], where Wolverine",
+      "section_index": 2,
+      "section_heading": "Plot",
+      "status": "drafted",
+      "confidence": 0.85,
+      "auto_appliable": true,
+      "objective": "What does the title 'Void' resolve to on this wiki today?",
+      "research_rounds": 1,
+      "ripple_targets": [],
+      "last_verified": "2026-08-15T12:00:00Z",
+      "next_check_at": "2026-08-19T00:00:00Z",
+      "check_interval_hours": 84,
+      "sources": [
+        {
+          "url": "https://deadline.com/2022/06/marvels-thunderbolts-jake-schreier-1235041619/",
+          "domain": "deadline.com",
+          "tier": 2,
+          "excerpt": "Trade coverage establishing the competing Void subject.",
+          "as_of": "2022-06-08T00:00:00Z",
+          "placeholder": true
+        }
+      ],
+      "contradictions": [],
+      "conflict_note": "",
+      "rationale": "Nobody edited this page \u2014 the target moved underneath it. 'Void' now resolves to Sentry's Void, so the link sends readers to the wrong character. Piped to the explicit title so the displayed text is unchanged.",
+      "pending_selection": false
+    },
+    {
+      "claim_id": "DW-HT-01",
+      "page": "Deadpool & Wolverine",
+      "page_slug": "Deadpool_Wolverine",
+      "entity_ref": {
+        "title": "Deadpool & Wolverine",
+        "base": "Deadpool & Wolverine",
+        "variant": null
+      },
+      "kind": "link",
+      "wave": "in_universe_slow",
+      "text": "The Cast entry for Chris Evans points at the Void variant, not the prime Johnny Storm.",
+      "wikitext_anchor": "*[[Chris Evans]] as [[Human Torch/Void Analyzing Fantastic Four|Johnny Storm/Human Torch]]",
+      "section_index": 3,
+      "section_heading": "Cast",
+      "status": "verified",
+      "confidence": 0.95,
+      "auto_appliable": false,
+      "objective": "Is the Human Torch in Deadpool & Wolverine the prime MCU Johnny Storm or a Void variant?",
+      "research_rounds": 0,
+      "ripple_targets": [],
+      "last_verified": "2026-08-15T12:00:00Z",
+      "next_check_at": "2026-09-12T12:00:00Z",
+      "check_interval_hours": 672,
+      "sources": [
+        {
+          "url": "https://www.marvel.com/articles/movies/fantastic-four-cast",
+          "domain": "marvel.com",
+          "tier": 1,
+          "excerpt": "Studio cast announcement for the prime MCU Fantastic Four.",
+          "as_of": "2024-02-14T00:00:00Z",
+          "placeholder": true
+        }
+      ],
+      "contradictions": [],
+      "conflict_note": "",
+      "rationale": "The precision test, and the correct answer is no edit. The Human Torch page grew 503% because First Steps introduced the prime Johnny Storm \u2014 which makes repointing this link the tempting, well-cited, wrong edit. Different subject, different claims; the variant subpage is right and stays.",
+      "pending_selection": false
+    },
+    {
+      "claim_id": "PS6-FILMS-01",
+      "page": "Phase Six",
+      "page_slug": "Phase_Six",
+      "entity_ref": {
+        "title": "Phase Six",
+        "base": "Phase Six",
+        "variant": null
+      },
+      "kind": "list_member",
+      "wave": "announcement_driven",
+      "text": "Phase Six comprises First Steps, Doomsday and Secret Wars.",
+      "wikitext_anchor": "|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
+      "section_index": 0,
+      "section_heading": "(lead)",
+      "status": "drafted",
+      "confidence": 0.95,
+      "auto_appliable": true,
+      "objective": "Which films are currently slated in Phase Six?",
+      "research_rounds": 1,
+      "ripple_targets": [],
+      "last_verified": "2026-08-15T12:00:00Z",
+      "next_check_at": "2026-08-16T00:00:00Z",
+      "check_interval_hours": 12,
+      "sources": [
+        {
+          "url": "https://thewaltdisneycompany.com/news/cinemacon-2026-recap/",
+          "domain": "thewaltdisneycompany.com",
+          "tier": 1,
+          "excerpt": "Studio slate presentation.",
+          "as_of": "2026-04-02T00:00:00Z",
+          "placeholder": true
+        }
+      ],
+      "contradictions": [],
+      "conflict_note": "",
+      "rationale": "One research round yields the whole slate at once. Note what is *not* proposed: the live wiki renamed this section Films -> Projects, and renaming a section is an editorial convention decision no source implies (AGENTS.md \u00a72).",
+      "pending_selection": false
+    },
+    {
+      "claim_id": "DW-CAMEO-01",
+      "page": "Deadpool & Wolverine",
+      "page_slug": "Deadpool_Wolverine",
+      "entity_ref": {
+        "title": "Deadpool & Wolverine",
+        "base": "Deadpool & Wolverine",
+        "variant": null
+      },
+      "kind": "list_member",
+      "wave": "announcement_driven",
+      "text": "Channing Tatum's Gambit returns in Avengers: Secret Wars.",
+      "wikitext_anchor": "*[[Channing Tatum]] as [[Gambit|Remy LeBeau/Gambit]]",
+      "section_index": 3,
+      "section_heading": "Cast",
+      "status": "unresolved",
+      "confidence": 0.5,
+      "auto_appliable": false,
+      "objective": "Is Gambit confirmed for Avengers: Secret Wars, or only in talks?",
+      "research_rounds": 1,
+      "ripple_targets": [],
+      "last_verified": "2026-08-15T12:00:00Z",
+      "next_check_at": "2026-08-16T00:00:00Z",
+      "check_interval_hours": 12,
+      "sources": [
+        {
+          "url": "https://variety.com/2022/film/news/hugh-jackman-wolverine-deadpool-3-logan-timeline-1235466229/",
+          "domain": "variety.com",
+          "tier": 2,
+          "excerpt": "Trade outlet reporting the return as confirmed.",
+          "as_of": "2026-06-11T00:00:00Z",
+          "placeholder": true
+        },
+        {
+          "url": "https://collider.com/deadpool-3-mcu-confirmed-r-rating-filming-details-kevin-feige-interview/",
+          "domain": "collider.com",
+          "tier": 4,
+          "excerpt": "Second outlet reporting the same return as unconfirmed.",
+          "as_of": "2026-06-18T00:00:00Z",
+          "placeholder": true
+        }
+      ],
+      "contradictions": [
+        {
+          "note": "One outlet reports the casting as confirmed; the other reports it as in talks.",
+          "source_a": "variety.com",
+          "source_b": "collider.com"
+        }
+      ],
+      "conflict_note": "Confirmed vs. in talks \u2014 the outlets do not agree and neither retracted.",
+      "rationale": "Two credible outlets disagree on confirmed vs in-talks. The agent declines rather than picking, keeps both citations, and re-queues the claim for when new sources appear.",
+      "pending_selection": true
+    },
+    {
+      "claim_id": "DW-REL-01",
+      "page": "Deadpool & Wolverine",
+      "page_slug": "Deadpool_Wolverine",
+      "entity_ref": {
+        "title": "Deadpool & Wolverine",
+        "base": "Deadpool & Wolverine",
+        "variant": null
+      },
+      "kind": "prose",
+      "wave": "settled",
+      "text": "Deadpool & Wolverine released July 26, 2024.",
+      "wikitext_anchor": "'''''Deadpool & Wolverine'''''",
+      "section_index": 0,
+      "section_heading": "(lead)",
+      "status": "verified",
+      "confidence": 0.95,
+      "auto_appliable": false,
+      "objective": "Confirm the theatrical release date of a film already in release.",
+      "research_rounds": 0,
+      "ripple_targets": [],
+      "last_verified": "2026-08-16T12:00:00Z",
+      "next_check_at": "2027-02-12T12:00:00Z",
+      "check_interval_hours": 4320,
+      "sources": [
+        {
+          "url": "https://www.marvel.com/movies/deadpool-and-wolverine",
+          "domain": "marvel.com",
+          "tier": 1,
+          "excerpt": "Studio page for a released film.",
+          "as_of": "2024-07-26T00:00:00Z",
+          "placeholder": true
+        }
+      ],
+      "contradictions": [],
+      "conflict_note": "",
+      "rationale": "A shipped film's release date does not move. Two clean rechecks take the interval 45d -> 90d -> 180d, the ceiling: the agent stops asking a settled question without ever dropping it from the schedule.",
+      "pending_selection": false
+    }
+  ],
+  "queue": [
+    {
+      "edit_id": "edit-gam-app-01",
+      "claim_id": "GAM-APP-01",
+      "page": "Gambit",
+      "page_slug": "Gambit",
+      "section_index": 0,
+      "section_heading": "(lead)",
+      "before": "|movie = ''[[Deadpool & Wolverine]]''",
+      "after": "|movie = ''[[Deadpool & Wolverine]]''<br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small>",
+      "rationale": "The infobox lists one film. A second is announced, so the field is incomplete rather than wrong \u2014 appended in the wiki's existing <br> convention, no new field and no new section.",
+      "confidence": 0.98,
+      "auto_appliable": true,
+      "drafted_at": "2026-08-15T12:00:00Z",
+      "summary": "Gambit \u2014 Gambit's only film appearance is Deadpool & Wolverine."
+    },
+    {
+      "edit_id": "edit-dw-void-01",
+      "claim_id": "DW-VOID-01",
+      "page": "Deadpool & Wolverine",
+      "page_slug": "Deadpool_Wolverine",
+      "section_index": 2,
+      "section_heading": "Plot",
+      "before": "sent to the [[Void]], where Wolverine",
+      "after": "sent to the [[Void (End of Time)|Void]], where Wolverine",
+      "rationale": "Nobody edited this page \u2014 the target moved underneath it. 'Void' now resolves to Sentry's Void, so the link sends readers to the wrong character. Piped to the explicit title so the displayed text is unchanged.",
+      "confidence": 0.85,
+      "auto_appliable": true,
+      "drafted_at": "2026-08-15T12:00:00Z",
+      "summary": "Deadpool & Wolverine \u2014 The Plot section's [[Void]] link points at the D&W location."
+    },
+    {
+      "edit_id": "edit-ps6-films-01",
+      "claim_id": "PS6-FILMS-01",
+      "page": "Phase Six",
+      "page_slug": "Phase_Six",
+      "section_index": 0,
+      "section_heading": "(lead)",
+      "before": "|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
+      "after": "|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Spider-Man: Brand New Day]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
+      "rationale": "One research round yields the whole slate at once. Note what is *not* proposed: the live wiki renamed this section Films -> Projects, and renaming a section is an editorial convention decision no source implies (AGENTS.md \u00a72).",
+      "confidence": 0.95,
+      "auto_appliable": true,
+      "drafted_at": "2026-08-15T12:00:00Z",
+      "summary": "Phase Six \u2014 Phase Six comprises First Steps, Doomsday and Secret Wars."
+    }
+  ],
+  "counts": {
+    "claims": 6,
+    "queued": 3,
+    "planned_claims": 50
+  }
+}
