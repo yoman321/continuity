@@ -364,6 +364,29 @@ tiers at this size. The consequence is that the $100 credits are effectively a *
 budget*, not a hosting budget — which reframes cost control as "cap the agent's research", not
 "cap the infrastructure".
 
+**What that works out to.** The load is the hourly tick plus a handful of judge visits. At
+1 vCPU / 1 GiB with a 60-second tick, 720 ticks a month is roughly 43k vCPU-seconds and 43k
+GiB-seconds — inside Cloud Run's monthly free allowance, and about **$1** even if it were
+billed in full. Firestore (50k reads / 20k writes a day), Cloud Scheduler (3 jobs) and Secret
+Manager (6 active versions) are all far below their free thresholds at one job and a handful of
+secrets. Artifact Registry is the only line that plausibly leaves a free tier at all: 0.5 GB is
+free and `google-adk` makes the app image fat enough to pass it, for something like $0.10/mo.
+Everything except Gemini is rounding error.
+
+*These rates and thresholds are from recall, not the console* — same standing as the other
+unverified figures below. The conclusion does not depend on their precision, but check them
+against a real bill before trusting a number, and set the $25 budget alert (`README.md`) before
+the first deploy rather than after.
+
+**Two things would turn that into a real bill, and both are self-inflicted.** Setting
+`--min-instances 1` bills an instance around the clock instead of per request — roughly 2.6M
+vCPU-seconds a month, which is tens of dollars rather than one. The temptation is cold start,
+5-15s, which a judge experiences as a broken link; the free fix is the lazy imports already
+required by `AGENTS.md` §7, not a warm instance. The other is a tick that runs long: `--timeout
+900` means a stuck research loop can burn fifteen minutes of CPU *and* tokens, 720 times a
+month. `--max-instances 3` and the timeout bound the damage, but the research-round cap is what
+actually prevents it.
+
 **MediaWiki is the one piece that fights this.** It wants a database, and Cloud SQL cannot
 scale to zero — the smallest instance bills around $9/mo whether or not anyone visits, which
 over the run-up to judging is real money spent on an idle demo. MediaWiki supports SQLite, so
@@ -610,7 +633,10 @@ else is either downstream of those three or explicitly *if time permits*.
       typo in the `Dockerfile` found locally is a two-minute fix instead of a Cloud Build round
       trip. Then deploy, confirm the hosted URL is publicly reachable and unauthenticated from a
       browser, and make one model call from the deployed service — the service account's Gemini
-      role is still unverified and fails at the first call, not at deploy (`README.md`)
+      role is still unverified and fails at the first call, not at deploy (`README.md`). Set the
+      $25 budget alert in the same sitting, and check the first day's bill against the §6
+      estimate: those figures are from recall, and the deployed service is the cheapest place to
+      find out they were wrong
 - [x] Decide the hosting shape — **one Cloud Run service, Python, serving `FE/` and the agent
       from the same container**; MediaWiki a second service on SQLite. Decided Aug 15, 2026.
       Reasoning and the rejected alternatives in §6; the topology in `AGENTS.md` §3

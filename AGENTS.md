@@ -115,15 +115,19 @@ Rules that fall out of this shape:
   second origin, no CORS and no second deploy. Do not split them.
 - **Region is `us-east1` for Cloud Run, Firestore and the bucket.** Gemini is the exception —
   `location="global"`, never a region (§5).
-- **`--min-instances 0` and `--max-instances 3`.** Zero is what makes idle cost nothing; the
-  ceiling is what stops a stuck research loop from draining the credits.
+- **`--min-instances 0`, always — and `--max-instances 3`.** Zero is what makes idle cost
+  nothing: Cloud Run bills per request-second, so an unwatched demo is free. Raising it to 1 to
+  hide the cold start bills an instance around the clock and turns ~$1/mo into tens of dollars;
+  the sanctioned fix for cold start is the lazy imports in §7. The ceiling stops a stuck
+  research loop from draining the credits. Numbers in `summary.md` §6.
 - **MediaWiki uses SQLite on a mounted bucket, not Cloud SQL.** Cloud SQL cannot scale to
   zero, so the cheapest instance bills ~$9/mo to serve a demo nobody is looking at. Unverified
   as of Aug 22, 2026 — SQLite needs POSIX locking a GCS FUSE mount may not give it, and the
   failure mode is write corruption, not an error. Prove a write-read-restart cycle before
   seeding pages onto it (`summary.md` §10).
 - **Gemini tokens are the only meaningful cost.** Every other line above sits inside a free
-  tier at demo traffic — verify current figures before relying on that (`summary.md` §12).
+  tier at demo traffic; the per-item breakdown is in `summary.md` §6, and its figures are from
+  recall rather than the console. Set the $25 budget alert before the first deploy, not after.
 
 ## 4. File map
 
