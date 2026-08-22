@@ -38,7 +38,3 @@ build/
 
 # Claude Code local overrides
 .claude/settings.local.json
-
-# planning
-summary.md
-seed-plan.md

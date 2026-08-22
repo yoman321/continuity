@@ -212,22 +212,111 @@ the integration must be present in your code."*
 
 ## 6. Architecture
 
-### Control flow (6 stages, 2 feedback loops)
+### Control flow (7 stages, 2 feedback loops)
 
 ```
-Audit page ──→ Research ──→ Adjudicate
-(flag at-risk  (Parallel   (weigh source
- claims)        search)     tiers)
+Audit page ──→ Research ──→ Classify
+(ledger picks  (Parallel    (still true /
+ due claims)    search)      new / conflicting)
     ▲               ▲            │
-    │               └────────────┘  retry: unresolved
+    │               └────────────┘  retry: thin retrieval
+    │                            ▼
+    │                         Fan-out
+    │                    (add the claims a
+    │                     new fact implicates)
     │                            │
 Publish ←──── Verify ←──── Draft edit
-(human       (check for    (section-level
- approves)    conflicts)    diff)
+(human edits  (check for    (section-level
+ or approves)  conflicts)    diff)
                   └────────────→┘  retry: introduced conflict
 ```
 
-The two return arrows are where the agentic behaviour lives.
+The two return arrows and the fan-out are where the agentic behaviour lives — the arrows
+because a stage's output decides whether the next one runs, the fan-out because it changes
+the scope of the run in flight.
+
+### The classify stage — decided Aug 22, 2026
+
+Parallel returns a batch of excerpts, not an answer. The stage that consumes it is a Gemini
+node that reads the batch **against the current page state** and sorts every claim it touches
+into exactly three buckets:
+
+| Bucket | Meaning | What the reviewer sees |
+|---|---|---|
+| **Still true** | the page already says this, and retrieval confirms it | the claim, its refreshed citation, and a bumped `last_verified` — no diff |
+| **New** | retrieval carries something the page does not have | a drafted section-level insert with citations |
+| **Conflicting** | page and sources disagree, or sources disagree with each other | both readings side by side, each with its tier and citation, and no auto-resolution |
+
+**The buckets are not naturally disjoint, and that had to be measured to be believed.** As
+worded above, "page and sources disagree" swallows "retrieval carries something the page
+lacks" — an absence reads as a disagreement — so every model tested collapsed toward
+*conflicting*, including on the Human Torch precision case. Two fixes, both verified in §12's
+benchmark and both now rules in `AGENTS.md` §7: the classifier tests the buckets in precedence
+order with "an absence is not a contradiction" said out loud, and ledger claims are phrased as
+positive assertions rather than closed-world ones. The second matters more than it sounds — a
+claim stored as "Gambit's appearances are *limited to* D&W" is contradicted by every new fact,
+which is a correctly-working agent producing a useless review queue. The bucket a claim lands
+in is partly a property of how the claim was written down.
+
+**Why three buckets rather than a confidence score per claim.** A score answers "how sure am
+I," which is the wrong question at a review gate — the reviewer needs to know *what kind of
+decision they are being asked to make*, and those are genuinely different: nothing, an
+addition, or a judgement call. Confidence still exists in the ledger and still gates what may
+auto-apply; it just is not the organising axis of the review.
+
+**"Still true" is surfaced, not silent.** Previously a no-change result only doubled
+`next_check_at` and vanished. Showing it is what makes the decay ladder legible and what
+proves the agent did the work — most rounds *should* end here (§7), and a review queue that
+only ever shows edits hides the majority of what the agent does.
+
+**Conflicts route to the human, not to a retry.** The agent's job ends at stating the
+disagreement with both sources ranked; resolving it is the reviewer's. This replaces the
+earlier framing where the agent marked `unresolved` and waited for the world to break the
+tie — that still happens for anything the reviewer defers, but it is the fallback, not the
+first move.
+
+**The reviewer edits, not just approves.** Approve/reject alone forces a bad choice when a
+draft is 90% right, and rejecting throws away correct research along with the bad sentence.
+The gate accepts a hand-edited version of the draft as a third outcome.
+
+### The fan-out stage — decided Aug 22, 2026
+
+A confirmed fact rarely belongs to one claim. Gambit's *Doomsday* casting lands on `Gambit`,
+on `Phase Six`, and on the film page's appearances context (`seed-plan.md` §4.1) — one search,
+three pages. Fan-out is the stage that turns a single *new*-bucket result into the full set of
+claims it implicates, and hands that widened set to Draft.
+
+`ripple_targets[]` on the `Claim` record already stores the links the ledger knows about, so
+the stage starts from a lookup, not a guess. What it adds on top is discovery: a fact can
+implicate a claim nobody recorded a link for, and those edges get written back so the next run
+starts better informed. The ledger gets denser with use.
+
+**Why this is the stage that answers the pipeline objection.** A retry edge only says "try
+again," which a `for` loop also does. Fan-out means the set of claims a run touches was not
+knowable when the run started — Audit picked the due claims, and research findings added more.
+That is §4's requirement 2 (plan chosen at runtime, varying by input) demonstrated rather than
+asserted, and it is also the video's opening beat, so the most convincing evidence of autonomy
+and the most legible thing on screen are the same feature.
+
+**Bounded, like every other loop here.** Fan-out expands the working set, so it needs a ceiling
+or one busy news day turns a tick into a full-wiki rewrite: cap the added claims per run, and
+do not let a fanned-in claim fan out again in the same run. One hop, not transitive closure.
+
+**The second hop happens next tick, not this one.** Capping at one hop does not lose the rest of
+the cascade. A claim fanned into a run has been touched, so its `next_check_at` is pulled forward
+and it fans out from *itself* on a later tick — the full graph still gets walked, just in bounded
+steps with a human gate between each. The pull-forward is a rule rather than an implication (§7):
+a fanned-in claim left to decay like a quiet one would double its interval and put the second hop
+weeks away, which silently converts a cascade into an unrelated edit much later.
+
+**What keeps this agentic (§4).** Fetch → classify → human is a linear pipeline on its own,
+and §4's litmus test would fail it. Four things keep it from being one, and all four have
+to survive implementation: the ledger decides *which* claims are fetched and when
+(`next_check_at` is agent-chosen, §7); fan-out lets the findings widen the run; a thin or
+off-target retrieval sends the graph back to Research with a broadened objective rather than
+forward to a bad classification; and a draft that introduces a conflict elsewhere on the page
+goes back to Draft. Cut them and this becomes RAG with a review screen — the exact quiet
+failure §4 names.
 
 ### The claim ledger (central state)
 One row per atomic claim:
@@ -311,6 +400,12 @@ the interval; something changed → halve it. Floor ~6 hours, ceiling ~6 months.
 daily → monthly → biannual ladder naturally. An agent choosing its own cadence reads as
 more agentic than one obeying a cron table.
 
+**Fan-out overrides decay.** A claim pulled into a run by fan-out (§6) is rescheduled as if it
+changed — interval halved, `next_check_at` pulled forward — however small its own edit was, and
+even if it got none. Sitting next to a fact that just moved is the best available signal that a
+claim is about to move too, and it is what makes the second hop of a cascade arrive soon instead
+of at the ceiling.
+
 **Parallel Monitor = a second, independent schedule owned by Parallel.** Don't build it —
 running both means duplicate work, duplicate cost, dedup logic, and webhook failure modes.
 Give it one sentence in the writeup: *"at production scale, Monitor would replace the
@@ -332,9 +427,11 @@ So the question is never "is there enough data yet" — it's "which claims have 
 mapping onto the 50-claim set are in `seed-plan.md` §3.
 
 ### Unresolved-claim revisit queue
-When the agent can't adjudicate, it writes `status: unresolved` plus the objective it was
-pursuing. That claim is re-attempted when new sources appear. **This is the strongest
-behaviour in the design** — an agent that knows what it doesn't know yet and comes back.
+When the reviewer defers a conflict rather than resolving it (§6), the claim keeps
+`status: unresolved` plus the objective it was pursuing, and is re-attempted when new sources
+appear. An agent that knows what it doesn't know yet and comes back is the strongest behaviour
+in the design; since Aug 22, 2026 it is the fallback path rather than the first move, because
+a conflict now goes to the human before it goes on this queue.
 
 ---
 
@@ -382,8 +479,10 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
 4. Diff queue with citations and confidence badges
 5. **Break something live** — revoke the Parallel key, or edit the page underneath it —
    and show recovery
-6. **Close on the refusal** (§4.5): two credible outlets disagree, and the agent declines to
-   resolve it, marking `unresolved` and queueing a revisit. The most trustworthy thing it does
+6. **Close on the conflicting bucket** (§6): the agent puts two readings side by side with
+   their tiers and citations and declines to pick, handing the judgement to the reviewer. An
+   agent that says *"these disagree and I am not resolving it"* reads as more trustworthy than
+   one that always produces an answer. Which claim this is depends on the run — see §10
 7. Optionally: run twice on the same film (restricted vs full source set) to show
    confidence moving
 
@@ -419,6 +518,22 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       pass, mypy strict and ruff clean
 - [x] Establish the verification gate — done Aug 15, 2026, with the first module. Commands in
       `AGENTS.md` §5
+- [x] Prove the Gemini + ADK perimeter end to end — done Aug 22, 2026. ADC with `enterprise=True`
+      at `location="global"` authenticates against the project in `.env`; `gemini-3.6-flash` and
+      `gemini-3.1-pro-preview` both serve; a 4-node `Workflow` with a conditional backward edge
+      and a real `LlmAgent` runs through `InMemoryRunner`. §6's control flow is buildable as
+      drawn, and the retry loop was traced firing. Three API traps found and written to
+      `AGENTS.md` §6; the model-ID correction is in §12 above
+- [x] Pick the model on measurement, not assumption — done Aug 22, 2026. **`gemini-3.5-flash`
+      everywhere**; the planned pro/flash split is dropped. Benchmarked on the Classify task
+      against the seed corpus: 3.5-flash 24/24, `gemini-3.1-pro-preview` 12/24. Numbers and
+      reasoning in §12; the pin is `AGENTS.md` §2. Nothing now depends on a `-preview` model
+      surviving to judging
+- [x] Fix the two spec defects the benchmark exposed — done Aug 22, 2026. §6's three buckets
+      were not disjoint (an absence read as a contradiction, so every model collapsed toward
+      *conflicting*), and closed-world claim phrasing turned every new fact into a false
+      conflict. Both are now rules in `AGENTS.md` §7 and reasoning in §6. Neither was
+      discoverable by reading the spec — both surfaced only by running it
 - [ ] **Build the wiki profile** — endpoint + transport, title grammar, section vocabulary,
       tier table, licence, auth (§5). Lifts the hardcoded Fandom assumptions out of the core:
       `EntityRef.from_title`'s `/` split and `ledger/tiers.py`'s trade-press table are both
@@ -426,8 +541,13 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       demonstrated rather than asserted
 - [ ] Define ADK tool signatures — Parallel search, MediaWiki read (built), MediaWiki
       section-write, ledger read/write. All take the profile; none hardcode a wiki
-- [ ] Build the 6-stage ADK graph — nodes, the two backward edges, and the publish gate as
-      the HITL pause (§6, `AGENTS.md` §7)
+- [ ] Build the 7-stage ADK graph — nodes, fan-out, the two backward edges, and the publish gate as
+      the HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
+      `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
+      assigning `ctx.route`, and the publish gate goes through `google.adk.tools.request_input`
+      — all three traps are in `AGENTS.md` §6. The fan-out reschedule rule needs no core change:
+      `decay.next_interval(..., changed=True)` already exists, so the node just calls it for every
+      claim it fanned in
 - [ ] Build the ledger persistence adapter — Firestore, importing *from* the pure core
 - [ ] Stand up seeded MediaWiki on Cloud Run — create the 12 pages from `snapshots/seed/` via
       `action=edit`. Redirects are already resolved in the manifest, and `Special:Export` /
@@ -456,8 +576,38 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       the wiki's own `Project:Copyrights` (revision 3728), since `siprop=rightsinfo` reports it
       unversioned and the licensing page is JS-rendered. Notice written:
       `snapshots/ATTRIBUTION.md`. Share-alike carries onto the agent's own edits
-- [ ] Pick the specific contested cameo for `seed-plan.md` §4.5 at ledger-seed time — it has
-      to be one that is genuinely split in trade reporting that week
+- [x] **Specify the classify stage** — decided Aug 22, 2026. Parallel's batch chains into a
+      Gemini node that sorts claims into *still true / new / conflicting* against current page
+      state, and the review gate accepts a hand-edited draft as a third outcome alongside
+      approve and reject. Reasoning and the agentic-risk caveat in §6. This retires the
+      "contested cameo" claim entirely: the conflicting bucket is a generic output of the
+      classifier, so no specific fact has to be pre-picked and nothing takes a cameo identity
+      as input
+- [x] **Add a fan-out stage** — decided Aug 22, 2026. Between Classify and Draft: a *new*-bucket
+      result expands into the claims it implicates, seeded from `ripple_targets[]` and widened by
+      discovery, with the new edges written back. Capped per run and one hop only. Reasoning in §6.
+      This is the cascade beat (`seed-plan.md` §4.1) becoming a stage instead of an aspiration —
+      the field existed on the record and nothing consumed it. Fanned-in claims reschedule as
+      *changed* so the capped second hop still arrives soon (§7)
+- [ ] *If time permits* — **an explicit retrieval-sufficiency criterion.** Gives the "retry: thin
+      retrieval" edge a trigger anyone can implement: N sources at or above the claim's tier floor,
+      and for a moving claim at least one published after its `as_of`. Fails → broaden the objective
+      and retry, bounded by `research_rounds` (already capped at 3). Deterministic, so it belongs in
+      the pure core beside the tier table. Satisfies §4's requirement 5, which nothing currently does
+- [ ] *If time permits* — **split *still true* into confirmed vs unchallenged.** A qualifier inside
+      the bucket, not a fourth bucket, so the review split stays three-way. Confirmed = retrieval
+      corroborated it; unchallenged = retrieval found nothing against it. Treating them alike is how
+      the ledger rots quietly: absence of evidence bumps `last_verified` and doubles the interval, so
+      a claim no one can source gets checked ever less often. Fix lands in `decay.py` — unchallenged
+      grows the interval by a smaller factor, or not at all
+- [ ] **Rework `FE/` for the three buckets** — the queue is approve/reject over drafted edits
+      today; it needs the bucket split, a *still true* view that shows confirmations rather
+      than hiding them, a side-by-side conflict view, and an editable draft. `build_demo_state.py`
+      has to emit the bucket per claim. This is rework of a passing component, so re-run
+      `node FE/check.js`
+- [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
+      depends on it. Not a decision, a check: if the week is quiet, widen the research
+      objective or close on a different beat
 - [x] Write `README.md` — done Aug 15, 2026. What the product is, local run for both halves,
       routes, env vars, the deploy procedure (which until now lived only in conversation), repo
       layout and the MIT/CC BY-SA split
@@ -465,7 +615,7 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       data sources, findings), and confirm the repo is public with the MIT licence detectable
       in the About section (§2)
 
-**23 days left** as of Aug 15, 2026. The deterministic core, the seed corpus and the frontend
+**16 days left** as of Aug 22, 2026. The deterministic core, the seed corpus and the frontend
 are real and verified. What remains is the vendor perimeter — ADK graph, Parallel, wiki
 writes — plus the FastAPI shell that turns the frontend into a URL. The build is the risk now,
 not the plan.
@@ -519,16 +669,49 @@ the kwarg is `enterprise=True`, **not** `vertexai=True`; the env var is
 `GOOGLE_GENAI_USE_ENTERPRISE`, **not** `GOOGLE_GENAI_USE_VERTEXAI`; `location` is `"global"`.
 The working code is in `AGENTS.md` §5; the trap it replaced is `AGENTS.md` §6.
 
-**Models.** `gemini-3.1-pro` and `gemini-3.6-flash` are current as of this date.
-`gemini-2.5-flash` shuts down 2026-10-16 and judging runs Sept 23–Oct 7 — nine days of margin,
-so it is unusable, yet the ADK README's own example still shows it. The pins that follow from
-that are in `AGENTS.md` §2.
+**Models.** `gemini-2.5-flash` shuts down 2026-10-16 and judging runs Sept 23–Oct 7 — nine days
+of margin, so it is unusable, yet the ADK README's own example still shows it. The pins that
+follow from that are in `AGENTS.md` §2.
+
+Verified live Aug 22, 2026 by enumerating `client.models.list()` on our own project rather
+than trusting the names written here: `gemini-3.1-pro` does **not** exist — it 404s, and the
+served name is `gemini-3.1-pro-preview`. Also available and newer than assumed:
+`gemini-3.5-flash`, `gemini-3.6-flash`, `gemini-3.7-flash`.
+
+**One model, `gemini-3.5-flash`, everywhere — decided Aug 22, 2026 on measurement.** The
+planned two-tier split (pro to adjudicate, flash for throughput) assumed the hard node needs
+the expensive model. Benchmarked on the Classify task against the real seed corpus — four
+cases from `seed-plan.md` §4 including the Human Torch precision test, six reps at
+temperature 0:
+
+| Model | Correct | p50 | Note |
+|---|---|---|---|
+| `gemini-3.5-flash` | **24/24** | **3.78s** | |
+| `gemini-3.6-flash` | 22/24 | 4.50s | missed `new` twice |
+| `gemini-3.7-flash` | 21/24 | 3.99s | newest ≠ best |
+| `gemini-3.1-pro-preview` | 12/24 | 5.88s | see below |
+
+Pro loses because it reads the claim sentence *literally*: asked whether "Gambit appears in
+*Deadpool & Wolverine*" is still true, it answers `still_true` and disregards the *Doomsday*
+casting sitting in the same retrieval batch. That is a defensible reading of the question, but
+it is not the one §6 specifies — `new` is defined against what the **page** lacks, not against
+what the claim sentence asserts. Flash follows the stated rule; pro substitutes a narrower one.
+
+Three consequences. The **preview risk disappears** — nothing in the build depends on a
+`-preview` model through judging. The **cost model gets simpler**: §7's decay ladder was
+designed around pro calls being the expensive scarce thing, and they are now not in the
+system. And there is no per-node model routing to build or explain.
+
+*Scope of the claim:* four cases, one stage. It measures Classify, the node whose errors
+propagate silently; Draft output is human-gated at Publish, so a weaker draft costs a reviewer
+edit rather than a wrong page. Revisit if Draft quality disappoints — the model is named in one
+place. Raw script: `bench_classify.py` (scratchpad, not committed).
 
 **ADK 2.0 = Workflow Runtime.** Graph execution engine; agents, tools and functions are
 *nodes* (`BaseAgent` now subclasses `BaseNode`). `NodeInterruptedError` exists to pause a
 workflow for human-in-the-loop input.
 
-This is what makes §6 buildable as designed rather than a diagram: the 6-stage flow with two
+This is what makes §6 buildable as designed rather than a diagram: the 7-stage flow with two
 backward edges maps onto a workflow graph, and the publish approval gate onto HITL. Nothing
 about the product changed — see `AGENTS.md` §7 for the construction rule.
 

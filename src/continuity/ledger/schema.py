@@ -107,7 +107,7 @@ class Claim:
     kind: ClaimKind
     wave: Wave
 
-    text: str  # the assertion in human-readable form
+    text: str  # the assertion, phrased positively — never closed-world (AGENTS.md §7)
     wikitext_anchor: str  # exact substring to patch, so edits stay surgical
 
     # MediaWiki addresses sections by index, but indices shift when a section is added above.

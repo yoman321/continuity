@@ -20,8 +20,13 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
 
 - **Every `model=` string is `gemini-*`.** ADK ships adapters for the platform's non-Google
   catalog; the rules ban them outright. Never pin `gemini-2.5-flash` (shutdown 2026-10-16,
-  judging ends Oct 07) — use `gemini-3.1-pro` for adjudication, `gemini-3.6-flash` for
-  throughput.
+  judging ends Oct 07).
+- **One model everywhere: `gemini-3.5-flash`.** No pro tier and no per-node split. Measured
+  Aug 22 2026 on the Classify task against the seed corpus (4 cases, 6 reps): 3.5-flash 24/24
+  at p50 3.78s, 3.6-flash 22/24, 3.7-flash 21/24, and `gemini-3.1-pro-preview` 12/24 — pro
+  reads the claim sentence literally and returns `still_true` where retrieval carries an
+  adjacent new fact. Single pin also keeps every model out of `-preview`, which cannot be
+  relied on through judging (Sept 23 – Oct 7). Reasoning and the raw numbers: `summary.md` §12.
 - **Parallel is the only path to the outside world.** All retrieval — discovery *and*
   re-verification — goes through the `parallel-web` SDK directly. Not LangChain's
   `ParallelWebSearchTool`, not the Vercel AI SDK tools: the Parallel page lists both as
@@ -51,6 +56,11 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   migrate columns before first run.
 - **Secrets:** `.env` locally (gitignored), Secret Manager when deployed. Gemini uses ADC —
   no API key exists on either side. Parallel and MediaWiki credentials are real secrets.
+- **Anything configured in `.env` is named only in `.env`.** The GCP project id, the wiki API
+  URL and the bot user are not credentials, but the repo is public and they are deployment
+  identifiers, not product facts — so docs, commit messages and code refer to "the project in
+  `.env`" and read the value at runtime. `.env.example` lists the keys with empty values; that
+  is the whole public surface.
 - **The scheduler endpoint authenticates itself, because IAM cannot.** Judging requires the
   service be `--allow-unauthenticated`, which makes *every* route public — including the one
   Cloud Scheduler posts to. `/internal/tick` must compare a shared secret with
@@ -63,7 +73,7 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
 | Layer | Choice |
 |---|---|
 | Orchestration | ADK 2.x Workflow Runtime (`google-adk` ≥2.6.3) — stages as graph nodes |
-| Model | `gemini-3.1-pro` (adjudication), `gemini-3.6-flash` (throughput), via `google-genai` |
+| Model | `gemini-3.5-flash` everywhere — measured, not assumed (§2) — via `google-genai` |
 | Auth | Enterprise/ADC — no API key. `GOOGLE_GENAI_USE_ENTERPRISE=true` (§5) |
 | Retrieval | Parallel Search via `parallel-web`, wrapped as an ADK tool |
 | Wiki I/O | MediaWiki API — `action=parse` to read, `action=edit` with section param to write |
@@ -151,7 +161,7 @@ The ledger core is deliberately dependency-free: no Firestore, no ADK, no networ
 and vendor calls arrive later as adapters that import *from* it (`CLAUDE.md` §3). The wiki
 client is the first such adapter and follows the same shape — `fetch()` is the only method
 that opens a socket, so everything else is tested offline. Not yet written: the ADK tool
-signatures, the 6-stage graph, `action=edit` section writes, the Firestore adapter, and
+signatures, the 7-stage graph, `action=edit` section writes, the Firestore adapter, and
 `app.py` + `Dockerfile` (the FastAPI shell that serves `FE/` and hosts the agent).
 
 **`FE/data/demo-state.json` is generated, never hand-edited.** `build_demo_state.py` takes
@@ -259,6 +269,21 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **`Special:Export` on Fandom is behind Cloudflare** — returns a "Just a moment…" HTML
   challenge, not XML, so `importDump.php` cannot be used to seed → pull content through
   `api.php` (unchallenged) and create pages on our instance with `action=edit`.
+- **Model IDs must come from `client.models.list()`, never from docs or recall.** The served
+  names carry suffixes the prose drops: `gemini-3.1-pro` 404s with `Publisher model ... was not
+  found`, while `gemini-3.1-pro-preview` serves. Enumerate before pinning.
+- **A `Workflow` with no `START` edge fails to construct**, with `Graph validation failed.
+  START node (name: '__START__') not found in graph nodes` from a pydantic validator — the
+  entry point is not inferred from the first edge → `from google.adk.workflow import START`
+  and make `(START, first_node)` the first item in `edges`.
+- **Nodes route by assigning `ctx.route`, not by returning a route key.** A node that returns
+  `{"route": "thin"}` takes the default edge and the dict is just its output, so a conditional
+  backward edge silently never fires → set `ctx.route = "thin"` inside the node body, and give
+  the branching edge a routing map: `(classify, {"thin": research, "ok": draft})`.
+- **`NodeInterruptedError` is internal and not exported from `google.adk.workflow`** (only
+  `NodeTimeoutError` is) — its own docstring says "Internal" → drive the publish gate with the
+  public `google.adk.tools.request_input` tool and let the runtime raise it, rather than
+  importing it from `workflow._errors` and raising it directly.
 
 ## 7. Code conventions
 
@@ -271,6 +296,25 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   top.** Cloud Run scales to zero, so the first request after an idle period pays for whatever
   the module imports — 5-15s of vendor SDK before `index.html` can be served. Deferring the
   imports keeps the frontend fast on a cold container without paying for a warm one.
-- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 6-stage flow with two
+- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 7-stage flow with two
   backward edges is an ADK 2.0 Workflow Runtime graph; the publish gate is its HITL pause.
+- **Ledger claims are positive assertions, never closed-world ones.** Store "Gambit appears in
+  *Deadpool & Wolverine*", never "Gambit's appearances are limited to *Deadpool & Wolverine*".
+  A claim that asserts an absence is contradicted by every new fact, so a correctly-working
+  agent routes it to `conflicting` and the review queue fills with false conflicts. Measured:
+  rephrasing two benchmark claims from closed- to open-world moved every model from 50% to
+  ≥88% on the Classify task.
+- **The three buckets are tested in precedence order, and the prompt must say so.** `conflicting`
+  first (page contradicted, sources disagree, or sources are about a different entity), then
+  `new`, then `still_true` — with "an absence on the page is NOT a contradiction" stated
+  explicitly. Left unordered, the definitions in `summary.md` §6 overlap and every model
+  collapses toward `conflicting`; adding the order took the precision case from 0/3 to 3/3 on
+  every model tested.
+- **Fan-out is capped and non-transitive.** It expands the run's working set, so cap the claims
+  it may add per run and never let a fanned-in claim fan out again in the same run. One hop, or
+  a busy news day turns a tick into a full-wiki rewrite.
+- **Fanned-in claims reschedule as changed.** Halve the interval and pull `next_check_at`
+  forward for every claim fan-out added to a run, whatever the size of its own edit and even if
+  it got none. Letting it decay like a quiet claim pushes the cascade's second hop out to the
+  ceiling, which is how a one-hop cap turns into a lost cascade.
 - Typing strictness, design system and state rules: TBD with the first module.

@@ -95,9 +95,24 @@ Copy `.env.example` to `.env` and fill it in. `.env` is gitignored and must stay
 | `MEDIAWIKI_API_URL` | Our own seeded instance. **Never a real wiki** |
 | `MEDIAWIKI_BOT_USER` / `_PASSWORD` | From `Special:BotPasswords` on that instance |
 
-Locally, Gemini auth is one command: `gcloud auth application-default login`. Deployed, the
-Cloud Run service account supplies it through the metadata server — the client line is
-identical either way.
+Deployed, the Cloud Run service account supplies Gemini auth through the metadata server; the
+client line is identical either way. Locally it is five commands, and `gcloud init` alone is
+not enough — it sets up the *CLI* login, while the SDK reads Application Default Credentials,
+which is a separate step:
+
+```bash
+brew install --cask google-cloud-sdk
+gcloud init                                    # log in, create or pick the project
+gcloud billing projects link $(gcloud config get-value project) --billing-account=ACCOUNT_ID
+gcloud services enable aiplatform.googleapis.com
+gcloud auth application-default login          # the one the Python client actually reads
+```
+
+Billing must be linked even when credits cover the spend — credits are drawn down *through* a
+billing account, they do not replace one, and `aiplatform` will not enable without it.
+`aiplatform.googleapis.com` is the right API despite the Enterprise rebrand: with
+`location="global"` the client resolves to `https://aiplatform.googleapis.com/`, confirmed in
+`google/genai/_api_client.py`.
 
 ---
 
@@ -133,8 +148,10 @@ printf '%s' "$PARALLEL_API_KEY" | gcloud secrets create parallel-api-key --data-
 printf '%s' "$(openssl rand -hex 24)" | gcloud secrets create tick-token --data-file=-
 ```
 
-`roles/aiplatform.user` is unverified after the Enterprise rebrand — confirm it in IAM. A
-wrong role fails at the first model call, not at deploy.
+`roles/aiplatform.user` is still unverified **for the service account**. Local model calls are
+proven working (Aug 22, 2026) but they run on user ADC, which says nothing about what a
+service account needs. A wrong role fails at the first model call, not at deploy — so make a
+model call from the deployed service before assuming it works.
 </details>
 
 <details>

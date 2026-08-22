@@ -145,14 +145,14 @@ confirmed against the live wiki on Aug 15, 2026 — each is genuinely stale in t
 | 2 | **`[[Void]]` link target** | `[[Void]]`, plain | *Thunderbolts* gave `Void` to Sentry; the seed's link now sends readers to the wrong character. **Nobody edited the page — the world moved underneath it.** Forces the agent to pick between two live targets on evidence |
 | 3 | **Human Torch identity** | Flat reference to Johnny Storm | *First Steps* introduced the prime MCU Johnny Storm (that page grew **+503%**). The D&W character is a Void variant. The correct edit distinguishes them; the tempting edit conflates them. **This is the precision test — the one where a wrong answer is worse than no answer** |
 | 4 | **Phase Six composition** | 1,580-byte stub | +363% and still moving. One research round yields several claims at once — shows batching and the ripple into `Phase Five` boundaries |
-| 5 | **A contested cameo return** | Not present | Trade outlets routinely split on confirmed-vs-in-talks for unreleased films → `status: unresolved` + revisit queue. **The strongest behaviour in the design** (summary.md §7). Pick the specific cameo at ledger-seed time — whichever of the six is genuinely contested that week |
+| 5 | **An announcement-driven claim whose sources split** | Not present | Trade outlets routinely disagree on confirmed-vs-in-talks, on slate dates, and on delays → the **conflicting** bucket (summary.md §6): both readings side by side with tiers and citations, resolved by the reviewer. No specific fact is pre-picked — any of the 12 announcement-driven claims (§3) can supply it, and the classifier produces the bucket generically |
 | 6 | **A shipped film's release date** | Absent or "TBD" | Trivially verifiable, single authoritative source. One easy claim so the diff queue isn't all hard cases |
 
 **Ordering for the video.** Open with **#1** — the cascade is the design's distinctive
 feature and reads instantly on screen. Close with **#5**: an agent that says *"two credible
 sources disagree and I am not resolving this"* reads as more trustworthy than one that
-always produces an answer, and summary.md §7 already identifies that as the best behaviour
-in the design. Put **#2** in the middle; it is the subtlest and the most convincing to
+always produces an answer, which is what the conflicting bucket exists to show
+(summary.md §6). Put **#2** in the middle; it is the subtlest and the most convincing to
 anyone who has maintained a wiki, because no diff would ever have surfaced it.
 
 **What #2 and #3 have in common** is worth stating in the writeup: both are claims that
@@ -191,7 +191,7 @@ fields are now derivable from the claim set above rather than guessed:
 
 - `as_of` / source publication date, for recency-based adjudication (§1)
 - `ripple_targets[]`, for the Gambit → `Phase Six` cascade (§4.1)
-- `contradicts[]` and `status: unresolved`, for the contested cameo (§4.5)
+- `contradicts[]` and `status: unresolved`, for the conflicting bucket (§4.5)
 - `wave`, seeding the initial `next_check_at` (§3)
 
 Two fields the *revised* claim set forces that the old one did not:
