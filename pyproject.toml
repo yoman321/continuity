@@ -7,6 +7,10 @@ dependencies = [
     "google-adk>=2.6.3",
     "google-genai",
     "parallel-web",
+    # backend/ imports these directly; google-adk happens to pull them too, but a transitive
+    # dependency is not a contract.
+    "fastapi",
+    "uvicorn",
 ]
 
 [project.optional-dependencies]
@@ -21,14 +25,14 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "."]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["src", "tests", "scripts"]
+files = ["src", "tests", "scripts", "backend"]
 strict = true
 # The ledger core is fully typed and must stay that way; vendor SDKs are untyped at the
 # perimeter, so adapters relax this locally rather than globally.

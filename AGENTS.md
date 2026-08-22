@@ -106,6 +106,9 @@ Two Cloud Run services, both scale-to-zero, both in `us-east1`. Nothing else run
   Cloud Scheduler (1 job)   Artifact Registry (2 images)
 ```
 
+That is the target shape. `backend/app.py` serves `/` for real; the other three are written and
+guarded but have nothing behind them yet, so they answer 503/501 (§4).
+
 Rules that fall out of this shape:
 
 - **One container serves the frontend and runs the agent.** `FE/` is static, so there is no
@@ -128,6 +131,11 @@ Rules that fall out of this shape:
      Update in the same task that moves a file. A stale map is worse than no map. -->
 
 ```text
+  backend/
+    app.py                           # <-- read first: the four routes; FE/ mounted last
+  Dockerfile                         # the runtime image; copies pyproject/src/backend/FE only
+  .gcloudignore                      # what Cloud Build does NOT receive; includes .gitignore
+                                     #   rather than repeating it, so there is one secret list
   pyproject.toml                     # deps, ruff + mypy config, gate settings
   src/continuity/ledger/
     schema.py                        # <-- read first: Claim, the record everything else serves
@@ -151,6 +159,7 @@ Rules that fall out of this shape:
     seed/*.wikitext                  # 12 pages frozen at 2024-08-09 — seeds our MediaWiki
     current/*.wikitext               # the same pages live — evidence only, never the target
     ATTRIBUTION.md                   # CC BY-SA 3.0 notice; the text here is not MIT
+  tests/test_app.py                  # route guards, and the no-vendor-import proof (needs venv)
   tests/test_ledger.py               # stdlib unittest; no deps, runs today
   tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
   tests/test_sections.py             # section numbering, incl. against real snapshots
@@ -163,9 +172,13 @@ Rules that fall out of this shape:
 The ledger core is deliberately dependency-free: no Firestore, no ADK, no network. Storage
 and vendor calls arrive later as adapters that import *from* it (`CLAUDE.md` §3). The wiki
 client is the first such adapter and follows the same shape — `fetch()` is the only method
-that opens a socket, so everything else is tested offline. Not yet written: the ADK tool
-signatures, the 7-stage graph, `action=edit` section writes, the Firestore adapter, and
-`app.py` + `Dockerfile` (the FastAPI shell that serves `FE/` and hosts the agent).
+that opens a socket, so everything else is tested offline. `backend/` is the other side of
+that line — the perimeter, where anything with a vendor import lives, and where the ADK graph
+and the Parallel tool will land. Its first occupant, `app.py`, holds the four routes and
+nothing else, and defers every vendor import into a handler so a cold container can serve
+`index.html` without paying for the SDKs. Not yet written: the
+ADK tool signatures, the 7-stage graph, `action=edit` section writes, and the Firestore
+adapter — so all three API routes are guarded shells that answer 503/501 today.
 
 **`FE/data/demo-state.json` is generated, never hand-edited.** `build_demo_state.py` takes
 page text verbatim from `snapshots/` and computes every status, confidence and interval by
@@ -181,7 +194,7 @@ by the test suite. Never hand-edit a file there — fix the puller and re-run.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (.venv is gitignored)
 
-PYTHONPATH=src python3 -m unittest discover -s tests         # test     — 67 passing
+.venv/bin/python -m unittest discover -s tests               # test     — 82 passing
 .venv/bin/mypy                                               # typecheck — strict
 .venv/bin/ruff check .                                       # lint
 node FE/check.js                                             # frontend  — render + wiring
@@ -189,10 +202,26 @@ node FE/check.js                                             # frontend  — ren
 python3 scripts/pull_snapshots.py                            # rebuild snapshots/ (~24 calls)
 python3 scripts/pull_snapshots.py --only current             # refresh the live side alone
 python3 scripts/build_demo_state.py                          # rebuild FE/data/demo-state.json
-python3 -m http.server 8000 --directory FE                   # serve the FE locally
+.venv/bin/uvicorn backend.app:app --reload --port 8000       # serve FE *and* the API
+python3 -m http.server 8000 --directory FE                   # serve the FE alone, no backend
+
+docker build -t continuity .                                 # deploy pre-flight; not in the gate
 ```
 
 All four must pass before claiming done (`CLAUDE.md` §4).
+
+The test line moved to the venv interpreter when `backend/app.py` landed: `tests/test_app.py`
+imports FastAPI, and on a bare interpreter it raises `SkipTest` rather than failing — which would
+quietly drop the tick-token cases from the gate. The dependency-free core still runs anywhere:
+`PYTHONPATH=src python3 -m unittest discover -s tests` on any 3.10+, 67 of the 82.
+
+The `docker build` line is the only command here that needs Docker running, and it is a
+pre-flight for the deploy, not part of the gate — `gcloud run deploy --source .` builds on Cloud
+Build regardless. Leave Docker off until then; it buys nothing before the deploy step.
+
+Both serve commands answer on 8000; `uvicorn` is the one that exercises the real routes. Either
+way the frontend shows *fixture*, because `/api/state` has no store behind it yet and returns
+503 by design — that is what the fallback is for.
 
 **There is no build step, and this is deliberate — do not add one.** The FE is vanilla
 HTML/CSS/JS with no dependencies, so the container ships it as-is and Cloud Run serves it
@@ -201,9 +230,9 @@ through `StaticFiles` from the same Python process that runs the agent. Node is 
 contains no JavaScript toolchain. A framework here would buy component structure this UI is
 too small to need, and cost a second toolchain in the image and a fourth thing to break.
 
-The ledger core has **no runtime dependencies**, so its tests run on a bare interpreter —
-that is why `test` needs no venv and no install. The setup line pulls the vendor SDKs too,
-which the core does not use and the adapters will.
+The ledger core has **no runtime dependencies**, and that is worth keeping: it is why 67 of
+the 82 tests run on any 3.10+ interpreter with nothing installed. Only the route tests need
+the venv, because only `backend/` imports a third-party package.
 
 Python ≥3.10; developed on 3.14.4. Resolved versions as of Aug 15, 2026: `google-adk` 2.7.0,
 `google-genai` 2.18.1, `parallel-web` 1.3.0.
@@ -269,6 +298,14 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   measured runs), so any "was this published after `as_of`" test silently passes claims it
   never actually checked → filter server-side with `source_policy.after_date`, which the API
   applies before ranking, rather than post-filtering on a field that is often `None`.
+- **`.gcloudignore` replaces `.gitignore` for uploads rather than adding to it** — the moment
+  the file exists it is the sole list, so a copied-out secret pattern is one that will drift
+  → open it with `#!include:.gitignore`, which splices `.gitignore`'s entries in at that point
+  (negations included: `!.env.example` survives). Never restate a `.gitignore` pattern in it.
+  Deleting the file is not the fix either: with a `.git` directory present gcloud *writes its
+  own* on the first deploy. Verified Aug 22, 2026 by running the SDK's own `FileChooser` over
+  this repo — `.env` ignored, `.env.example` uploaded, `src/`, `FE/`, `backend/`, `Dockerfile`
+  and `pyproject.toml` uploaded, everything else dropped.
 - **`grep -r` from `.` silently skips dotfiles on this machine.** A clean recursive sweep is
   not proof a secret is absent → enumerate files explicitly, or `grep` the dotfile by name.
 - **MediaWiki titles silently resolve to the wrong page.** `Void` redirects to `Sentry`, not
@@ -359,6 +396,11 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   table alignment does not survive: a real Fantastic Four cast list came back with every actor
   under the *previous* row's role. The page was right and the excerpt was wrong, which no
   amount of prompting detects. Prefer tier 1-2 prose over any tabular source.
+- **`/api/state` never serves the fixture.** It answers from the store or it fails — 503 when
+  there is no store, 503 when the store is down. The frontend decides *live* vs *fixture* from
+  that one response and falls back to `FE/data/demo-state.json` itself, so a server-side
+  fallback would put a **live** pill above a fixture. This outlives the stub: when Firestore
+  lands, a read error is still a 503, never last-known-good demo data.
 - **Fan-out is capped and non-transitive.** It expands the run's working set, so cap the claims
   it may add per run and never let a fanned-in claim fan out again in the same run. One hop, or
   a busy news day turns a tick into a full-wiki rewrite.

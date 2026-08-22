@@ -500,11 +500,11 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
 ## 10. Open next steps
 
 **Start here.** The list below is chronological, not ordered by priority — done and open items
-interleave. As of Aug 22, 2026 the critical path is: **(1)** the FastAPI shell + `Dockerfile`, **(2)** the
-7-stage ADK graph, **(3)** the SQLite-on-GCS check before seeding MediaWiki. Both vendor
-perimeters — Gemini/ADK and Parallel — are now proven, so the remaining risk is deployment
-shape, not API shape. The shell goes first because nothing is a URL until it exists. Everything else is either
-downstream of those three or explicitly *if time permits*.
+interleave. As of Aug 22, 2026 the critical path is: **(1)** the 7-stage ADK graph, **(2)** the
+SQLite-on-GCS check before seeding MediaWiki, **(3)** a first deploy. Both vendor perimeters —
+Gemini/ADK and Parallel — are proven and the FastAPI shell is written, so what is left is the
+agent itself plus the deployment shape. Nothing here is blocked on an unknown API. Everything
+else is either downstream of those three or explicitly *if time permits*.
 
 - [x] Confirm Quebec eligibility position — N/A, based in Miami. Re-read current rules text
       once to be certain; it's the one blocker that invalidates everything else
@@ -589,11 +589,28 @@ downstream of those three or explicitly *if time permits*.
       Vanilla HTML/CSS/JS, no framework and no build step — reasoning below. Page text is
       verbatim from `snapshots/` and every number on screen is computed by the ledger core,
       not typed into a fixture. `node FE/check.js` verifies it by counting, not eyeballing
-- [ ] **Write `app.py` + `Dockerfile` + `.gcloudignore`** — the FastAPI shell that serves
-      `FE/` and hosts the agent. This is the gap between having a frontend and having a URL:
-      nothing is deployable until it exists. Import ADK *inside* the route handlers, or a cold
-      start pays 5-15s before it can serve `index.html`
-- [ ] Deploy and confirm the hosted URL is publicly reachable, unauthenticated, on web
+- [x] **Write `backend/app.py` + `Dockerfile` + `.gcloudignore`** — done Aug 22, 2026. Four
+      routes and nothing else, with `FE/` mounted last so it cannot shadow them. The service
+      layer lives in `backend/` rather than beside the core, because `src/continuity/` is the
+      pure half and everything with a vendor import belongs on the other side of a directory
+      boundary. Two calls worth recording.
+      `/api/state` answers **503 rather than serving the fixture**: the frontend decides
+      live-vs-fixture from that one response, so answering it with `demo-state.json` would put a
+      *live* pill above an agent run that never happened. And the cold-start rule stopped being a
+      comment — a test imports `app` in a subprocess and asserts no ADK, `google-genai` or
+      `parallel` module reached `sys.modules`, because "we remembered to defer the imports" is
+      not a property anyone can keep by intention. The tick guard has seven cases, including the
+      unset-token one, which must fail closed. The image is **deliberately not built yet**: the
+      wheel builds from exactly the four paths the `Dockerfile` copies, which retires the one
+      non-obvious risk in it, and everything past that is Cloud Build's job. Docker stays off
+      until the deploy step below — it is the last thing that needs it, and starting it earlier
+      buys a slow local build of an image nothing is waiting on
+- [ ] **Deploy** — start Docker and `docker build -t continuity .` first as a pre-flight: local
+      Docker is *not* required to deploy (Cloud Build builds remotely from `--source .`), but a
+      typo in the `Dockerfile` found locally is a two-minute fix instead of a Cloud Build round
+      trip. Then deploy, confirm the hosted URL is publicly reachable and unauthenticated from a
+      browser, and make one model call from the deployed service — the service account's Gemini
+      role is still unverified and fails at the first call, not at deploy (`README.md`)
 - [x] Decide the hosting shape — **one Cloud Run service, Python, serving `FE/` and the agent
       from the same container**; MediaWiki a second service on SQLite. Decided Aug 15, 2026.
       Reasoning and the rejected alternatives in §6; the topology in `AGENTS.md` §3
@@ -643,10 +660,10 @@ downstream of those three or explicitly *if time permits*.
       data sources, findings), and confirm the repo is public with the MIT licence detectable
       in the About section (§2)
 
-**16 days left** as of Aug 22, 2026. The deterministic core, the seed corpus and the frontend
-are real and verified. What remains is the vendor perimeter — ADK graph, Parallel, wiki
-writes — plus the FastAPI shell that turns the frontend into a URL. The build is the risk now,
-not the plan.
+**16 days left** as of Aug 22, 2026. The deterministic core, the seed corpus, the frontend and
+the service shell are real and verified. What remains is the vendor perimeter — ADK graph,
+Parallel, wiki writes — behind routes that already exist. The build is the risk now, not the
+plan.
 
 The frontend landing first was not the planned order, and it changed what the remaining work
 looks like: the queue and ledger views define the shape the backend has to serve, so

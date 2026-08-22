@@ -20,9 +20,10 @@ Built for **Agentic Cinema: The Blockbuster Hackathon** (Google Cloud × Devpost
 track. Demo subject: *Deadpool & Wolverine*, seeded from real MCU Wiki revision history frozen
 at 2024-08-09.
 
-> **Status:** the deterministic core, the seed corpus and the frontend are built and verified.
-> The agent itself — the ADK graph, Parallel retrieval and wiki writes — is not yet wired up.
-> The frontend currently renders a labelled fixture, not a live agent run.
+> **Status:** the deterministic core, the seed corpus, the frontend and the service shell are
+> built and verified. The agent itself — the ADK graph, Parallel retrieval and wiki writes — is
+> not yet wired up: the three API routes exist and are guarded, but answer 503/501. The
+> frontend currently renders a labelled fixture, not a live agent run.
 
 ---
 
@@ -61,14 +62,36 @@ The claim ledger has no runtime dependencies, so its tests run on a bare interpr
 install is only needed for the linters and, later, the vendor SDKs.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests   # 67 tests
+.venv/bin/python -m unittest discover -s tests         # 82 tests
 .venv/bin/mypy                                         # strict
 .venv/bin/ruff check .
 node FE/check.js                                       # frontend render + wiring checks
 ```
 
 All four must pass before anything is called done. Node checks the frontend; it is never
-needed to build, serve or deploy it.
+needed to build, serve or deploy it. Only the route tests need the venv — the ledger core has
+no dependencies, so `PYTHONPATH=src python3 -m unittest discover -s tests` still runs 67 of
+the 82 on a bare 3.10+ interpreter.
+
+### The whole service
+
+```bash
+.venv/bin/uvicorn backend.app:app --reload --port 8000
+```
+
+Same three views, plus the API the agent will answer on:
+
+| Route | Now | Eventually |
+|---|---|---|
+| `GET /` | serves `FE/` | unchanged |
+| `GET /api/state` | `503` | ledger + queue from Firestore, in the fixture's exact shape |
+| `POST /api/queue/{edit_id}` | validates, then `501` | approve → `action=edit&section=N` |
+| `POST /internal/tick` | authenticates, then `501` | hourly Cloud Scheduler run |
+
+The 503 is deliberate: it is what makes the frontend fall back to the generated fixture and
+label itself **fixture** rather than claiming to be live. `/internal/tick` compares
+`X-Tick-Token` against `TICK_TOKEN` before doing anything, and refuses outright when that is
+unset — the service is public when deployed, so the header is the only thing guarding it.
 
 ### Regenerating data
 
@@ -94,6 +117,7 @@ Copy `.env.example` to `.env` and fill it in. `.env` is gitignored and must stay
 | `GOOGLE_CLOUD_LOCATION` | `global` for model calls — not a region |
 | `MEDIAWIKI_API_URL` | Our own seeded instance. **Never a real wiki** |
 | `MEDIAWIKI_BOT_USER` / `_PASSWORD` | From `Special:BotPasswords` on that instance |
+| `TICK_TOKEN` | Shared secret for `/internal/tick`. Unset ⇒ the tick refuses to run |
 
 Deployed, the Cloud Run service account supplies Gemini auth through the metadata server; the
 client line is identical either way. Locally it is five commands, and `gcloud init` alone is
@@ -121,8 +145,6 @@ billing account, they do not replace one, and `aiplatform` will not enable witho
 One Cloud Run service serves the frontend and runs the agent; MediaWiki is a second. Both
 scale to zero. The topology and the rules it implies are in `AGENTS.md` §3; the reasoning is
 in `summary.md` §6.
-
-> Not deployable yet — `app.py`, `Dockerfile` and `.gcloudignore` are still to be written.
 
 <details>
 <summary>One-time project setup</summary>
@@ -172,7 +194,10 @@ gcloud scheduler jobs create http continuity-tick \
 ```
 
 Cloud Build builds the image remotely — no local Docker needed. Re-run the same command to
-redeploy to the same URL.
+redeploy to the same URL. If Docker is running, `docker build -t continuity .` first is worth
+the minute: it is the same `Dockerfile`, and it fails locally faster than a Cloud Build round
+trip. That is the only thing in this project Docker is for, so there is no reason to start it
+before deploying.
 
 **Set a $25 budget alert.** The service is public, so IAM cannot protect `/internal/tick`;
 the shared-secret header is the only thing between a guessed path and unbounded token spend
@@ -184,6 +209,8 @@ the shared-secret header is the only thing between a guessed path and unbounded 
 ## Repository layout
 
 ```text
+backend/app.py           the four routes; FE/ is mounted last so it cannot shadow them
+Dockerfile               python:3.12-slim; copies pyproject.toml, src/, backend/ and FE/
 src/continuity/ledger/   the claim record, source tiers, decay intervals — pure, no deps
 src/continuity/wiki/     MediaWiki read adapter and wikitext section splitting
 scripts/                 snapshot puller and demo-state generator; both re-runnable

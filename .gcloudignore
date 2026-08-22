@@ -1,0 +1,22 @@
+# What `gcloud run deploy --source .` does NOT upload to Cloud Build.
+#
+# `.gitignore` stays the single authority on what must never leave this machine: the include
+# below pulls its entries in verbatim, so `.env` is excluded here because it is excluded
+# there, and the two can't drift. Do not copy patterns out of it into this file.
+#
+# This file is not optional-by-omission — with a `.git` directory present, gcloud writes its
+# own on the first deploy (`.gcloudignore`, `.git`, `.gitignore`, `#!include:.gitignore`).
+# This is that file, reviewed, plus the build-only exclusions below.
+
+.gcloudignore
+.git
+.gitignore
+#!include:.gitignore
+
+# Not needed at runtime: the Dockerfile copies pyproject.toml, src/, app.py and FE/ and
+# nothing else. Adding a COPY for anything below means deleting its line here too.
+tests/
+scripts/
+snapshots/
+*.md
+LICENSE
