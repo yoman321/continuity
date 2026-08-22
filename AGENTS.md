@@ -155,8 +155,8 @@ Rules that fall out of this shape:
   tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
   tests/test_sections.py             # section numbering, incl. against real snapshots
   README.md         # what it is, local run, routes, env vars, the deploy procedure
-  summary.md        # product truth, decision log, verified vendor facts (§12)  [gitignored]
-  seed-plan.md      # demo subject, page list, the 6 claims that carry the video [gitignored]
+  summary.md        # product truth, decision log, verified vendor facts (§12)
+  seed-plan.md      # demo subject, page list, the 6 claims that carry the video
   .env.example      # required env vars, no values
 ```
 
@@ -230,6 +230,28 @@ client = genai.Client(enterprise=True, project="…", location="global")
 `location` is `"global"` for model calls. The pick-one-region rule applies to Firestore and
 Cloud Run, not to Gemini.
 
+**Parallel search — verified live Aug 22, 2026** against `parallel-web` 1.3.0. `search` is a
+method on the client, not a resource: `client.search(...)`, returning `SearchResult`.
+
+```python
+from parallel import Parallel
+client = Parallel(api_key=os.environ["PARALLEL_API_KEY"])
+r = client.search(
+    search_queries=[...],          # 3-6 words each, 2-3 queries; required
+    objective="…",                 # self-contained natural-language goal
+    max_chars_total=6000,
+    advanced_settings={"source_policy": {"include_domains": [...]}},   # see §7
+)
+# r.results: list[WebSearchResult] — .url, .excerpts (list[str], markdown), and the
+#            OPTIONAL .title / .publish_date. Nothing else. No authority, no score.
+# r.search_id / r.session_id / r.usage / r.warnings
+```
+
+`session_id` is echoed back and should be threaded through every call in one run so later
+searches get contextual results. `usage` bills one `sku_search` per **call**, not per query,
+so batching queries into one call is free. Measured latency 1.4-5.8s; `mode` defaults to
+`advanced`.
+
 **Unverified, and marked so deliberately:** that the Gemini IAM role is `roles/aiplatform.user`
 after the Enterprise rebrand, and the free-tier limits quoted in `summary.md` §12. Both are
 from recall, not from the console. Confirm before relying on either — a wrong role fails at the
@@ -243,6 +265,10 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **Vertex SDK names are one generation stale.** `vertexai=True` /
   `GOOGLE_GENAI_USE_VERTEXAI` are pre-rebrand and every pre-June-2026 tutorial uses them →
   `enterprise=True` / `GOOGLE_GENAI_USE_ENTERPRISE`, and `location="global"`, not a region.
+- **`publish_date` is absent on roughly half of Parallel's results** (5-6 of 10 on both
+  measured runs), so any "was this published after `as_of`" test silently passes claims it
+  never actually checked → filter server-side with `source_policy.after_date`, which the API
+  applies before ranking, rather than post-filtering on a field that is often `None`.
 - **`grep -r` from `.` silently skips dotfiles on this machine.** A clean recursive sweep is
   not proof a secret is absent → enumerate files explicitly, or `grep` the dotfile by name.
 - **MediaWiki titles silently resolve to the wrong page.** `Void` redirects to `Sentry`, not
@@ -313,6 +339,26 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   explicitly. Left unordered, the definitions in `summary.md` §6 overlap and every model
   collapses toward `conflicting`; adding the order took the precision case from 0/3 to 3/3 on
   every model tested.
+- **`DOMAIN_TIERS` drives Parallel's `source_policy`, not just the confidence score.** Every
+  search passes `include_domains` built from the tier <=3 entries. This is not an optimisation
+  — measured Aug 22 2026 on the Human Torch precision case, the same query with and without
+  it: unfiltered returned tiers `{2:1, 4:7, 6:2}` in 5.79s with two Tumblr posts and a
+  scraped cast table whose role labels were offset by one row, so the top-ranked excerpt
+  asserted the wrong actor; allowlisted returned `{1:4, 2:6}` in **1.80s** with Disney and
+  Marvel stating the fact directly. Filtering is faster *and* better. `exclude_domains` alone
+  is near-useless — the junk that shows up is not in our table, so denying what we already
+  distrust changes almost nothing.
+- **A social domain missing from `DOMAIN_TIERS` scores as general press, not as social.**
+  Unknown falls to `UNKNOWN_TIER = 4`, which skips the `best >= 5` social cap: measured, a
+  Tumblr-only claim scores 0.50 instead of 0.30. Neither clears the 0.75 auto-apply gate, so
+  this mis-states a number rather than approving a bad edit — but the number is on screen in
+  the ledger view. Add social hosts to the table as they appear; the default itself is sound,
+  because `confidence_from` already gates corroboration at tier <=3 and an unknown domain
+  therefore never corroborates anything.
+- **Never trust the structure of an excerpt.** Excerpts are markdown scraped from the page and
+  table alignment does not survive: a real Fantastic Four cast list came back with every actor
+  under the *previous* row's role. The page was right and the excerpt was wrong, which no
+  amount of prompting detects. Prefer tier 1-2 prose over any tabular source.
 - **Fan-out is capped and non-transitive.** It expands the run's working set, so cap the claims
   it may add per run and never let a fanned-in claim fan out again in the same run. One hop, or
   a busy news day turns a tick into a full-wiki rewrite.

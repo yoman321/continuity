@@ -40,6 +40,12 @@ DOMAIN_TIERS: dict[str, int] = {
     "twitter.com": 5,
     "instagram.com": 5,
     "facebook.com": 5,
+    "tumblr.com": 5,
+    "reddit.com": 5,
+    "youtube.com": 5,
+    "tiktok.com": 5,
+    "threads.net": 5,
+    "bsky.app": 5,
     "fandom.com": 6,
     "wikipedia.org": 6,
 }

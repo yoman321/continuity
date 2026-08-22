@@ -254,6 +254,19 @@ claim stored as "Gambit's appearances are *limited to* D&W" is contradicted by e
 which is a correctly-working agent producing a useless review queue. The bucket a claim lands
 in is partly a property of how the claim was written down.
 
+**Retrieval quality is set by the source policy, not by the prompt — measured Aug 22, 2026.**
+The tier table was designed to *score* what came back. Running claim #3 (the Human Torch
+precision case, `seed-plan.md` §4) live showed it should also decide what comes back at all.
+Unfiltered, Parallel returned one trade-press hit against seven unrecognised domains and two
+Tumblr posts, and its top-ranked excerpt was a scraped cast table whose actor names had slipped
+one row against their roles — a correct page rendered into a confidently wrong excerpt. Passing
+the same tier <=3 domains as `source_policy.include_domains` returned Disney and Marvel stating
+the fact plainly, in a third of the time. Two things follow. The tier table stops being a
+scoring function and becomes the retrieval policy, which makes the per-wiki profile (§5) load-
+bearing rather than cosmetic — swapping wikis swaps what the agent is allowed to read. And the
+demo's own precision case only resolves correctly *with* the filter, so this was a latent
+failure in the headline beat, found by running it and not visible in the spec.
+
 **Why three buckets rather than a confidence score per claim.** A score answers "how sure am
 I," which is the wrong question at a review gate — the reviewer needs to know *what kind of
 decision they are being asked to make*, and those are genuinely different: nothing, an
@@ -487,10 +500,10 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
 ## 10. Open next steps
 
 **Start here.** The list below is chronological, not ordered by priority — done and open items
-interleave. As of Aug 22, 2026 the critical path is: **(1)** one live Parallel call, **(2)** the
-FastAPI shell + `Dockerfile`, **(3)** the 7-stage ADK graph. The first two are unproven vendor
-perimeter and both can fail in ways that change the design; the graph is the largest build but
-its API shape is already verified, so it is work rather than risk. Everything else is either
+interleave. As of Aug 22, 2026 the critical path is: **(1)** the FastAPI shell + `Dockerfile`, **(2)** the
+7-stage ADK graph, **(3)** the SQLite-on-GCS check before seeding MediaWiki. Both vendor
+perimeters — Gemini/ADK and Parallel — are now proven, so the remaining risk is deployment
+shape, not API shape. The shell goes first because nothing is a URL until it exists. Everything else is either
 downstream of those three or explicitly *if time permits*.
 
 - [x] Confirm Quebec eligibility position — N/A, based in Miami. Re-read current rules text
@@ -537,12 +550,12 @@ downstream of those three or explicitly *if time permits*.
       *conflicting*), and closed-world claim phrasing turned every new fact into a false
       conflict. Both are now rules in `AGENTS.md` §7 and reasoning in §6. Neither was
       discoverable by reading the spec — both surfaced only by running it
-- [ ] **Make one live Parallel call** — the last unproven vendor perimeter, and the one the
-      track requirement rides on: a Parallel integration that does not run is a
-      disqualification, not a missing feature (§5). Key is already in `.env`. What has to come
-      back is the *response shape* — how excerpts, URLs and any confidence or recency field are
-      actually named — because Classify consumes it and the ADK tool signature below is
-      designed against it. Do this before designing the signature, not after
+- [x] **Make one live Parallel call** — done Aug 22, 2026. `client.search(...)` works on the
+      key in `.env`; shape recorded in `AGENTS.md` §5. The response carries **no authority or
+      score field** — just `url`, `excerpts`, and an optional `title` / `publish_date` — so
+      tier assignment stays ours, which is what `ledger/tiers.py` already assumes. Three
+      findings changed the design rather than confirming it, all now invariants in
+      `AGENTS.md` §7 and reasoned below in §6
 - [ ] **Prove SQLite-on-GCS actually works for MediaWiki** — §6 assumes the DB file lives on a
       GCS bucket mounted as a Cloud Run volume so the wiki scales to zero. That is an
       assumption, not a verified fact: SQLite needs POSIX locking that a GCS FUSE mount may not
@@ -687,6 +700,17 @@ The working code is in `AGENTS.md` §5; the trap it replaced is `AGENTS.md` §6.
 **Models.** `gemini-2.5-flash` shuts down 2026-10-16 and judging runs Sept 23–Oct 7 — nine days
 of margin, so it is unusable, yet the ADK README's own example still shows it. The pins that
 follow from that are in `AGENTS.md` §2.
+
+**Parallel Search — verified live Aug 22, 2026.** `client.search()` on `parallel-web` 1.3.0
+returns per result only `url`, `excerpts` (markdown), and an optional `title` and
+`publish_date`. There is no authority, relevance or confidence field, which confirms the §6
+design rather than contradicting it: tier is ours to assign from the domain, deterministically,
+and the model never sees a number it could have influenced. Billing is one `sku_search` per
+*call* regardless of how many queries it carries, so batching a claim's queries into one call
+costs the same as one query — which is what makes the fan-out stage affordable. The settings
+that matter are `source_policy.include_domains` (the tier table as a retrieval filter — see §6)
+and `source_policy.after_date` (server-side recency, more reliable than the optional
+`publish_date`). Measured latency 1.4-5.8s.
 
 Verified live Aug 22, 2026 by enumerating `client.models.list()` on our own project rather
 than trusting the names written here: `gemini-3.1-pro` does **not** exist — it 404s, and the
