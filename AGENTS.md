@@ -115,7 +115,10 @@ Rules that fall out of this shape:
 - **`--min-instances 0` and `--max-instances 3`.** Zero is what makes idle cost nothing; the
   ceiling is what stops a stuck research loop from draining the credits.
 - **MediaWiki uses SQLite on a mounted bucket, not Cloud SQL.** Cloud SQL cannot scale to
-  zero, so the cheapest instance bills ~$9/mo to serve a demo nobody is looking at.
+  zero, so the cheapest instance bills ~$9/mo to serve a demo nobody is looking at. Unverified
+  as of Aug 22, 2026 — SQLite needs POSIX locking a GCS FUSE mount may not give it, and the
+  failure mode is write corruption, not an error. Prove a write-read-restart cycle before
+  seeding pages onto it (`summary.md` §10).
 - **Gemini tokens are the only meaningful cost.** Every other line above sits inside a free
   tier at demo traffic — verify current figures before relying on that (`summary.md` §12).
 

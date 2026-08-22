@@ -6,18 +6,14 @@ directly), plus vendor documentation.
 
 ---
 
-## 1. BLOCKER — check this first
+## 1. Eligibility — cleared
 
-**Quebec residents are ineligible.** The official rules list Quebec among the excluded
-jurisdictions, and state the contest is void there. Standard carve-out (Quebec contest
-law), but it means no prize eligibility.
+**Quebec residents are ineligible** — the official rules list Quebec among the excluded
+jurisdictions and state the contest is void there. Standard Quebec contest-law carve-out.
 
-Options if this applies:
-- Build it as a portfolio piece anyway
-- Team up with an eligible Representative (prize is paid to the team's Representative)
-- Verify against the current rules text before investing further
-
-Everything below assumes this is resolved or accepted.
+**Does not apply: based in Miami.** Checked Aug 11, 2026. This was the one blocker that would
+have invalidated everything below, so it is recorded rather than deleted — but it is closed,
+and nothing downstream is waiting on it.
 
 ---
 
@@ -490,6 +486,13 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
 
 ## 10. Open next steps
 
+**Start here.** The list below is chronological, not ordered by priority — done and open items
+interleave. As of Aug 22, 2026 the critical path is: **(1)** one live Parallel call, **(2)** the
+FastAPI shell + `Dockerfile`, **(3)** the 7-stage ADK graph. The first two are unproven vendor
+perimeter and both can fail in ways that change the design; the graph is the largest build but
+its API shape is already verified, so it is work rather than risk. Everything else is either
+downstream of those three or explicitly *if time permits*.
+
 - [x] Confirm Quebec eligibility position — N/A, based in Miami. Re-read current rules text
       once to be certain; it's the one blocker that invalidates everything else
 - [x] Request $100 GCP credits — requested Aug 11, 2026
@@ -534,6 +537,18 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
       *conflicting*), and closed-world claim phrasing turned every new fact into a false
       conflict. Both are now rules in `AGENTS.md` §7 and reasoning in §6. Neither was
       discoverable by reading the spec — both surfaced only by running it
+- [ ] **Make one live Parallel call** — the last unproven vendor perimeter, and the one the
+      track requirement rides on: a Parallel integration that does not run is a
+      disqualification, not a missing feature (§5). Key is already in `.env`. What has to come
+      back is the *response shape* — how excerpts, URLs and any confidence or recency field are
+      actually named — because Classify consumes it and the ADK tool signature below is
+      designed against it. Do this before designing the signature, not after
+- [ ] **Prove SQLite-on-GCS actually works for MediaWiki** — §6 assumes the DB file lives on a
+      GCS bucket mounted as a Cloud Run volume so the wiki scales to zero. That is an
+      assumption, not a verified fact: SQLite needs POSIX locking that a GCS FUSE mount may not
+      provide, and the failure mode is corruption on write rather than a clean error. Test a
+      write-read-restart cycle before seeding 12 pages onto it. If it fails, the fallback is a
+      Cloud SQL instance at ~$9/mo, which is affordable but has to be decided, not discovered
 - [ ] **Build the wiki profile** — endpoint + transport, title grammar, section vocabulary,
       tier table, licence, auth (§5). Lifts the hardcoded Fandom assumptions out of the core:
       `EntityRef.from_title`'s `/` split and `ledger/tiers.py`'s trade-press table are both
@@ -652,7 +667,7 @@ are stale relative to what they point at:
 
 ---
 
-## 12. Verified vendor facts (Aug 11, 2026)
+## 12. Verified vendor facts (Aug 11 and Aug 22, 2026)
 
 Primary sources only. Re-verify against installed packages before writing code (CLAUDE.md §1).
 
