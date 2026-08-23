@@ -11,13 +11,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Dependencies first, so the vendor SDKs are re-resolved only when the package metadata or the
-# core changes — not on every frontend tweak. src/ is here because the build backend reads it.
+# The whole Python app is one package now, so the install needs `backend/` present and any
+# backend edit re-resolves the vendor SDKs. That is the cost of the single-package layout;
+# FE/ still lands after the install, so a frontend tweak is a cheap layer either way.
 COPY pyproject.toml ./
-COPY src ./src
+COPY backend ./backend
 RUN pip install --no-cache-dir .
 
-COPY backend ./backend
 COPY FE ./FE
 
 # Anything not copied above is also absent from the build context — see `.gcloudignore`.

@@ -36,7 +36,7 @@ python3 scripts/build_demo_state.py
 
 That script reads `snapshots/`, so **page text is verbatim from the committed corpus** —
 nothing here is retyped. It also builds real `Claim` objects and drives them through the real
-transitions in `src/continuity/ledger/`, so every status, confidence score and recheck
+transitions in `backend/core/ledger/`, so every status, confidence score and recheck
 interval on screen is computed by the core rather than typed into a fixture. It fails the
 build if a claim's `wikitext_anchor` is not present in the seed snapshot, because an anchor
 that does not exist is an edit that could never apply.
@@ -71,7 +71,7 @@ data/           # demo-state.json, generated — do not hand-edit
 
 ## Licensing
 
-Application code here is MIT, like the rest of `src/`, `tests/` and `scripts/`.
+Application code here is MIT, like the rest of `backend/`, `tests/` and `scripts/`.
 
 The **wiki text it displays is not ours.** It comes from the Marvel Cinematic Universe Wiki
 and is reproduced under [CC BY-SA 3.0 Unported](https://creativecommons.org/licenses/by-sa/3.0/).

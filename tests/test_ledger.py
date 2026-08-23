@@ -12,7 +12,7 @@ from dataclasses import FrozenInstanceError
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from continuity.ledger import (
+from backend.core.ledger import (
     AUTO_APPLY_THRESHOLD,
     CEILING,
     FLOOR,
@@ -21,7 +21,6 @@ from continuity.ledger import (
     ClaimKind,
     ClaimStatus,
     Contradiction,
-    EntityRef,
     Source,
     Wave,
     confidence_from,
@@ -29,15 +28,19 @@ from continuity.ledger import (
     seed_interval,
     tier_for,
 )
+from backend.core.profile import MCU_FANDOM
 
 NOW = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
+
+# The demo wiki's table. Tiers are per-wiki now, so every lookup names one.
+TIERS = MCU_FANDOM.domain_tiers
 
 
 def make_claim(**overrides: Any) -> Claim:
     base: dict[str, Any] = dict(
         claim_id="c1",
         page="Gambit",
-        entity_ref=EntityRef.from_title("Gambit"),
+        entity_ref=MCU_FANDOM.entity_ref("Gambit"),
         kind=ClaimKind.LIST_MEMBER,
         wave=Wave.ANNOUNCEMENT_DRIVEN,
         text="Gambit appears in Avengers: Doomsday",
@@ -50,15 +53,16 @@ def make_claim(**overrides: Any) -> Claim:
 
 class TestTiers(unittest.TestCase):
     def test_known_domains_and_www_are_equivalent(self) -> None:
-        self.assertEqual(tier_for("https://deadline.com/x"), 2)
-        self.assertEqual(tier_for("https://www.deadline.com/x"), 2)
+        self.assertEqual(tier_for("https://deadline.com/x", TIERS), 2)
+        self.assertEqual(tier_for("https://www.deadline.com/x", TIERS), 2)
 
     def test_subdomain_resolves_to_registrable_domain(self) -> None:
         # The wiki we read from must tier as a fan wiki, not as an unknown domain.
-        self.assertEqual(tier_for("https://marvelcinematicuniverse.fandom.com/wiki/Gambit"), 6)
+        url = "https://marvelcinematicuniverse.fandom.com/wiki/Gambit"
+        self.assertEqual(tier_for(url, TIERS), 6)
 
     def test_unknown_domain_gets_default_not_a_guess(self) -> None:
-        self.assertEqual(tier_for("https://some-blog.example/post"), 4)
+        self.assertEqual(tier_for("https://some-blog.example/post", TIERS), 4)
 
     def test_better_tier_beats_more_sources(self) -> None:
         one_primary = confidence_from([1])
@@ -110,13 +114,13 @@ class TestDecay(unittest.TestCase):
 
 class TestEntityRef(unittest.TestCase):
     def test_variant_subpage_is_split(self) -> None:
-        ref = EntityRef.from_title("Human Torch/Void-Analyzing Fantastic Four")
+        ref = MCU_FANDOM.entity_ref("Human Torch/Void-Analyzing Fantastic Four")
         self.assertEqual(ref.base, "Human Torch")
         self.assertEqual(ref.variant, "Void-Analyzing Fantastic Four")
         self.assertTrue(ref.is_variant)
 
     def test_plain_page_has_no_variant(self) -> None:
-        ref = EntityRef.from_title("Human Torch")
+        ref = MCU_FANDOM.entity_ref("Human Torch")
         self.assertEqual(ref.base, "Human Torch")
         self.assertIsNone(ref.variant)
         self.assertFalse(ref.is_variant)
@@ -124,8 +128,8 @@ class TestEntityRef(unittest.TestCase):
     def test_variant_and_prime_are_distinct_subjects(self) -> None:
         # `seed-plan.md` §4.3 — conflating these is the failure mode worth guarding.
         self.assertNotEqual(
-            EntityRef.from_title("Human Torch"),
-            EntityRef.from_title("Human Torch/Void-Analyzing Fantastic Four"),
+            MCU_FANDOM.entity_ref("Human Torch"),
+            MCU_FANDOM.entity_ref("Human Torch/Void-Analyzing Fantastic Four"),
         )
 
 
@@ -165,23 +169,23 @@ class TestClaimTransitions(unittest.TestCase):
 
     def test_confidence_is_recomputed_from_sources(self) -> None:
         claim = make_claim().researched("objective", (
-            Source.create("https://deadline.com/a", "…", NOW),
-            Source.create("https://variety.com/b", "…", NOW),
+            Source.create("https://deadline.com/a", "…", NOW, domain_tiers=TIERS),
+            Source.create("https://variety.com/b", "…", NOW, domain_tiers=TIERS),
         ))
         self.assertEqual(claim.confidence, confidence_from([2, 2]))
         self.assertGreater(claim.confidence, AUTO_APPLY_THRESHOLD)
 
     def test_two_urls_from_one_publisher_are_not_corroboration(self) -> None:
         claim = make_claim().researched("objective", (
-            Source.create("https://deadline.com/a", "…", NOW),
-            Source.create("https://www.deadline.com/b", "…", NOW),
+            Source.create("https://deadline.com/a", "…", NOW, domain_tiers=TIERS),
+            Source.create("https://www.deadline.com/b", "…", NOW, domain_tiers=TIERS),
         ))
         self.assertEqual(claim.confidence, confidence_from([2]))
 
     def test_unresolved_keeps_the_objective_and_stays_scheduled(self) -> None:
         claim = make_claim().seeded(NOW).researched("is the cameo confirmed?", (
-            Source.create("https://deadline.com/a", "confirmed", NOW),
-            Source.create("https://variety.com/b", "in talks", NOW),
+            Source.create("https://deadline.com/a", "confirmed", NOW, domain_tiers=TIERS),
+            Source.create("https://variety.com/b", "in talks", NOW, domain_tiers=TIERS),
         ))
         claim = claim.unresolved(NOW, Contradiction(
             note="confirmed vs in talks",
@@ -202,19 +206,19 @@ class TestClaimTransitions(unittest.TestCase):
 class TestAutoApplyGate(unittest.TestCase):
     def test_high_confidence_stale_claim_is_appliable(self) -> None:
         claim = make_claim().researched("objective", (
-            Source.create("https://marvel.com/a", "…", NOW),
+            Source.create("https://marvel.com/a", "…", NOW, domain_tiers=TIERS),
         )).changed(NOW)
         self.assertTrue(claim.auto_appliable)
 
     def test_contradicted_claim_is_never_appliable(self) -> None:
         claim = make_claim().researched("objective", (
-            Source.create("https://marvel.com/a", "…", NOW),
+            Source.create("https://marvel.com/a", "…", NOW, domain_tiers=TIERS),
         )).unresolved(NOW, Contradiction(note="n", source_a="a", source_b="b"))
         self.assertFalse(claim.auto_appliable)
 
     def test_low_confidence_claim_is_not_appliable(self) -> None:
         claim = make_claim().researched("objective", (
-            Source.create("https://x.com/someone/status/1", "…", NOW),
+            Source.create("https://x.com/someone/status/1", "…", NOW, domain_tiers=TIERS),
         )).changed(NOW)
         self.assertFalse(claim.auto_appliable)
 

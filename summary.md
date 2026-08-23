@@ -369,9 +369,9 @@ budget*, not a hosting budget — which reframes cost control as "cap the agent'
 GiB-seconds — inside Cloud Run's monthly free allowance, and about **$1** even if it were
 billed in full. Firestore (50k reads / 20k writes a day), Cloud Scheduler (3 jobs) and Secret
 Manager (6 active versions) are all far below their free thresholds at one job and a handful of
-secrets. Artifact Registry is the only line that plausibly leaves a free tier at all: 0.5 GB is
+secrets. Artifact Registry is the only *free-tier* line that plausibly overruns: 0.5 GB is
 free and `google-adk` makes the app image fat enough to pass it, for something like $0.10/mo.
-Everything except Gemini is rounding error.
+Everything except Gemini and the Cloud SQL instance below is rounding error.
 
 *These rates and thresholds are from recall, not the console* — same standing as the other
 unverified figures below. The conclusion does not depend on their precision, but check them
@@ -387,11 +387,24 @@ required by `AGENTS.md` §7, not a warm instance. The other is a tick that runs 
 month. `--max-instances 3` and the timeout bound the damage, but the research-round cap is what
 actually prevents it.
 
-**MediaWiki is the one piece that fights this.** It wants a database, and Cloud SQL cannot
-scale to zero — the smallest instance bills around $9/mo whether or not anyone visits, which
-over the run-up to judging is real money spent on an idle demo. MediaWiki supports SQLite, so
-the DB file lives on a GCS bucket mounted as a Cloud Run volume with a single instance. One
-writer, no idle bill.
+**MediaWiki is the one piece that fights this — and it wins. Decided Aug 23, 2026.** It wants
+a relational database, and Cloud SQL cannot scale to zero: the smallest shared-core instance
+bills ~$8-10/mo whether or not anyone visits. The plan was to dodge that by putting the SQLite
+file on a GCS bucket mounted as a Cloud Run volume. That does not work. gcsfuse implements
+neither file locking nor partial random writes, which are exactly the two things SQLite depends
+on, and Google's own guidance puts databases out of scope for it — so the failure mode is a
+corrupted DB discovered some time after seeding, not a clean error at mount. Firestore is not an
+escape either: MediaWiki speaks MySQL, PostgreSQL or SQLite, and a document store cannot back
+it. Firebase Storage is not one at all — it *is* a GCS bucket, so it fails identically.
+
+So the wiki's database is the one line that bills while idle, and two free routes were weighed
+and rejected. A third-party Postgres on a free tier (Neon, Supabase) is permitted — §2's
+AI-usage clause leaves non-AI services unrestricted — but it puts MediaWiki on its
+less-travelled DB path and moves the demo's data off GCP. An always-free `e2-micro` VM running
+MediaWiki and MariaDB also costs nothing, but it is a VM to babysit two weeks out and it trades
+the scale-to-zero story for a machine that is always on. Both spend scarce engineering time to
+save ~$16 through judging, against $100 of credits confirmed received Aug 23, 2026. Cloud SQL is
+the boring answer and the right one.
 
 **Two costs are deferred, not avoided.** Cold start is 5-15s if the container imports the
 vendor SDKs at module load, which a judge would experience as a broken link; the fix is lazy
@@ -522,16 +535,44 @@ Beat order follows `seed-plan.md` §4, which names the specific claim behind eac
 
 ## 10. Open next steps
 
-**Start here.** The list below is chronological, not ordered by priority — done and open items
-interleave. As of Aug 22, 2026 the critical path is: **(1)** the 7-stage ADK graph, **(2)** the
-SQLite-on-GCS check before seeding MediaWiki, **(3)** a first deploy. Both vendor perimeters —
-Gemini/ADK and Parallel — are proven and the FastAPI shell is written, so what is left is the
-agent itself plus the deployment shape. Nothing here is blocked on an unknown API. Everything
-else is either downstream of those three or explicitly *if time permits*.
+**Start here.** The `[x]` log below is chronological and records what was decided and when. It
+is not the plan — the plan is the two ordered phases after it.
+
+**Everything buildable locally is built locally first — decided Aug 23, 2026.** MediaWiki cannot
+tell a MariaDB container from Cloud SQL, `.env` already stands in for Secret Manager by design
+(`AGENTS.md` §2), and the Firestore emulator covers the ledger adapter — so no item in Phase 1
+needs a cloud resource to exist, and the Cloud SQL meter does not start until the instance does.
+The one thing local work genuinely cannot prove is whether `continuity-run@`'s three roles are
+sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
+account impersonation closes even that, and it is Phase 2's first item.
+
+As of Aug 23, 2026 the critical path is **(1)** a local MediaWiki the agent can write to,
+**(2)** the 7-stage ADK graph, **(3)** recording the demo video, **(4)** the deploy weekend. Both
+vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written, so
+what is left is the agent itself. Nothing here is blocked on an unknown API.
+
+**The video is Phase 1 work, and that is a correction — decided Aug 23, 2026.** It was filed
+under the deploy weekend, which was wrong twice over: it is the largest single task remaining,
+and it has no dependency on deployment at all. All seven §9 beats run against localhost —
+including beat 5, breaking something live, which is *easier* locally, since editing a page
+underneath a run is a one-line change against your own instance. Leaving it in Phase 2 would
+have put recording, editing and writing the description on the same two days as provisioning
+Cloud SQL and standing up two services. The only submission item that genuinely needs the deploy
+is pasting a URL into a form.
 
 - [x] Confirm Quebec eligibility position — N/A, based in Miami. Re-read current rules text
       once to be certain; it's the one blocker that invalidates everything else
-- [x] Request $100 GCP credits — requested Aug 11, 2026
+- [x] Request $100 GCP credits — requested Aug 11, 2026, **confirmed received Aug 23, 2026**.
+      General-purpose Google Cloud billing credits; the hackathon's resources page states no
+      product restriction, so they cover Cloud SQL as readily as Gemini
+- [x] **Public repo with an MIT licence** — done Aug 11, 2026, re-verified Aug 23, 2026.
+      `github.com/yoman321/continuity` answers unauthenticated and `git ls-remote` succeeds with
+      credentials disabled, so it is genuinely public, and `LICENSE` is MIT at the repo root —
+      which is what §2's "detectable in the About section" is asking for. Not verified from here:
+      that GitHub's sidebar actually renders the licence badge (its API was unreachable on Aug
+      23) — a ten-second look at the repo page settles it. The **content** licence is separate
+      and stricter: `snapshots/` is CC BY-SA 3.0 and carries onto the agent's own edits, see
+      `snapshots/ATTRIBUTION.md`
 - [x] Pick the demo film — Deadpool & Wolverine. See `seed-plan.md`
 - [x] Pull the 2024-08-09 seed wikitext from MCU Wiki revision history — done Aug 15, 2026.
       Revision `2019481` (2024-08-08T23:57:40Z, 50,454 bytes), 17 minutes inside the freeze
@@ -551,7 +592,8 @@ else is either downstream of those three or explicitly *if time permits*.
 - [x] Decide Gemini backend — **Enterprise Agent Platform (ADC), no API key.** Verified
       Aug 11, 2026. Rules permit either; credits apply to the platform path and IAM keeps a
       key out of the public repo. See §12 for the verified call shape
-- [x] Draft the claim ledger schema — done Aug 15, 2026. `src/continuity/ledger/`: the `Claim`
+- [x] Draft the claim ledger schema — done Aug 15, 2026. `backend/core/ledger/` (then
+      `src/continuity/ledger/`): the `Claim`
       record with `claim_kind` and `entity_ref`, the domain→tier table with deterministic
       confidence, and the double/halve/clamp decay logic. Dependency-free and frozen; 31 tests
       pass, mypy strict and ruff clean
@@ -579,30 +621,14 @@ else is either downstream of those three or explicitly *if time permits*.
       tier assignment stays ours, which is what `ledger/tiers.py` already assumes. Three
       findings changed the design rather than confirming it, all now invariants in
       `AGENTS.md` §7 and reasoned below in §6
-- [ ] **Prove SQLite-on-GCS actually works for MediaWiki** — §6 assumes the DB file lives on a
-      GCS bucket mounted as a Cloud Run volume so the wiki scales to zero. That is an
-      assumption, not a verified fact: SQLite needs POSIX locking that a GCS FUSE mount may not
-      provide, and the failure mode is corruption on write rather than a clean error. Test a
-      write-read-restart cycle before seeding 12 pages onto it. If it fails, the fallback is a
-      Cloud SQL instance at ~$9/mo, which is affordable but has to be decided, not discovered
-- [ ] **Build the wiki profile** — endpoint + transport, title grammar, section vocabulary,
-      tier table, licence, auth (§5). Lifts the hardcoded Fandom assumptions out of the core:
-      `EntityRef.from_title`'s `/` split and `ledger/tiers.py`'s trade-press table are both
-      wiki-specific today. Ship two profiles (MCU Fandom, one Wikipedia) so "plug and play" is
-      demonstrated rather than asserted
-- [ ] Define ADK tool signatures — Parallel search, MediaWiki read (built), MediaWiki
-      section-write, ledger read/write. All take the profile; none hardcode a wiki
-- [ ] Build the 7-stage ADK graph — nodes, fan-out, the two backward edges, and the publish gate as
-      the HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
-      `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
-      assigning `ctx.route`, and the publish gate goes through `google.adk.tools.request_input`
-      — all three traps are in `AGENTS.md` §6. The fan-out reschedule rule needs no core change:
-      `decay.next_interval(..., changed=True)` already exists, so the node just calls it for every
-      claim it fanned in
-- [ ] Build the ledger persistence adapter — Firestore, importing *from* the pure core
-- [ ] Stand up seeded MediaWiki on Cloud Run — create the 12 pages from `snapshots/seed/` via
-      `action=edit`. Redirects are already resolved in the manifest, and `Special:Export` /
-      `importDump.php` is not an option (Cloudflare), so the seeding script posts the wikitext
+- [x] **Settle the MediaWiki database** — decided Aug 23, 2026, and it did not need the test.
+      SQLite-on-GCS is dead on the documented behaviour of gcsfuse: no file locking, no partial
+      random writes, databases explicitly out of scope. The failure mode would have been a
+      corrupted DB after seeding rather than an error at mount, so this was worth closing on
+      the docs rather than on a write-read-restart cycle. **Cloud SQL, MySQL, shared-core** —
+      ~$16 through judging against credits now confirmed. Firestore cannot back MediaWiki at
+      all; the two free routes both cost engineering time to save $16. Reasoning and rejected
+      alternatives in §6
 - [x] **Build the review queue frontend** — done Aug 15, 2026. `FE/`: the **queue** (each
       drafted edit with its diff, citations, tier badges, confidence and approve/reject — the
       §6 publish gate made visible), the **ledger view** (status, wave, confidence, interval,
@@ -614,9 +640,10 @@ else is either downstream of those three or explicitly *if time permits*.
       not typed into a fixture. `node FE/check.js` verifies it by counting, not eyeballing
 - [x] **Write `backend/app.py` + `Dockerfile` + `.gcloudignore`** — done Aug 22, 2026. Four
       routes and nothing else, with `FE/` mounted last so it cannot shadow them. The service
-      layer lives in `backend/` rather than beside the core, because `src/continuity/` is the
-      pure half and everything with a vendor import belongs on the other side of a directory
-      boundary. Two calls worth recording.
+      layer lives in `backend/` rather than beside the core, because the pure half and
+      everything with a vendor import belong on opposite sides of a boundary. That boundary
+      was a directory split until Aug 23, 2026, when the core moved to `backend/core/` and the
+      split became an import-path one instead — same rule, more visible (`AGENTS.md` §4). Two calls worth recording.
       `/api/state` answers **503 rather than serving the fixture**: the frontend decides
       live-vs-fixture from that one response, so answering it with `demo-state.json` would put a
       *live* pill above an agent run that never happened. And the cold-start rule stopped being a
@@ -624,21 +651,14 @@ else is either downstream of those three or explicitly *if time permits*.
       `parallel` module reached `sys.modules`, because "we remembered to defer the imports" is
       not a property anyone can keep by intention. The tick guard has seven cases, including the
       unset-token one, which must fail closed. The image is **deliberately not built yet**: the
-      wheel builds from exactly the four paths the `Dockerfile` copies, which retires the one
+      wheel builds from exactly the paths the `Dockerfile` copies — re-verified Aug 23, 2026
+      after the layout move, now `pyproject.toml` + `backend/` — which retires the one
       non-obvious risk in it, and everything past that is Cloud Build's job. Docker stays off
       until the deploy step below — it is the last thing that needs it, and starting it earlier
       buys a slow local build of an image nothing is waiting on
-- [ ] **Deploy** — start Docker and `docker build -t continuity .` first as a pre-flight: local
-      Docker is *not* required to deploy (Cloud Build builds remotely from `--source .`), but a
-      typo in the `Dockerfile` found locally is a two-minute fix instead of a Cloud Build round
-      trip. Then deploy, confirm the hosted URL is publicly reachable and unauthenticated from a
-      browser, and make one model call from the deployed service — the service account's Gemini
-      role is still unverified and fails at the first call, not at deploy (`README.md`). Set the
-      $25 budget alert in the same sitting, and check the first day's bill against the §6
-      estimate: those figures are from recall, and the deployed service is the cheapest place to
-      find out they were wrong
 - [x] Decide the hosting shape — **one Cloud Run service, Python, serving `FE/` and the agent
-      from the same container**; MediaWiki a second service on SQLite. Decided Aug 15, 2026.
+      from the same container**; MediaWiki a second service, on Cloud SQL since Aug 23, 2026 (§6).
+      Decided Aug 15, 2026.
       Reasoning and the rejected alternatives in §6; the topology in `AGENTS.md` §3
 - [x] Resolve the build-step question — **there is no build step, deliberately.** Recorded in
       `AGENTS.md` §5 with the reasoning, replacing the earlier "add one with the frontend" TODO,
@@ -660,6 +680,104 @@ else is either downstream of those three or explicitly *if time permits*.
       This is the cascade beat (`seed-plan.md` §4.1) becoming a stage instead of an aspiration —
       the field existed on the record and nothing consumed it. Fanned-in claims reschedule as
       *changed* so the capped second hop still arrives soon (§7)
+- [x] Write `README.md` — done Aug 15, 2026. What the product is, local run for both halves,
+      routes, env vars, the deploy procedure (which until now lived only in conversation), repo
+      layout and the MIT/CC BY-SA split
+
+- [x] **Close the variant-vs-prime hole in Classify** — decided Aug 23, 2026. `entity_ref` has
+      been on the `Claim` since Aug 15 and `AGENTS.md` already routed "sources are about a
+      different entity" to `conflicting`, but nothing said the classifier is *given* the entity —
+      so the rule asked the model for a judgement it had no input for. Two rules now in
+      `AGENTS.md` §7: the prompt states the subject including the variant and that prime and
+      variant are distinct subjects, and off-entity excerpts are **filtered out before**
+      classification rather than classified. The second matters more: an excerpt about Johnny
+      Storm is not evidence for or against a claim about the *Void-Analyzing* variant — it is
+      not evidence at all, and routing it to `conflicting` per-excerpt would fill the review
+      queue with noise exactly as closed-world phrasing did (§6). `conflicting` is now reserved
+      for the case where filtering empties the batch, which is the honest signal that retrieval
+      missed. Guards `seed-plan.md` §4.3, benchmark case #4
+
+- [x] **Build the wiki profile** — done Aug 23, 2026. `backend/core/profile/` holds
+      `WikiProfile` (endpoint, transport, title grammar, section vocabulary, tier table,
+      licence, User-Agent, writability) plus the two shipped instances, `MCU_FANDOM` and
+      `WIKIPEDIA_EN`. The dependency runs one way — `profile/` imports the ledger core and
+      never the reverse — so the core stayed profile-agnostic instead of gaining a config
+      import. Four things left the core: `EntityRef.from_title` now takes a required
+      `subpages` keyword **with no default**, because a default is how the wrong grammar gets
+      used silently; `tiers.py` kept the mechanism and gave up the table; `Source` resolves its
+      domain once at creation and stores it, so `recompute_confidence` still needs no profile;
+      and `MediaWikiReader` lost its MCU endpoint and User-Agent defaults in favour of
+      `for_profile()`. Two things came out better than planned. **`writable` turns
+      `AGENTS.md` §2's "never write to a real wiki" from prose into a field a test asserts** —
+      neither shipped profile has it. And the section vocabulary is read off `snapshots/seed/`
+      rather than imagined, which caught two headings I had dropped when transcribing
+      (`Notable Pruned Objects`, `Time Variance Authority Files`) — the test found them, not a
+      re-read. 96 tests pass (was 82; `tests/test_profile.py` adds 14), mypy strict and ruff
+      clean, and `build_demo_state.py` regenerates `demo-state.json` byte-identically, which is
+      the evidence that a refactor this wide changed no computed output
+
+- [x] **Move the core into `backend/`** — done Aug 23, 2026, at your call: it is all one
+      Python process, so one package. `src/continuity/` became `backend/core/`, imports became
+      `backend.core.*`, `src/` is gone, and `pyproject.toml` now discovers `backend*` from the
+      repo root. The concern going in was that this dissolves the pure/perimeter boundary
+      `CLAUDE.md` §3 requires, since that boundary *was* the `src/` ‖ `backend/` split. It did
+      not: the property is about what modules import, not where they sit, so it moved into the
+      import path — `backend.core.*` is the deterministic half, everything else under
+      `backend/` is perimeter — which is more visible than a directory split because it shows
+      at every call site rather than only in the tree. 81 of 96 tests still run with nothing
+      installed, which is the number that would have moved if the boundary had actually eroded.
+      **One new risk, which did not exist before and is the real cost:** `backend/__init__.py`
+      now executes before every `backend.core.*` import, so a single vendor import there would
+      make the dependency-free half require the SDKs *and* defeat `app.py`'s cold-start
+      deferral at once. It is asserted import-free by a test rather than left as a convention,
+      and written up in `AGENTS.md` §4 beside the two other direction rules. Also re-verified:
+      the wheel still builds from exactly what the `Dockerfile` copies before installing, now
+      `pyproject.toml` + `backend/`
+
+### Phase 1 — local; nothing in the cloud has to exist
+
+Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
+the final week — which puts the shot list below the recording session that needs it. That is a
+scheduling choice, not a dependency claim. The video itself sits late because it needs a working
+agent to film, not because it ranks low: it is both a hard requirement (§2) and impossible to
+rush, so everything above it exists to serve it, and the two *if time permits* items are what
+gets cut to protect it.
+
+- [ ] Define ADK tool signatures — Parallel search, MediaWiki read (built), MediaWiki
+      section-write, ledger read/write. All take the profile; none hardcode a wiki
+- [ ] **Stand up MediaWiki locally and seed it** — the official `mediawiki` image plus a MariaDB
+      container, a `LocalSettings.php`, and `scripts/seed_wiki.py` creating the 12 pages from
+      `snapshots/seed/` via `action=edit`. Redirects are already resolved in the manifest, and
+      `Special:Export` / `importDump.php` is not an option (Cloudflare), so the seeding script
+      posts the wikitext. Indistinguishable from the deployed instance as far as MediaWiki is
+      concerned, so the section-write tool and the edit-conflict recovery path are both fully
+      exercisable here. Set a real `User-Agent` (`AGENTS.md` §6)
+- [ ] Build the 7-stage ADK graph — nodes, fan-out, the two backward edges, and the publish gate as
+      the HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
+      `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
+      assigning `ctx.route`, and the publish gate goes through `google.adk.tools.request_input`
+      — all three traps are in `AGENTS.md` §6. The fan-out reschedule rule needs no core change:
+      `decay.next_interval(..., changed=True)` already exists, so the node just calls it for every
+      claim it fanned in
+- [ ] Build the ledger persistence adapter — Firestore, importing *from* the pure core. Runs
+      against the emulator locally, which needs a JRE plus
+      `gcloud components install cloud-firestore-emulator` — neither present as of Aug 23, 2026.
+      Keep the queries simple (filter and order on `next_check_at`): the emulator does not enforce
+      composite-index requirements, so a query that passes locally can still fail deployed
+- [ ] **Rework `FE/` for the three buckets** — the queue is approve/reject over drafted edits
+      today; it needs the bucket split, a *still true* view that shows confirmations rather
+      than hiding them, a side-by-side conflict view, and an editable draft. `build_demo_state.py`
+      has to emit the bucket per claim. This is rework of a passing component, so re-run
+      `node FE/check.js`
+- [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
+      depends on it. Not a decision, a check: if the week is quiet, widen the research
+      objective or close on a different beat
+- [ ] **Record and cut the demo video — the priority item in this phase.** ≤3 min, public on
+      YouTube or Vimeo, English or subtitled (§2). Beats and their order are in §9, turned into
+      a recording plan by the shot list at the end of this phase. Record against
+      localhost with the URL bar cropped — a visible `localhost:8000` reads as unfinished, and
+      nothing in the rules requires the video to show the hosted URL. Budget two passes: the
+      first run always exposes a beat that does not read on camera
 - [ ] *If time permits* — **an explicit retrieval-sufficiency criterion.** Gives the "retry: thin
       retrieval" edge a trigger anyone can implement: N sources at or above the claim's tier floor,
       and for a moving claim at least one published after its `as_of`. Fails → broaden the objective
@@ -671,22 +789,56 @@ else is either downstream of those three or explicitly *if time permits*.
       the ledger rots quietly: absence of evidence bumps `last_verified` and doubles the interval, so
       a claim no one can source gets checked ever less often. Fix lands in `decay.py` — unchallenged
       grows the interval by a smaller factor, or not at all
-- [ ] **Rework `FE/` for the three buckets** — the queue is approve/reject over drafted edits
-      today; it needs the bucket split, a *still true* view that shows confirmations rather
-      than hiding them, a side-by-side conflict view, and an editable draft. `build_demo_state.py`
-      has to emit the bucket per claim. This is rework of a passing component, so re-run
-      `node FE/check.js`
-- [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
-      depends on it. Not a decision, a check: if the week is quiet, widen the research
-      objective or close on a different beat
-- [x] Write `README.md` — done Aug 15, 2026. What the product is, local run for both halves,
-      routes, env vars, the deploy procedure (which until now lived only in conversation), repo
-      layout and the MIT/CC BY-SA split
-- [ ] Submission artifacts — ≤3-min video per the §9 beats, text description (features, tech,
-      data sources, findings), and confirm the repo is public with the MIT licence detectable
-      in the About section (§2)
+- [ ] **Write the shot list** — the §9 beats as an ordered recording plan: which view is on
+      screen, what happens on it, how many seconds it gets. Three minutes is 180 seconds and the
+      beats do not divide evenly, so this is where the cuts get decided rather than discovered in
+      the edit; beat 7 (two runs, restricted vs full source set) is already optional in §9 and is
+      the first to go. It also settles a contradiction in §9's own text, which numbers the cascade
+      second but says it opens the video. Parked here as final-week writing, but it has to exist
+      before the recording session above it, not after
+- [ ] **Write the submission description** — features, tech used, data sources, findings and
+      learnings (§2). Last of everything: it needs no code, no deploy and no agent run, so it
+      absorbs whatever time is left rather than competing for time that is not. Unlike the two
+      *if time permits* items above it, this one **cannot be cut** — it is a hard submission
+      requirement
 
-**16 days left** as of Aug 22, 2026. The deterministic core, the seed corpus, the frontend and
+### Phase 2 — deploy weekend, Sept 5-6, 2026
+
+Sept 7 is a Monday, so this is the last window. Ordered so the step with an unknown answer comes
+first and the metered one comes late. The procedure itself is in `README.md`; this is the order.
+
+- [ ] **Create `continuity-run@` and prove its Gemini role — before anything else.** Grant
+      `aiplatform.user`, `datastore.user` and `secretmanager.secretAccessor`, then make one model
+      call under `gcloud auth application-default login --impersonate-service-account=…`. Local
+      ADC runs as the project Owner and therefore always succeeds, so nothing done so far says
+      whether a three-role service account can call Gemini. Cheap to fix if the role name is
+      wrong — Owner on an org-less project grants any role in seconds — but expensive to discover
+      after a day spent on the wiki
+- [ ] **Provision** — the eight APIs, Firestore in `us-east1`, the Cloud SQL instance and its
+      `mediawiki` database, and the four Secret Manager entries. Cloud SQL bills from creation
+      rather than from use, which is the whole reason it sits here and not in Phase 1.
+      `--allow-unauthenticated` is already known to be available: the project has no parent
+      organisation and no domain-restricted-sharing policy (checked Aug 23, 2026)
+- [ ] **Deploy `mediawiki`, then seed it** — repoint `LocalSettings.php` at the Cloud SQL socket,
+      deploy with `--add-cloudsql-instances` and `--max-instances 1`, create the bot password at
+      `Special:BotPasswords`, and re-run `seed_wiki.py` against the new endpoint. The instance is
+      rebuilt from `snapshots/seed/`, never migrated out of the local database — which is what
+      makes the local-first split free rather than a detour
+- [ ] **Deploy `continuity`** — `docker build -t continuity .` first as a pre-flight: local
+      Docker is *not* required (Cloud Build builds remotely from `--source .`), but a typo in the
+      `Dockerfile` found locally is a two-minute fix instead of a Cloud Build round trip. Then
+      deploy with the MediaWiki endpoint and bot credentials in place, and confirm the hosted URL
+      is publicly reachable and unauthenticated **from a private window** — your own session lies
+- [ ] **Cloud Scheduler, then the budget alert** — create the hourly job with the tick token and
+      the service URL, then set the $25 alert. Check the first day's bill against §6: those
+      figures are from recall, and the deployed service is the cheapest place to find out they
+      were wrong
+- [ ] **Submit** — paste the hosted URL into the Devpost form alongside the video and the
+      description already finished in Phase 1, and confirm the URL resolves for a logged-out
+      visitor. Deadline **Sept 7, 2:00 PM PT** (= 5 PM ET, §2). This is the only submission
+      step that ever needed the deploy
+
+**15 days left** as of Aug 23, 2026. The deterministic core, the seed corpus, the frontend and
 the service shell are real and verified. What remains is the vendor perimeter — ADK graph,
 Parallel, wiki writes — behind routes that already exist. The build is the risk now, not the
 plan.

@@ -11,6 +11,7 @@ one, so a run's history is a list of values rather than a mutated object.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from enum import Enum
@@ -63,7 +64,17 @@ class EntityRef:
         return self.variant is not None
 
     @classmethod
-    def from_title(cls, title: str) -> EntityRef:
+    def from_title(cls, title: str, *, subpages: bool) -> EntityRef:
+        """Parse `title` under a wiki's subpage grammar.
+
+        `subpages` is required and has no default on purpose. It is a real MediaWiki setting
+        (`$wgNamespacesWithSubpages`, reported by `siprop=namespaces`), and it differs: Fandom
+        enables mainspace subpages, Wikipedia disables them. Guess wrong with a default and
+        `AC/DC` — one 202KB article — becomes a variant named `DC` of a subject named `AC`,
+        silently, with no error anywhere downstream. Prefer `WikiProfile.entity_ref`.
+        """
+        if not subpages:
+            return cls(title=title, base=title, variant=None)
         base, sep, variant = title.partition("/")
         return cls(title=title, base=base, variant=variant if sep else None)
 
@@ -78,15 +89,19 @@ class Source:
     as_of: datetime | None = None  # publication date, for recency-based adjudication
     tier: int = field(default=tiers.UNKNOWN_TIER)
 
+    # Resolved once at creation, against the profile's table, and stored. Deriving it later
+    # would need the table again, and `Claim.recompute_confidence` must not have to carry a
+    # profile to count publishers.
+    domain: str = ""
+
     @classmethod
     def create(cls, url: str, excerpt: str, retrieved_at: datetime,
-               as_of: datetime | None = None) -> Source:
-        return cls(url=url, excerpt=excerpt, retrieved_at=retrieved_at,
-                   as_of=as_of, tier=tiers.tier_for(url))
-
-    @property
-    def domain(self) -> str:
-        return tiers.registrable_domain(self.url)
+               as_of: datetime | None = None, *,
+               domain_tiers: Mapping[str, int]) -> Source:
+        """Build a source with its tier looked up, never passed in and never model-assigned."""
+        return cls(url=url, excerpt=excerpt, retrieved_at=retrieved_at, as_of=as_of,
+                   tier=tiers.tier_for(url, domain_tiers),
+                   domain=tiers.registrable_domain(url, domain_tiers))
 
 
 @dataclass(frozen=True, slots=True)

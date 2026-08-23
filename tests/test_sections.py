@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from typing import Any, ClassVar
 
-from continuity.wiki import find_section, split_sections, subtree, top_level
+from backend.core.wiki import find_section, split_sections, subtree, top_level
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOTS = REPO_ROOT / "snapshots"

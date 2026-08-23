@@ -21,18 +21,19 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["backend*"]
 
 [tool.ruff]
 line-length = 100
-src = ["src", "tests", "."]
+src = ["tests", "."]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.mypy]
 python_version = "3.10"
-files = ["src", "tests", "scripts", "backend"]
+files = ["backend", "tests", "scripts"]
 strict = true
 # The ledger core is fully typed and must stay that way; vendor SDKs are untyped at the
 # perimeter, so adapters relax this locally rather than globally.

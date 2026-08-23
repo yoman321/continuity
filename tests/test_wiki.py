@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from continuity.wiki import (
+from backend.core.wiki import (
     WikiError,
     build_query,
     parse_revision,

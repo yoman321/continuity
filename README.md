@@ -70,8 +70,8 @@ node FE/check.js                                       # frontend render + wirin
 
 All four must pass before anything is called done. Node checks the frontend; it is never
 needed to build, serve or deploy it. Only the route tests need the venv — the ledger core has
-no dependencies, so `PYTHONPATH=src python3 -m unittest discover -s tests` still runs 67 of
-the 82 on a bare 3.10+ interpreter.
+no dependencies, so `python3 -m unittest discover -s tests` from the repo root still runs 81
+of the 96 on a bare 3.10+ interpreter, with nothing installed.
 
 ### The whole service
 
@@ -143,8 +143,9 @@ billing account, they do not replace one, and `aiplatform` will not enable witho
 ## Deploying
 
 One Cloud Run service serves the frontend and runs the agent; MediaWiki is a second. Both
-scale to zero. The topology and the rules it implies are in `AGENTS.md` §3; the reasoning is
-in `summary.md` §6.
+scale to zero — but MediaWiki's Cloud SQL database does not, and is the only thing in the
+project that bills while idle (~$16 through judging). The topology and the rules it implies
+are in `AGENTS.md` §3; the reasoning is in `summary.md` §6.
 
 <details>
 <summary>One-time project setup</summary>
@@ -156,7 +157,7 @@ gcloud init && gcloud config set run/region us-east1
 gcloud services enable \
   run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
   firestore.googleapis.com secretmanager.googleapis.com cloudscheduler.googleapis.com \
-  aiplatform.googleapis.com
+  aiplatform.googleapis.com sqladmin.googleapis.com
 
 PROJECT=$(gcloud config get-value project)
 SA=continuity-run@$PROJECT.iam.gserviceaccount.com
@@ -168,7 +169,16 @@ done
 gcloud firestore databases create --location=us-east1
 printf '%s' "$PARALLEL_API_KEY" | gcloud secrets create parallel-api-key --data-file=-
 printf '%s' "$(openssl rand -hex 24)" | gcloud secrets create tick-token --data-file=-
+
+# MediaWiki's database. Shared-core is the cheapest tier that exists; confirm the tier name
+# is still served before trusting it, then check the first bill against `summary.md` §6.
+gcloud sql instances create continuity-wiki \
+  --database-version=MYSQL_8_0 --tier=db-f1-micro --region=us-east1
+gcloud sql databases create mediawiki --instance=continuity-wiki
 ```
+
+`continuity-run` deliberately has no `roles/cloudsql.client`: the agent reaches the wiki over
+`api.php`, never over its database. Only the `mediawiki` service connects to Cloud SQL.
 
 `roles/aiplatform.user` is still unverified **for the service account**. Local model calls are
 proven working (Aug 22, 2026) but they run on user ADC, which says nothing about what a
@@ -210,9 +220,10 @@ the shared-secret header is the only thing between a guessed path and unbounded 
 
 ```text
 backend/app.py           the four routes; FE/ is mounted last so it cannot shadow them
-Dockerfile               python:3.12-slim; copies pyproject.toml, src/, backend/ and FE/
-src/continuity/ledger/   the claim record, source tiers, decay intervals — pure, no deps
-src/continuity/wiki/     MediaWiki read adapter and wikitext section splitting
+backend/core/ledger/     the claim record, source tiers, decay intervals — pure, no deps
+backend/core/profile/    per-wiki config: title grammar, tier table, sections, licence
+backend/core/wiki/       MediaWiki read adapter and wikitext section splitting
+Dockerfile               python:3.12-slim; copies pyproject.toml, backend/ and FE/
 scripts/                 snapshot puller and demo-state generator; both re-runnable
 snapshots/               12 pages in two states, with a provenance manifest
 FE/                      the review queue, ledger and page views — see FE/README.md
@@ -226,7 +237,7 @@ invariants, gotchas). Read `AGENTS.md` before writing code.
 
 ## Licence
 
-Application code is **MIT** — see `LICENSE`. It covers `src/`, `tests/`, `scripts/`, `FE/`
+Application code is **MIT** — see `LICENSE`. It covers `backend/`, `tests/`, `scripts/`, `FE/`
 and the documentation.
 
 It does **not** cover the wiki text. Everything under `snapshots/`, and the page text the

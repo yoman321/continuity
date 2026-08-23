@@ -4,51 +4,17 @@
 *over* a tier; it never assigns one. Handing tier assignment to the model makes the headline
 adjudication behaviour unreproducible on camera.
 
-Tier 1 is best. The table is the whole policy — to change how the agent weighs a source,
-edit `DOMAIN_TIERS`, not a prompt.
+Tier 1 is best. The *mechanism* lives here; the table itself is per-wiki and lives on the
+profile (`backend.core.profile`), because source authority means nothing in the abstract — a
+trade-press tier table is meaningless on a medical or software wiki (`AGENTS.md` §2). Callers
+pass `domain_tiers` explicitly rather than inheriting a default, so a missing profile is an
+error at the call site instead of silently the wrong wiki's policy.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from urllib.parse import urlparse
-
-# Tier 1 — primary. The party that owns the fact is stating it.
-# Tier 2 — trade press. Independent, professionally edited, names its sourcing.
-# Tier 3 — structured databases. Accurate but derivative, and they lag.
-# Tier 4 — general press. Usually rewriting tier 2.
-# Tier 5 — social. Never sufficient alone (`seed-plan.md` §5).
-# Tier 6 — fan wikis. Never citable: this is what we are trying to be.
-DOMAIN_TIERS: dict[str, int] = {
-    "marvel.com": 1,
-    "disney.com": 1,
-    "thewaltdisneycompany.com": 1,
-    "press.disney.com": 1,
-    "oscars.org": 1,
-    "goldenglobes.com": 1,
-    "variety.com": 2,
-    "hollywoodreporter.com": 2,
-    "deadline.com": 2,
-    "themoviedb.org": 3,
-    "wikidata.org": 3,
-    "boxofficemojo.com": 3,
-    "the-numbers.com": 3,
-    "imdb.com": 4,
-    "empireonline.com": 4,
-    "collider.com": 4,
-    "screenrant.com": 4,
-    "x.com": 5,
-    "twitter.com": 5,
-    "instagram.com": 5,
-    "facebook.com": 5,
-    "tumblr.com": 5,
-    "reddit.com": 5,
-    "youtube.com": 5,
-    "tiktok.com": 5,
-    "threads.net": 5,
-    "bsky.app": 5,
-    "fandom.com": 6,
-    "wikipedia.org": 6,
-}
 
 UNKNOWN_TIER = 4
 
@@ -71,26 +37,27 @@ SOCIAL_ONLY_CAP = 0.60
 CONTRADICTED_CAP = 0.50
 
 
-def registrable_domain(url: str) -> str:
-    """Host of `url`, minus a leading `www.` and any subdomain we don't tier separately.
+def registrable_domain(url: str, domain_tiers: Mapping[str, int]) -> str:
+    """Host of `url`, minus a leading `www.` and any subdomain the table doesn't tier.
 
     `deadline.com` and `www.deadline.com` must tier identically, and a Fandom subdomain
-    like `marvelcinematicuniverse.fandom.com` must resolve to the `fandom.com` entry.
+    like `marvelcinematicuniverse.fandom.com` must resolve to the `fandom.com` entry. Which
+    suffixes are meaningful is a property of the table, so the table is an argument.
     """
     host = (urlparse(url).hostname or "").lower().removeprefix("www.")
-    if host in DOMAIN_TIERS:
+    if host in domain_tiers:
         return host
     parts = host.split(".")
     for i in range(1, len(parts) - 1):
         candidate = ".".join(parts[i:])
-        if candidate in DOMAIN_TIERS:
+        if candidate in domain_tiers:
             return candidate
     return host
 
 
-def tier_for(url: str) -> int:
+def tier_for(url: str, domain_tiers: Mapping[str, int]) -> int:
     """Authority tier of `url`. Unknown domains get `UNKNOWN_TIER`, never a guess."""
-    return DOMAIN_TIERS.get(registrable_domain(url), UNKNOWN_TIER)
+    return domain_tiers.get(registrable_domain(url, domain_tiers), UNKNOWN_TIER)
 
 
 def confidence_from(tiers: list[int], *, contradicted: bool = False) -> float:

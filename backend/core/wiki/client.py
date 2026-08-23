@@ -22,17 +22,14 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-# Fandom throttles anonymous defaults, so this must identify us and offer a contact route.
-# The repo URL is that route, deliberately — the issue tracker reaches the operator without
-# publishing a personal address in a public repo. Do not "improve" this by adding an email.
-USER_AGENT = (
-    "continuity-wiki-agent/0.1 "
-    "(+https://github.com/yoman321/continuity) python-urllib"
-)
+if TYPE_CHECKING:
+    from ..profile import WikiProfile
 
-MCU_WIKI_API = "https://marvelcinematicuniverse.fandom.com/api.php"
+# The User-Agent and the endpoint both moved onto the profile (`backend.core.profile`): which
+# wiki we read and how we identify ourselves to it are per-wiki facts, and a default here is
+# how the MCU endpoint would end up being used against another wiki without anyone noticing.
 
 # Anything outside this becomes "_". Titles carry "&", "/", spaces and parentheses; the
 # manifest keeps the true title, so the filename only has to be stable and shell-safe.
@@ -157,13 +154,19 @@ class MediaWikiReader:
     """Thin read client. One method that touches the network, so it is the only thing to
     stub when the pipeline is tested offline."""
 
-    def __init__(self, api_url: str = MCU_WIKI_API, *, timeout: float = 30.0) -> None:
+    def __init__(self, api_url: str, *, user_agent: str, timeout: float = 30.0) -> None:
         self.api_url = api_url
+        self.user_agent = user_agent
         self.timeout = timeout
+
+    @classmethod
+    def for_profile(cls, profile: WikiProfile, *, timeout: float = 30.0) -> MediaWikiReader:
+        """The normal way to build one — endpoint and User-Agent both come from the wiki."""
+        return cls(profile.api_url, user_agent=profile.user_agent, timeout=timeout)
 
     def fetch(self, params: dict[str, str]) -> dict[str, Any]:
         url = f"{self.api_url}?{urllib.parse.urlencode(params)}"
-        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+        request = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
             body = response.read().decode("utf-8")
         parsed: dict[str, Any] = json.loads(body)

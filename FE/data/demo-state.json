@@ -2,7 +2,7 @@
   "generated_by": "scripts/build_demo_state.py",
   "generated_at": "2026-08-15T12:00:00Z",
   "stub": true,
-  "stub_note": "Claims and citations are a hand-built fixture, not the output of an agent run. Page text is verbatim from snapshots/ and the ledger numbers are computed by src/continuity/ledger/, but no research has been performed. Replaced by live Firestore state once the ADK graph runs.",
+  "stub_note": "Claims and citations are a hand-built fixture, not the output of an agent run. Page text is verbatim from snapshots/ and the ledger numbers are computed by backend/core/ledger/, but no research has been performed. Replaced by live Firestore state once the ADK graph runs.",
   "source": {
     "wiki": "Marvel Cinematic Universe Wiki",
     "api": "https://marvelcinematicuniverse.fandom.com/api.php",

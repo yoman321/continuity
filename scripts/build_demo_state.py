@@ -32,11 +32,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from continuity.ledger.decay import Wave
-from continuity.ledger.schema import Claim, ClaimKind, ClaimStatus, Contradiction, EntityRef, Source
-from continuity.wiki import find_section, slug_for, split_sections, subtree
+from backend.core.ledger.decay import Wave
+from backend.core.ledger.schema import Claim, ClaimKind, ClaimStatus, Contradiction, Source
+from backend.core.profile import MCU_FANDOM
+from backend.core.wiki import find_section, slug_for, split_sections, subtree
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOTS = REPO_ROOT / "snapshots"
@@ -48,7 +49,7 @@ NOW = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
 STUB_NOTE = (
     "Claims and citations are a hand-built fixture, not the output of an agent run. "
     "Page text is verbatim from snapshots/ and the ledger numbers are computed by "
-    "src/continuity/ledger/, but no research has been performed. Replaced by live "
+    "backend/core/ledger/, but no research has been performed. Replaced by live "
     "Firestore state once the ADK graph runs."
 )
 
@@ -335,7 +336,7 @@ def build_claim(demo: DemoClaim, section_index: int) -> Claim:
     claim = Claim(
         claim_id=demo.claim_id,
         page=demo.page,
-        entity_ref=EntityRef.from_title(demo.page),
+        entity_ref=MCU_FANDOM.entity_ref(demo.page),
         kind=demo.kind,
         wave=demo.wave,
         text=demo.text,
@@ -346,7 +347,8 @@ def build_claim(demo: DemoClaim, section_index: int) -> Claim:
     ).seeded(NOW)
 
     sources = tuple(
-        Source.create(s.url, s.excerpt, retrieved_at=NOW, as_of=s.as_of) for s in demo.sources
+        Source.create(s.url, s.excerpt, retrieved_at=NOW, as_of=s.as_of,
+                      domain_tiers=MCU_FANDOM.domain_tiers) for s in demo.sources
     )
     claim = claim.researched(demo.objective, sources)
 

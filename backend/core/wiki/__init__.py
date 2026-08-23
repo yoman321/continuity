@@ -1,8 +1,6 @@
 """MediaWiki I/O. Read today; `action=edit` section writes arrive with the publish stage."""
 
 from .client import (
-    MCU_WIKI_API,
-    USER_AGENT,
     MediaWikiReader,
     PageRevision,
     WikiError,
@@ -14,8 +12,6 @@ from .client import (
 from .sections import Section, find_section, split_sections, subtree, top_level
 
 __all__ = [
-    "MCU_WIKI_API",
-    "USER_AGENT",
     "MediaWikiReader",
     "PageRevision",
     "Section",

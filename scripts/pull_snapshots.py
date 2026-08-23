@@ -22,9 +22,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from continuity.wiki import MCU_WIKI_API, MediaWikiReader, PageRevision, WikiError
+from backend.core.profile import MCU_FANDOM
+from backend.core.wiki import MediaWikiReader, PageRevision, WikiError
 
 FREEZE = datetime(2024, 8, 9, tzinfo=timezone.utc)
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -96,7 +97,7 @@ def licence(reader: MediaWikiReader) -> dict[str, Any]:
 
 
 def pull(out_dir: Path, states: tuple[str, ...]) -> dict[str, Any]:
-    reader = MediaWikiReader()
+    reader = MediaWikiReader.for_profile(MCU_FANDOM)
     rights_meta = licence(reader)
 
     pages: list[dict[str, Any]] = []
@@ -143,7 +144,7 @@ def pull(out_dir: Path, states: tuple[str, ...]) -> dict[str, Any]:
     return {
         "source": {
             "wiki": rights_meta.get("sitename", "Marvel Cinematic Universe Wiki"),
-            "api": MCU_WIKI_API,
+            "api": MCU_FANDOM.api_url,
             "generator": rights_meta.get("generator"),
             "licence": rights_meta,
         },

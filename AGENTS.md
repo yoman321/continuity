@@ -40,8 +40,12 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   plug-and-play across MediaWiki sites (`summary.md` §5), so title grammar, section
   vocabulary, source tiers, licence and auth are per-wiki config the core reads. A hardcoded
   Fandom assumption in shared code is a rewrite, not a patch — it silently produces confident
-  wrong output on the next wiki. `EntityRef.from_title` splitting on `/` is the live example:
-  correct for Fandom subpages, wrong for `AC/DC` on Wikipedia.
+  wrong output on the next wiki. Built Aug 23, 2026: `continuity.profile.WikiProfile` carries
+  all six, and `MCU_FANDOM` / `WIKIPEDIA_EN` are the two shipped instances. The dependency
+  runs one way: `profile/` imports the core, and the core must never import `profile/` **at
+  runtime** — a `TYPE_CHECKING` reference for a signature is fine (`wiki/client.py` has one),
+  an unguarded one is not. `tests/test_profile.py` asserts it, because an import direction is
+  exactly the kind of thing that inverts by accident in a later refactor.
 - **Section-level edits only, never full-page rewrites — and never create a section.** Full
   rewrites get reverted by wiki communities and are illegible in a 3-minute video. Adding a
   section the wiki's convention does not have (Box office, Reception, Accolades — absent from
@@ -77,7 +81,7 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
 | Auth | Enterprise/ADC — no API key. `GOOGLE_GENAI_USE_ENTERPRISE=true` (§5) |
 | Retrieval | Parallel Search via `parallel-web`, wrapped as an ADK tool |
 | Wiki I/O | MediaWiki API — `action=parse` to read, `action=edit` with section param to write |
-| Ledger | Firestore (or Cloud SQL if ripple queries need joins) |
+| Ledger | Firestore. The Cloud SQL instance in the topology is MediaWiki's alone |
 | Scheduling | Cloud Scheduler → Cloud Run endpoint, hourly; interval logic lives in the ledger |
 | Secrets | Secret Manager — Parallel key, wiki bot credentials |
 | Frontend | Vanilla HTML/CSS/JS in `FE/` — no framework, no build step, no dependencies |
@@ -87,7 +91,8 @@ Why each was chosen, and what was rejected: `summary.md` §6 and §12.
 
 ### Runtime topology
 
-Two Cloud Run services, both scale-to-zero, both in `us-east1`. Nothing else runs.
+Two Cloud Run services, both scale-to-zero, both in `us-east1`, plus the one Cloud SQL
+instance that cannot. Nothing else runs.
 
 ```text
   continuity                                  <-- the public project URL
@@ -99,10 +104,11 @@ Two Cloud Run services, both scale-to-zero, both in `us-east1`. Nothing else run
     runtime SA: continuity-run@  — aiplatform.user, datastore.user, secretAccessor
 
   mediawiki                                   <-- the wiki the agent edits; never a real one
-    MediaWiki on SQLite, DB file on a GCS volume (gen2 execution environment)
-    --max-instances 1, because SQLite has one writer
+    MediaWiki on Cloud SQL (MySQL, shared-core), over the Cloud SQL connector
+    --max-instances 1; the service scales to zero, its database does not
 
-  Firestore (ledger)   Secret Manager (Parallel key, tick token, bot password)
+  Firestore (ledger)   Cloud SQL (MediaWiki's DB, and nothing else)
+  Secret Manager (Parallel key, tick token, bot password)
   Cloud Scheduler (1 job)   Artifact Registry (2 images)
 ```
 
@@ -113,21 +119,24 @@ Rules that fall out of this shape:
 
 - **One container serves the frontend and runs the agent.** `FE/` is static, so there is no
   second origin, no CORS and no second deploy. Do not split them.
-- **Region is `us-east1` for Cloud Run, Firestore and the bucket.** Gemini is the exception —
+- **Region is `us-east1` for Cloud Run, Firestore and Cloud SQL.** Gemini is the exception —
   `location="global"`, never a region (§5).
 - **`--min-instances 0`, always — and `--max-instances 3`.** Zero is what makes idle cost
   nothing: Cloud Run bills per request-second, so an unwatched demo is free. Raising it to 1 to
   hide the cold start bills an instance around the clock and turns ~$1/mo into tens of dollars;
   the sanctioned fix for cold start is the lazy imports in §7. The ceiling stops a stuck
   research loop from draining the credits. Numbers in `summary.md` §6.
-- **MediaWiki uses SQLite on a mounted bucket, not Cloud SQL.** Cloud SQL cannot scale to
-  zero, so the cheapest instance bills ~$9/mo to serve a demo nobody is looking at. Unverified
-  as of Aug 22, 2026 — SQLite needs POSIX locking a GCS FUSE mount may not give it, and the
-  failure mode is write corruption, not an error. Prove a write-read-restart cycle before
-  seeding pages onto it (`summary.md` §10).
-- **Gemini tokens are the only meaningful cost.** Every other line above sits inside a free
-  tier at demo traffic; the per-item breakdown is in `summary.md` §6, and its figures are from
-  recall rather than the console. Set the $25 budget alert before the first deploy, not after.
+- **MediaWiki runs on Cloud SQL, and it is the only thing here that bills while idle.**
+  SQLite on a mounted GCS bucket was the plan until Aug 23, 2026; it does not work. gcsfuse
+  implements neither file locking nor partial random writes, which are the two things SQLite
+  depends on, so the failure mode is a corrupted database found after seeding rather than an
+  error at mount. Do not retry it, and do not reach for Firestore either — MediaWiki speaks
+  MySQL, PostgreSQL or SQLite and nothing else. ~$16 through judging, covered by the credits
+  (`summary.md` §6).
+- **Gemini tokens are the only cost that can run away.** Cloud SQL is a fixed ~$16 through
+  judging and every other line above sits inside a free tier at demo traffic; the per-item
+  breakdown is in `summary.md` §6, and its figures are from recall rather than the console.
+  Set the $25 budget alert before the first deploy, not after.
 
 ## 4. File map
 
@@ -135,19 +144,25 @@ Rules that fall out of this shape:
      Update in the same task that moves a file. A stale map is worse than no map. -->
 
 ```text
-  backend/
-    app.py                           # <-- read first: the four routes; FE/ mounted last
-  Dockerfile                         # the runtime image; copies pyproject/src/backend/FE only
+  backend/                           # the whole Python app: core + perimeter, one package
+    __init__.py                      # <-- read first: the pure/perimeter rule. Import-free
+    app.py                           # the four routes; FE/ mounted last
+    core/                            # ===== the deterministic half. No vendor, no network =====
+      ledger/
+        schema.py                    # <-- read first: Claim, the record everything else serves
+        tiers.py                     # tier *mechanism*; the table itself is per-wiki
+        decay.py                     # Wave, and the double/halve/clamp interval logic
+      profile/
+        schema.py                    # <-- read first: WikiProfile, everything per-wiki
+        known.py                     # MCU_FANDOM and WIKIPEDIA_EN, and their tier tables
+      wiki/
+        client.py                    # MediaWiki read adapter; network confined to fetch()
+        sections.py                  # wikitext -> the sections action=edit&section=N addresses
+                                     # ===== everything else under backend/ is perimeter =====
+  Dockerfile                         # the runtime image; copies pyproject/backend/FE only
   .gcloudignore                      # what Cloud Build does NOT receive; includes .gitignore
                                      #   rather than repeating it, so there is one secret list
   pyproject.toml                     # deps, ruff + mypy config, gate settings
-  src/continuity/ledger/
-    schema.py                        # <-- read first: Claim, the record everything else serves
-    tiers.py                         # domain -> authority tier, and confidence from tiers
-    decay.py                         # Wave, and the double/halve/clamp interval logic
-  src/continuity/wiki/
-    client.py                        # MediaWiki read adapter; network confined to fetch()
-    sections.py                      # wikitext -> the sections action=edit&section=N addresses
   scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
   scripts/build_demo_state.py        # snapshots/ + ledger core -> FE/data/demo-state.json
   FE/
@@ -165,6 +180,7 @@ Rules that fall out of this shape:
     ATTRIBUTION.md                   # CC BY-SA 3.0 notice; the text here is not MIT
   tests/test_app.py                  # route guards, and the no-vendor-import proof (needs venv)
   tests/test_ledger.py               # stdlib unittest; no deps, runs today
+  tests/test_profile.py              # the seam: one title, two wikis; plus the layout rules
   tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
   tests/test_sections.py             # section numbering, incl. against real snapshots
   README.md         # what it is, local run, routes, env vars, the deploy procedure
@@ -173,16 +189,29 @@ Rules that fall out of this shape:
   .env.example      # required env vars, no values
 ```
 
-The ledger core is deliberately dependency-free: no Firestore, no ADK, no network. Storage
-and vendor calls arrive later as adapters that import *from* it (`CLAUDE.md` §3). The wiki
-client is the first such adapter and follows the same shape — `fetch()` is the only method
-that opens a socket, so everything else is tested offline. `backend/` is the other side of
-that line — the perimeter, where anything with a vendor import lives, and where the ADK graph
-and the Parallel tool will land. Its first occupant, `app.py`, holds the four routes and
-nothing else, and defers every vendor import into a handler so a cold container can serve
-`index.html` without paying for the SDKs. Not yet written: the
-ADK tool signatures, the 7-stage graph, `action=edit` section writes, and the Firestore
-adapter — so all three API routes are guarded shells that answer 503/501 today.
+**The pure/perimeter line runs through `backend/`, not around it — restructured Aug 23, 2026.**
+It used to be the `src/` ‖ `backend/` directory split; it is now `backend.core.*` versus
+everything else under `backend/`, which puts the boundary in every import path instead of only
+in the tree. What the line means did not change (`CLAUDE.md` §3): `backend.core` is
+dependency-free — no Firestore, no ADK, no network — and 81 of the 96 tests still run on an
+interpreter with nothing installed. Storage and vendor calls arrive as adapters that import
+*from* it, never the reverse. The wiki client is the first such adapter and shows the shape:
+`fetch()` is the only method that opens a socket, so everything else is tested offline.
+
+Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
+`tests/test_app.py` rather than trusted:
+
+- `backend.core` never imports the perimeter — a `TYPE_CHECKING` reference is fine, an
+  unguarded one is not.
+- **`backend/__init__.py` stays import-free.** It executes before every `backend.core.*`
+  import, so one vendor import there makes the dependency-free half require the SDKs and
+  defeats the cold-start deferral at the same time. This risk did not exist under the old
+  layout and is the one real cost of the move.
+- `app.py` defers every vendor import into a handler, so a cold container serves
+  `index.html` without paying for the SDKs.
+
+Not yet written: the ADK tool signatures, the 7-stage graph, `action=edit` section writes,
+and the Firestore adapter — so all three API routes are guarded shells answering 503/501.
 
 **`FE/data/demo-state.json` is generated, never hand-edited.** `build_demo_state.py` takes
 page text verbatim from `snapshots/` and computes every status, confidence and interval by
@@ -198,7 +227,7 @@ by the test suite. Never hand-edit a file there — fix the puller and re-run.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (.venv is gitignored)
 
-.venv/bin/python -m unittest discover -s tests               # test     — 82 passing
+.venv/bin/python -m unittest discover -s tests               # test     — 96 passing
 .venv/bin/mypy                                               # typecheck — strict
 .venv/bin/ruff check .                                       # lint
 node FE/check.js                                             # frontend  — render + wiring
@@ -217,7 +246,10 @@ All four must pass before claiming done (`CLAUDE.md` §4).
 The test line moved to the venv interpreter when `backend/app.py` landed: `tests/test_app.py`
 imports FastAPI, and on a bare interpreter it raises `SkipTest` rather than failing — which would
 quietly drop the tick-token cases from the gate. The dependency-free core still runs anywhere:
-`PYTHONPATH=src python3 -m unittest discover -s tests` on any 3.10+, 67 of the 82.
+`python3 -m unittest discover -s tests` from the repo root on any 3.10+, 81 of the 96. No
+`PYTHONPATH` since the Aug 23 layout move — `backend/` sits at the repo root and `python -m`
+puts the working directory on `sys.path` itself. The old `PYTHONPATH=src` still *appears* to
+work because it is simply ignored; `src/` no longer exists.
 
 The `docker build` line is the only command here that needs Docker running, and it is a
 pre-flight for the deploy, not part of the gate — `gcloud run deploy --source .` builds on Cloud
@@ -234,9 +266,9 @@ through `StaticFiles` from the same Python process that runs the agent. Node is 
 contains no JavaScript toolchain. A framework here would buy component structure this UI is
 too small to need, and cost a second toolchain in the image and a fourth thing to break.
 
-The ledger core has **no runtime dependencies**, and that is worth keeping: it is why 67 of
-the 82 tests run on any 3.10+ interpreter with nothing installed. Only the route tests need
-the venv, because only `backend/` imports a third-party package.
+The ledger core has **no runtime dependencies**, and that is worth keeping: it is why 81 of
+the 96 tests run on any 3.10+ interpreter with nothing installed. Only the route tests need
+the venv, because only the perimeter imports a third-party package.
 
 Python ≥3.10; developed on 3.14.4. Resolved versions as of Aug 15, 2026: `google-adk` 2.7.0,
 `google-genai` 2.18.1, `parallel-web` 1.3.0.
@@ -308,7 +340,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   (negations included: `!.env.example` survives). Never restate a `.gitignore` pattern in it.
   Deleting the file is not the fix either: with a `.git` directory present gcloud *writes its
   own* on the first deploy. Verified Aug 22, 2026 by running the SDK's own `FileChooser` over
-  this repo — `.env` ignored, `.env.example` uploaded, `src/`, `FE/`, `backend/`, `Dockerfile`
+  this repo — `.env` ignored, `.env.example` uploaded, `FE/`, `backend/`, `Dockerfile`
   and `pyproject.toml` uploaded, everything else dropped.
 - **`grep -r` from `.` silently skips dotfiles on this machine.** A clean recursive sweep is
   not proof a secret is absent → enumerate files explicitly, or `grep` the dotfile by name.
@@ -320,8 +352,11 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **`/` means different things on different wikis.** Fandom uses it for variant subpages
   (`Human Torch/Void-Analyzing Fantastic Four`); Wikipedia disables mainspace subpages, so
   `AC/DC` and `Face/Off` are ordinary titles → never parse a title without the wiki's profile.
-  Verified Aug 15, 2026: `EntityRef.from_title("AC/DC")` returns base `AC`, variant `DC`
-  against a real 202KB article.
+  Verified Aug 15, 2026: the old `EntityRef.from_title("AC/DC")` returned base `AC`, variant
+  `DC` against a real 202KB article. Fixed Aug 23, 2026 — `from_title` now takes a required
+  `subpages` keyword with no default, so the question cannot be skipped, and
+  `WikiProfile.entity_ref` is the way to call it. The value is not a guess either: MediaWiki
+  reports it per namespace under `siprop=namespaces`.
 - **Fandom throttles anonymous `User-Agent`s.** Set a real one with contact info on every
   MediaWiki call, seeding included.
 - **`siprop=rightsinfo` will not tell you the CC licence version.** It answers a bare
@@ -380,8 +415,24 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   explicitly. Left unordered, the definitions in `summary.md` §6 overlap and every model
   collapses toward `conflicting`; adding the order took the precision case from 0/3 to 3/3 on
   every model tested.
-- **`DOMAIN_TIERS` drives Parallel's `source_policy`, not just the confidence score.** Every
-  search passes `include_domains` built from the tier <=3 entries. This is not an optimisation
+- **The classify prompt carries `entity_ref`, and off-entity excerpts are filtered before
+  classification rather than classified.** A claim about `Human Torch/Void-Analyzing Fantastic
+  Four` is about a different subject from `Human Torch`, and retrieval cannot tell them apart —
+  Parallel returns excerpts about "the Human Torch" with nothing marking which one. So the
+  prompt must state the subject, including the variant, and say that prime and variant are
+  distinct subjects. Without that the model is being asked for a judgement it has no input for,
+  which is a missing-information bug and not a prompting one.
+  Then two operations, in order, never one: **drop excerpts that cannot be tied to this
+  subject, then classify what remains.** An off-entity excerpt is neither corroboration nor
+  contradiction — it is not evidence about this claim at all, and treating it as a
+  disagreement fills the review queue with noise the same way closed-world phrasing did. Fall
+  through to `conflicting` only when filtering empties the batch, because *that* means
+  retrieval went off-target and a human should see it. This is the guard on `seed-plan.md`
+  §4.3, the variant-vs-prime precision case, which is benchmark case #4 precisely because it
+  is where this fails.
+- **The profile's `domain_tiers` drives Parallel's `source_policy`, not just the confidence
+  score.** Use `WikiProfile.include_domains`, which is exactly the tier <=3 slice. Every
+  search passes it. This is not an optimisation
   — measured Aug 22 2026 on the Human Torch precision case, the same query with and without
   it: unfiltered returned tiers `{2:1, 4:7, 6:2}` in 5.79s with two Tumblr posts and a
   scraped cast table whose role labels were offset by one row, so the top-ranked excerpt
@@ -389,7 +440,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   Marvel stating the fact directly. Filtering is faster *and* better. `exclude_domains` alone
   is near-useless — the junk that shows up is not in our table, so denying what we already
   distrust changes almost nothing.
-- **A social domain missing from `DOMAIN_TIERS` scores as general press, not as social.**
+- **A social domain missing from a profile's `domain_tiers` scores as general press.**
   Unknown falls to `UNKNOWN_TIER = 4`, which skips the `best >= 5` social cap: measured, a
   Tumblr-only claim scores 0.50 instead of 0.30. Neither clears the 0.75 auto-apply gate, so
   this mis-states a number rather than approving a bad edit — but the number is on screen in
