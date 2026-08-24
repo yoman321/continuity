@@ -21,9 +21,12 @@ track. Demo subject: *Deadpool & Wolverine*, seeded from real MCU Wiki revision 
 at 2024-08-09.
 
 > **Status:** the deterministic core, the seed corpus, the frontend and the service shell are
-> built and verified. The agent itself — the ADK graph, Parallel retrieval and wiki writes — is
-> not yet wired up: the three API routes exist and are guarded, but answer 503/501. The
-> frontend currently renders a labelled fixture, not a live agent run.
+> built and verified, and so are the tools the agent reaches the world through — Parallel
+> search, MediaWiki read and write, each with a deterministic offline replay behind it. A local
+> MediaWiki is up and seeded from the frozen corpus. **Not yet wired up:** the ADK graph that
+> joins those tools, and the Firestore adapter behind it — so the three API routes exist and
+> are guarded but answer 503/501, and the frontend renders a labelled fixture rather than a
+> live agent run.
 
 ---
 
@@ -62,16 +65,18 @@ The claim ledger has no runtime dependencies, so its tests run on a bare interpr
 install is only needed for the linters and, later, the vendor SDKs.
 
 ```bash
-.venv/bin/python -m unittest discover -s tests         # 82 tests
+.venv/bin/python -m unittest discover -s tests         # 201 tests
 .venv/bin/mypy                                         # strict
 .venv/bin/ruff check .
 node FE/check.js                                       # frontend render + wiring checks
 ```
 
 All four must pass before anything is called done. Node checks the frontend; it is never
-needed to build, serve or deploy it. Only the route tests need the venv — the ledger core has
-no dependencies, so `python3 -m unittest discover -s tests` from the repo root still runs 81
-of the 96 on a bare 3.10+ interpreter, with nothing installed.
+needed to build, serve or deploy it. Only the route tests and the ADK binding checks need
+the venv — everything else is dependency-free, so `python3 -m unittest discover -s tests` from
+the repo root still runs 176 of the 201 on a bare 3.10+ interpreter with nothing installed.
+That includes the snapshot-backed wiki reads, which is what lets the demo's fallback path be
+exercised offline.
 
 ### The whole service
 
@@ -92,6 +97,31 @@ The 503 is deliberate: it is what makes the frontend fall back to the generated 
 label itself **fixture** rather than claiming to be live. `/internal/tick` compares
 `X-Tick-Token` against `TICK_TOKEN` before doing anything, and refuses outright when that is
 unset — the service is public when deployed, so the header is the only thing guarding it.
+
+### The wiki the agent writes to
+
+The agent must never edit a real wiki — unsanctioned bot edits get the account banned — so it
+writes to a MediaWiki of its own, seeded from the same frozen corpus the tests use. It runs
+natively rather than in a container; moving it into Docker is a later task.
+
+```bash
+brew install mariadb php && brew services start mariadb
+./scripts/setup_wiki.sh                  # ~90s: downloads MediaWiki, installs, makes a bot
+php -S localhost:8080 -t wiki            # serve it
+python3 scripts/seed_wiki.py             # load the 12 pages, then verify every hash
+```
+
+`setup_wiki.sh` writes every credential it generates to `.env` and nothing to the terminal.
+The MediaWiki tree lands in `wiki/`, which is gitignored — it is third-party GPL software and
+a build artifact, reproducible from the script. The settings that are actually *ours* live in
+`wiki-config/LocalSettings.overrides.php`, which is version controlled, and the installer's
+generated file just requires it.
+
+`seed_wiki.py --check` compares the running instance against the profile — mainspace subpages,
+declared licence — and refuses to write if they disagree. That check matters: the profile says
+these titles use subpage grammar, and if the instance disagreed then
+`Human Torch/Void-Analyzing Fantastic Four` would stop being a variant halfway through the
+pipeline and claims about it would silently attach to the wrong subject.
 
 ### Regenerating data
 
@@ -220,9 +250,13 @@ the shared-secret header is the only thing between a guessed path and unbounded 
 
 ```text
 backend/app.py           the four routes; FE/ is mounted last so it cannot shadow them
+backend/agent/tools/     what the graph's nodes call; each binds a profile, none imports ADK
+wiki-config/             our MediaWiki settings; the generated LocalSettings.php requires them
+wiki/                    gitignored: the MediaWiki install, rebuilt by scripts/setup_wiki.sh
+fixtures/                gitignored: recorded search cassettes, third-party excerpts
 backend/core/ledger/     the claim record, source tiers, decay intervals — pure, no deps
 backend/core/profile/    per-wiki config: title grammar, tier table, sections, licence
-backend/core/wiki/       MediaWiki read adapter and wikitext section splitting
+backend/core/wiki/       MediaWiki read adapter, section splitting, the snapshot fallback
 Dockerfile               python:3.12-slim; copies pyproject.toml, backend/ and FE/
 scripts/                 snapshot puller and demo-state generator; both re-runnable
 snapshots/               12 pages in two states, with a provenance manifest

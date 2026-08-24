@@ -546,10 +546,19 @@ The one thing local work genuinely cannot prove is whether `continuity-run@`'s t
 sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
 account impersonation closes even that, and it is Phase 2's first item.
 
-As of Aug 23, 2026 the critical path is **(1)** a local MediaWiki the agent can write to,
-**(2)** the 7-stage ADK graph, **(3)** recording the demo video, **(4)** the deploy weekend. Both
-vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written, so
-what is left is the agent itself. Nothing here is blocked on an unknown API.
+As of Aug 23, 2026 the critical path is **(1)** the 7-stage ADK graph, **(2)** recording the
+demo video, **(3)** the deploy weekend. The local MediaWiki — item (2) until this afternoon —
+is up, seeded and verified, so the agent now has somewhere it is allowed to write.
+Both vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written,
+so what is left is the agent itself. Nothing here is blocked on an unknown API.
+
+**The wiki and the graph swapped places on Aug 23, 2026,** once the read tool landed with a
+snapshot-backed `PageSource` behind it. Every read stage — audit, classify, draft, verify —
+now runs against the hash-checked corpus in `snapshots/`, so the graph can be built and tested
+with no MediaWiki anywhere. What still genuinely needs the instance is the write half: the
+`action=edit` section write, the edit-conflict recovery path, and the video beats that show a
+page changing. That is a smaller surface than the whole graph, and it means a slow Docker
+afternoon can no longer stall the largest remaining item.
 
 **The video is Phase 1 work, and that is a correction — decided Aug 23, 2026.** It was filed
 under the deploy weekend, which was wrong twice over: it is the largest single task remaining,
@@ -734,6 +743,183 @@ is pasting a URL into a form.
       the wheel still builds from exactly what the `Dockerfile` copies before installing, now
       `pyproject.toml` + `backend/`
 
+- [x] **Build the MediaWiki read tool** — done Aug 23, 2026, the first of the four tool
+      signatures. Two decisions carried it. **Reading is two calls, not one:**
+      `read_page_outline` is structural and cheap (sections, sizes, revision, no text) and
+      `read_section` is only ever asked for a heading the caller already chose — a single
+      "read the page" tool would have put 50KB of wikitext in front of the model to answer a
+      question about one paragraph, and the corpus holds a 202KB page. And **the profile is
+      bound, never passed:** a `WikiProfile` is not JSON so a model could not send one anyway,
+      but the real reason is that a tool taking a wiki as an argument hands back the choice
+      §5's plug-and-play design exists to remove. Both are now rules in `AGENTS.md` §7.
+      The failure contract is the third: a missing page or a missing heading comes back as a
+      *value* (with the headings that do exist, so the model recovers in one turn), while a
+      timeout or a refused socket propagates, because ADK drives retry off exceptions and
+      catching those would disable it permanently.
+      Two things fell out that were not planned. `backend/core/wiki/snapshots.py` gives the
+      hash-checked seed corpus the same `PageSource` interface the live client has, which is
+      `CLAUDE.md` §3's required fallback and also means **the graph can be built and tested
+      before a local MediaWiki exists** — the next item stops being a blocker. And using
+      `subtree()` for real surfaced a bug in it: the lead is level 0, a sentinel rather than a
+      depth, so `subtree(sections, 0)` counted every section as nested under it and returned
+      50,326 of a 50,454-byte page to a caller who asked for the infobox. Fixed in the core
+      with a guard and two tests rather than worked around in the one caller that found it.
+      119 tests pass (was 96), 102 of them on an interpreter with nothing installed; mypy
+      strict, ruff and `node FE/check.js` all clean
+
+- [x] **Build the Parallel search tool** — done Aug 23, 2026, the second of the four. The
+      signature encodes what §12 measured rather than leaving it to a caller. **`search_queries`
+      is a list because Parallel bills per *call*, not per query** — a single-query tool would
+      have made fan-out cost four searches for the same evidence, so batching is now a property
+      of the type rather than a discipline. **`include_domains` is never a parameter**: it comes
+      off the profile every call, which is what makes the tier table the retrieval policy and
+      not just a scoring function. And **tier is attached on arrival by table lookup** — the
+      same `marvel.com` URL is tier 1 to the MCU wiki and tier 4 to Wikipedia, which is correct
+      and is now a test.
+      Reading `parallel-web` 1.3.0 rather than trusting §12's notes turned up three things worth
+      keeping, all in `AGENTS.md` §6. **Setting a timeout bounds nothing**, which is the one
+      that mattered: `timeout` is a per-*attempt* deadline and the SDK retries timeouts twice by
+      default, so the ceiling is `(retries + 1) x timeout + backoff` — 1801.5s untouched, longer
+      than the 900s Cloud Run request it runs inside, and still 91.5s after setting only
+      `timeout=30`. Both are now set, and the ceiling is computed by `worst_case_seconds()` and
+      asserted rather than described: 15s x 2 attempts = 30.5s, against a measured search
+      latency of 1.4-5.8s. Retries are not free either — a search that timed out may still have
+      been served, so each one risks a second `sku_search`, which is why one retry and not two.
+      The other two: `parallel.types.SourcePolicy` is the response model and *not* the param
+      type `search()` accepts, which fails typecheck rather than at runtime; and `omit` is not
+      `None` — the first drops a field, the second sends an explicit null, which on `session_id`
+      is the difference between the server generating one and being handed nothing.
+      **The wire body is asserted without spending a `sku_search`.** The call was written from
+      the SDK source, not from running it, so five tests drive it through an `httpx` mock
+      transport and check the real serialised request — chiefly that `include_domains` lands
+      inside `advanced_settings.source_policy`, because if it silently did not, retrieval would
+      degrade to the unfiltered results §12 measured as actively wrong rather than merely worse.
+      `RecordedSearch` is the `CLAUDE.md` §3 fallback: a live run records a cassette and replays
+      it byte-for-byte, so every stage downstream of Research is testable offline and the demo
+      survives an expired key. Cassettes hold third-party web excerpts, so `fixtures/` is
+      gitignored — a public MIT repo is not the place for them (`CLAUDE.md` §6), and a fresh
+      clone runs live or records its own. **No live call has been made yet**, so the mock
+      transport is the only evidence the request is accepted; the first real one both confirms
+      that and seeds the cassette.
+      152 tests pass (was 119), 127 of them with nothing installed; mypy strict, ruff and
+      `node FE/check.js` clean. One bug caught by its own test: `tier_counts` was keyed by int,
+      which JSON silently stringifies — the model would have been shown a dict the node never
+      built
+
+- [x] **First live search — and it settled the "split the search" question against splitting**
+      — Aug 23, 2026, two calls on demo claim #1. The proposal was to partition retrieval into
+      several smaller calls, each over a tightly related slice of the web, and assemble
+      afterwards. The measurement says no: one default call returned **6 distinct publishers
+      across tiers 1, 2 and 3**, against a confidence model that saturates at 3, and doubling
+      `max_results` to 20 returned **the same 6 domains** — deeper coverage of variety and
+      deadline, not a wider set. Partitioning would have multiplied `sku_search` by the number
+      of partitions to buy nothing measurable. Full numbers in §12.
+      Three things the run exposed that no amount of reading the SDK would have. **Billing is
+      two meters, not one:** the 20-result call billed `sku_search: 1` *and*
+      `sku_extract_excerpts: 10`, so cost scales with results as well as with calls — and the
+      tool was throwing that away, which is now fixed (`SearchOutcome` carries usage and
+      `search()` reports it, because a metered perimeter that hides its own bill is a defect).
+      **`max_results` above 20 is silently reduced** to 20 with a warning and a 200, so a
+      too-thin result set looks like a thin web. And **the top tier was the least complete
+      source**: `marvel.com` and `disney.com` list Channing Tatum in the *Doomsday* cast
+      without naming Gambit, so the claim itself is carried by tier-2 trade prose and a tier-3
+      table. Tier orders authority, not completeness — a Draft node citing only its best source
+      would cite one that does not contain the fact. That is now a §7 rule, and it is a genuine
+      gap in §6's tier design rather than a detail.
+      Retrieval quality itself is good: 6 of 10 results carry the target fact, and the tier-3
+      hit is `AGENTS.md` §7's "never trust the structure of an excerpt" in the flesh — its role
+      mapping is a scraped table while the tier-2 headline states it in prose. The call is
+      recorded to `fixtures/searches.json` (gitignored) so the tool is now also proven live and
+      the cassette has its first entry. 152 tests, 127 of them bare
+
+- [x] **Citations are filtered by wording, not chosen by tier** — done Aug 23, 2026, in
+      `backend/core/ledger/citations.py`, closing the gap the live search exposed. The tier
+      design has always answered "which source is most authoritative"; a footnote answers a
+      different question — "which source actually says this" — and on the demo's opening claim
+      those give different answers. `marvel.com` and `disney.com` are tier 1 and never write
+      the word Gambit, so "cite your best source" would have footnoted the video's first edit
+      to a page that does not contain it, with nothing to catch it: the claim is true, six
+      publishers agree, and confidence is 1.0.
+      The rule is two steps. `supporting()` keeps only sources whose excerpt contains every
+      required term, then ranks what survives by tier — which on the real batch moves the
+      footnote from `marvel.com` to `deadline.com` and, if the Draft stage passes the full
+      wording it wrote, narrows five citable sources to two. `best_citation()` returns `None`
+      when nothing states the claim rather than falling back to the best source, and
+      `uncited()` is a state the reviewer sees; that is the same instinct as declining to
+      resolve a conflict, applied to citation. Deliberately string comparison and not a model
+      call — a citation a reviewer cannot check by eye is not worth having.
+      **Filtering costs no evidence, and that is asserted rather than intended.**
+      `recompute_confidence` is untouched and still counts every source, so `marvel.com`
+      corroborates the claim without being its footnote; the test drops it and watches
+      confidence fall to prove the two paths are actually separate. The default required term
+      is `entity_ref.base` rather than the full title, because a variant subpage's suffix is a
+      wiki naming convention no publisher writes — requiring it would reject every source in
+      existence, and telling a variant from its prime is the classify stage's job.
+      169 tests (was 152), 144 of them bare; `demo-state.json` still regenerates
+      byte-identically, which is the evidence this added a path rather than changing one
+
+- [x] **The local wiki is up and seeded** — Aug 23, 2026. MediaWiki **1.43.9** on PHP 8.5 and
+      MariaDB 12.3, installed natively rather than in a container, holding all 12 seed pages
+      verified byte-for-byte against `snapshots/manifest.json`. Two choices, both yours and both
+      right. **Native first:** containers are packaging, and packaging a stack new to the project
+      before it runs is how a day disappears — the Docker move is its own item below. **MariaDB
+      over MySQL:** it is what real wikis run, Wikimedia included, so it is what the agent meets
+      in the wild; and since we never open a connection to it, fidelity beats local/deployed
+      engine parity.
+      1.43 turned out to be the LTS *and* the exact version the MCU Wiki runs, so the instance
+      answers `generator: MediaWiki 1.43.9` — the same string the manifest recorded off Fandom.
+      It also self-reports `CC BY-SA 3.0 Unported` and mainspace subpages enabled, which are the
+      profile's two substantive claims about it; `seed_wiki.py --check` compares the two and
+      refuses to write when they disagree, because a subpage-grammar mismatch would quietly turn
+      `Human Torch/Void-Analyzing Fantastic Four` into a page rather than a variant and attach
+      every claim about it to the wrong subject.
+      **The agnosticism is now demonstrated rather than designed.** The instance gets a profile
+      like any other wiki — `local_wiki()` in `backend/core/profile/known.py` — and the same
+      `WikiRead` reads it and the frozen corpus and returns identical section text, identical
+      section indices and identical entity parsing. One profile swap, no branch, no flag, no
+      code that knows which wiki it is talking to. Two things about that factory are invariants
+      rather than style. It is **the only writable profile**, and a test asserts every shipped
+      profile is not — which is what lets `MediaWikiWriter.for_profile` refuse Fandom outright,
+      turning `AGENTS.md` §2's "never write to a real wiki" into a raised exception rather than
+      a line in a document. And it takes its **endpoint as a required argument with no
+      default**, because the URL is a deployment identifier and the repo is public, so the value
+      lives in `.env` alone. It inherits Fandom's title grammar and section vocabulary
+      deliberately: it holds those pages, so anything else would make the profile describe a
+      wiki that does not exist.
+      Everything is reproducible: `scripts/setup_wiki.sh` does the whole install idempotently and
+      writes every generated credential to `.env` and none to the terminal, `wiki/` is gitignored
+      as the build artifact it is, and the settings that are actually ours live in version
+      control at `wiki-config/LocalSettings.overrides.php`. Five gotchas went to `AGENTS.md` §6,
+      of which two cost real time: Homebrew's MariaDB refuses `-u root` whatever the password
+      because root authenticates over `unix_socket`, and main-account API login is deprecated
+      and refused so a BotPassword is the only way in — scriptable, as it turns out, via
+      `createBotPassword.php`, which removes the manual `Special:BotPasswords` step the plan had
+      assumed. 186 tests, 161 of them bare
+
+- [x] **Build the MediaWiki section-write tool** — done Aug 23, 2026, the third of the four, and
+      the first thing in this project that changes a page. **It addresses sections by heading and
+      offers no way to pass an index.** MediaWiki addresses them by position, so `section=3` means
+      "the fourth heading as of right now" and anything inserted above silently renumbers the
+      rest — while a drafted edit may be minutes old when a reviewer approves it. So the tool
+      takes a heading, re-reads the page, resolves the index, and writes, every time; the same
+      read supplies `basetimestamp`, which shrinks the window a concurrent edit can hide in to
+      the length of one function. The absence of an index parameter is the design: if one
+      existed, a stale one would eventually be passed.
+      **Two outcomes are values rather than exceptions**, for the same reason a missing page is
+      in the read tool. A `conflict` is an instruction — re-read, re-draft, retry — and raising
+      it would have ADK retry identical stale text against a page that has already moved. A
+      vanished heading comes back with the headings that do exist, because `AGENTS.md` §2 forbids
+      creating a section and a test asserts nothing reached the writer in that case.
+      **The conflict path finally has a real test**, which is what the local wiki was for. Run
+      against the live instance: a section write landed (rev 3 -> 14, heading `Trivia` resolving
+      to index 15, which is not a number anyone would have guessed); a write to a non-existent
+      `Reception` created nothing; and a deliberately stale `basetimestamp` came back from real
+      MediaWiki as code `editconflict`, matching what the tool matches on. Re-running the seeder
+      restored the page and reported "no change" for the other 11, so idempotence is measured
+      too. Matching on the code rather than the message matters — `editconflict`, `protectedpage`
+      and `badtoken` all arrive as failures and need different responses, so `WikiError` now
+      carries MediaWiki's own code. 198 tests, 173 of them bare
+
 ### Phase 1 — local; nothing in the cloud has to exist
 
 Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
@@ -743,15 +929,19 @@ agent to film, not because it ranks low: it is both a hard requirement (§2) and
 rush, so everything above it exists to serve it, and the two *if time permits* items are what
 gets cut to protect it.
 
-- [ ] Define ADK tool signatures — Parallel search, MediaWiki read (built), MediaWiki
-      section-write, ledger read/write. All take the profile; none hardcode a wiki
-- [ ] **Stand up MediaWiki locally and seed it** — the official `mediawiki` image plus a MariaDB
-      container, a `LocalSettings.php`, and `scripts/seed_wiki.py` creating the 12 pages from
-      `snapshots/seed/` via `action=edit`. Redirects are already resolved in the manifest, and
-      `Special:Export` / `importDump.php` is not an option (Cloudflare), so the seeding script
-      posts the wikitext. Indistinguishable from the deployed instance as far as MediaWiki is
-      concerned, so the section-write tool and the edit-conflict recovery path are both fully
-      exercisable here. Set a real `User-Agent` (`AGENTS.md` §6)
+- [ ] Define the last ADK tool signature — **ledger read/write**. The other three are done and
+      set the pattern: the profile is bound at construction and never appears in a signature,
+      every model-facing argument is JSON-expressible, domain errors come back as values while
+      transport errors raise, and each has a live source and a deterministic replay behind one
+      protocol (`AGENTS.md` §7). This one is the seam Firestore lands behind, so its whole job is
+      to be defined *before* the graph is written — the alternative is rewriting every node that
+      touches state once persistence arrives. Two operations the graph actually needs: claims due
+      at a given time (the audit stage's input), and a claim written back after a transition. The
+      pure core already does the deciding — `Claim.is_due`, and the transitions that return new
+      records — so this is storage and nothing else; no logic may migrate into it. The
+      deterministic replay here is an in-memory store, which makes the whole graph runnable with
+      no database at all
+
 - [ ] Build the 7-stage ADK graph — nodes, fan-out, the two backward edges, and the publish gate as
       the HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
       `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
@@ -778,6 +968,12 @@ gets cut to protect it.
       localhost with the URL bar cropped — a visible `localhost:8000` reads as unfinished, and
       nothing in the rules requires the video to show the hosted URL. Budget two passes: the
       first run always exposes a beat that does not read on camera
+- [ ] **Move the local wiki into Docker** — after the native install works, not before. Same
+      two services, same `LocalSettings.php`, same seeder pointed at a new endpoint; the value
+      is that the deploy weekend then ships a container that has already been proven locally
+      rather than one written on the day. Nothing on the agent side changes, which is the point
+      — `MEDIAWIKI_API_URL` moves and no code does. Parked deliberately: it is a packaging
+      task, and packaging a thing that does not yet run is how a day disappears
 - [ ] *If time permits* — **an explicit retrieval-sufficiency criterion.** Gives the "retry: thin
       retrieval" edge a trigger anyone can implement: N sources at or above the claim's tier floor,
       and for a moving claim at least one published after its `as_of`. Fails → broaden the objective
@@ -838,10 +1034,18 @@ first and the metered one comes late. The procedure itself is in `README.md`; th
       visitor. Deadline **Sept 7, 2:00 PM PT** (= 5 PM ET, §2). This is the only submission
       step that ever needed the deploy
 
-**15 days left** as of Aug 23, 2026. The deterministic core, the seed corpus, the frontend and
-the service shell are real and verified. What remains is the vendor perimeter — ADK graph,
-Parallel, wiki writes — behind routes that already exist. The build is the risk now, not the
-plan.
+**15 days left** as of Aug 23, 2026. Both vendor perimeters are now built and proven against
+the real thing rather than against a design: Parallel search has made a live call, and the wiki
+adapters read and write a real MediaWiki that is up and seeded. The deterministic core, the seed
+corpus, the frontend and the service shell were already real. **What remains is the graph that
+joins them** — seven stages, two backward edges, a fan-out and a human gate — plus the video,
+and then the deploy.
+
+That is a narrower risk than it was this morning, and a different kind. Nothing left depends on
+an unknown API or an unproven vendor; every external surface has been called and measured, and
+each one has a deterministic replay behind it, so the graph can be built and tested with no key,
+no network and no container. The risk is now assembly, which is the kind you can work through in
+a straight line.
 
 The frontend landing first was not the planned order, and it changed what the remaining work
 looks like: the queue and ledger views define the shape the backend has to serve, so
@@ -911,6 +1115,33 @@ Verified live Aug 22, 2026 by enumerating `client.models.list()` on our own proj
 than trusting the names written here: `gemini-3.1-pro` does **not** exist — it 404s, and the
 served name is `gemini-3.1-pro-preview`. Also available and newer than assumed:
 `gemini-3.5-flash`, `gemini-3.6-flash`, `gemini-3.7-flash`.
+
+**Retrieval shape measured live Aug 23, 2026 — and it settles the "split the search" question.**
+Two calls on demo claim #1 (Gambit in *Avengers: Doomsday*), three queries, the MCU profile's
+13-domain allowlist:
+
+| | Results | Distinct domains | Tier histogram | Latency |
+|---|---|---|---|---|
+| Default `max_results` | 10 | **6** | `{1:2, 2:6, 3:2}` | 5.65s (cold) |
+| `max_results=20` | 20 | **6** | `{1:3, 2:15, 3:2}` | 1.32s (warm, same queries) |
+
+**Doubling the results found no new publishers** — variety went 3->9 and deadline 2->4, the
+same six domains throughout. Six distinct publishers spanning three tiers is already double
+what §6's confidence model can use, since corroboration saturates at three domains when the
+best is tier 1. So partitioning retrieval into several smaller calls would multiply
+`sku_search` by the number of partitions to buy nothing measurable, and raising `max_results`
+buys depth rather than breadth while scaling the second meter. One call, default settings, is
+the answer. The two latencies are not comparable: the second ran the same queries against a
+warm cache.
+
+Three things the run exposed that the spec did not have. **Billing is two meters** — a
+20-result call billed `sku_search: 1` *and* `sku_extract_excerpts: 10`, so cost scales with
+results and not only with calls. **`max_results` above 20 is silently reduced**, returning a
+200 with a warning rather than an error. And **the top tier was the least complete source**:
+`marvel.com` and `disney.com` list Channing Tatum in the cast without naming Gambit, so the
+claim is only supported by tier-2 trade prose and a tier-3 table. Tier orders authority, not
+completeness — which is a Draft-stage rule, now in `AGENTS.md` §7, and a nuance §6's tier
+design had not stated.
 
 **One model, `gemini-3.5-flash`, everywhere — decided Aug 22, 2026 on measurement.** The
 planned two-tier split (pro to adjudicate, flash for throughput) assumed the hard node needs

@@ -35,7 +35,11 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   permitted, so no second partner may be used for its AI features.
 - **Never write to any real wiki.** Unsanctioned bot edits get banned, and Wikipedia is
   stricter than Fandom — automated editing needs Bot Approval Group sign-off. All writes go to
-  our own seeded MediaWiki instance, whatever wiki the profile points reads at.
+  our own seeded MediaWiki instance, whatever wiki the profile points reads at. This is a
+  field, not a convention: `WikiProfile.writable` is `True` only for `local_wiki()`, the
+  factory for our own instance, and a test asserts every shipped profile is `False`. The write
+  path checks the field. `local_wiki()` takes its endpoint as a required argument with no
+  default, because the URL is a deployment identifier and belongs in `.env` alone.
 - **Wiki-specific behaviour lives in a profile, never in the core.** The product is
   plug-and-play across MediaWiki sites (`summary.md` §5), so title grammar, section
   vocabulary, source tiers, licence and auth are per-wiki config the core reads. A hardcoded
@@ -152,17 +156,29 @@ Rules that fall out of this shape:
         schema.py                    # <-- read first: Claim, the record everything else serves
         tiers.py                     # tier *mechanism*; the table itself is per-wiki
         decay.py                     # Wave, and the double/halve/clamp interval logic
+        citations.py                 # which source may go in the <ref>; NOT which is best
       profile/
         schema.py                    # <-- read first: WikiProfile, everything per-wiki
-        known.py                     # MCU_FANDOM and WIKIPEDIA_EN, and their tier tables
+        known.py                     # MCU_FANDOM, WIKIPEDIA_EN, and local_wiki() — ours
       wiki/
-        client.py                    # MediaWiki read adapter; network confined to fetch()
+        client.py                    # MediaWiki read + write adapters; network in fetch/post
         sections.py                  # wikitext -> the sections action=edit&section=N addresses
+        snapshots.py                 # PageSource, and the offline reader over snapshots/
                                      # ===== everything else under backend/ is perimeter =====
+    agent/
+      tools/
+        wiki_read.py                 # outline + section reads, live or from snapshots/
+        web_search.py                # Parallel; the profile's tier table IS the source policy
+        wiki_write.py                # action=edit by heading; conflict comes back as a value
   Dockerfile                         # the runtime image; copies pyproject/backend/FE only
   .gcloudignore                      # what Cloud Build does NOT receive; includes .gitignore
                                      #   rather than repeating it, so there is one secret list
   pyproject.toml                     # deps, ruff + mypy config, gate settings
+  scripts/setup_wiki.sh              # installs the local MediaWiki natively; idempotent
+  scripts/seed_wiki.py               # loads snapshots/seed/ into it, then verifies the hashes
+  wiki-config/                       # the wiki's settings, version controlled
+    LocalSettings.overrides.php      # subpages, licence, bot rights — required by the install
+  wiki/                              # GITIGNORED: the MediaWiki tree itself, a build artifact
   scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
   scripts/build_demo_state.py        # snapshots/ + ledger core -> FE/data/demo-state.json
   FE/
@@ -179,10 +195,16 @@ Rules that fall out of this shape:
     current/*.wikitext               # the same pages live — evidence only, never the target
     ATTRIBUTION.md                   # CC BY-SA 3.0 notice; the text here is not MIT
   tests/test_app.py                  # route guards, and the no-vendor-import proof (needs venv)
+  tests/test_wiki_read.py            # the read tool: outline stays cheap, retry stays alive
+  tests/test_web_search.py           # one call per claim, allowlist from the profile, wire body
+  tests/test_citations.py            # the footnote filter, on the shapes that caused it
+  tests/test_wiki_write.py           # the write guard, and what action=edit puts on the wire
+  tests/test_wiki_write_tool.py      # heading re-resolution, and the outcomes that aren't raised
   tests/test_ledger.py               # stdlib unittest; no deps, runs today
   tests/test_profile.py              # the seam: one title, two wikis; plus the layout rules
   tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
   tests/test_sections.py             # section numbering, incl. against real snapshots
+  LICENSE           # MIT, and it covers only the code — snapshots/ is CC BY-SA
   README.md         # what it is, local run, routes, env vars, the deploy procedure
   summary.md        # product truth, decision log, verified vendor facts (§12)
   seed-plan.md      # demo subject, page list, the 6 claims that carry the video
@@ -193,7 +215,7 @@ Rules that fall out of this shape:
 It used to be the `src/` ‖ `backend/` directory split; it is now `backend.core.*` versus
 everything else under `backend/`, which puts the boundary in every import path instead of only
 in the tree. What the line means did not change (`CLAUDE.md` §3): `backend.core` is
-dependency-free — no Firestore, no ADK, no network — and 81 of the 96 tests still run on an
+dependency-free — no Firestore, no ADK, no network — and 176 of the 201 tests still run on an
 interpreter with nothing installed. Storage and vendor calls arrive as adapters that import
 *from* it, never the reverse. The wiki client is the first such adapter and shows the shape:
 `fetch()` is the only method that opens a socket, so everything else is tested offline.
@@ -210,8 +232,10 @@ Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
 - `app.py` defers every vendor import into a handler, so a cold container serves
   `index.html` without paying for the SDKs.
 
-Not yet written: the ADK tool signatures, the 7-stage graph, `action=edit` section writes,
-and the Firestore adapter — so all three API routes are guarded shells answering 503/501.
+Not yet written: the ledger tool, the 7-stage graph, and the Firestore adapter — so all three
+API routes are still guarded shells answering 503/501. Built: wiki read, Parallel search and
+wiki section-write, each binding a profile and each with a deterministic offline path behind
+it, so the graph can be assembled and tested with no key, no network and no wiki running.
 
 **`FE/data/demo-state.json` is generated, never hand-edited.** `build_demo_state.py` takes
 page text verbatim from `snapshots/` and computes every status, confidence and interval by
@@ -227,10 +251,16 @@ by the test suite. Never hand-edit a file there — fix the puller and re-run.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (.venv is gitignored)
 
-.venv/bin/python -m unittest discover -s tests               # test     — 96 passing
+.venv/bin/python -m unittest discover -s tests               # test     — 201 passing
 .venv/bin/mypy                                               # typecheck — strict
 .venv/bin/ruff check .                                       # lint
 node FE/check.js                                             # frontend  — render + wiring
+
+brew services start mariadb                                  # the wiki's database
+./scripts/setup_wiki.sh                                      # install the wiki; idempotent
+php -S localhost:8080 -t wiki                                # serve it (leave running)
+python3 scripts/seed_wiki.py --check                         # does it match the profile?
+python3 scripts/seed_wiki.py                                 # load the 12 pages, verify hashes
 
 python3 scripts/pull_snapshots.py                            # rebuild snapshots/ (~24 calls)
 python3 scripts/pull_snapshots.py --only current             # refresh the live side alone
@@ -241,12 +271,20 @@ python3 -m http.server 8000 --directory FE                   # serve the FE alon
 docker build -t continuity .                                 # deploy pre-flight; not in the gate
 ```
 
-All four must pass before claiming done (`CLAUDE.md` §4).
+The four gate commands must pass before claiming done (`CLAUDE.md` §4). The wiki commands are
+not part of the gate: every test runs without it, because the read path has the snapshot corpus
+behind it and the write path is tested against a stub. The wiki is needed to exercise the real
+`action=edit` — which is how the edit-conflict path was verified — and to record the video.
+
+**The wiki is a dev dependency, not a build one.** `setup_wiki.sh` writes every credential it
+generates into `.env` and none to the terminal; `wiki/` is gitignored because it is third-party
+GPL software and a build artifact; the settings that are *ours* live in version control at
+`wiki-config/LocalSettings.overrides.php`, which the generated `LocalSettings.php` requires.
 
 The test line moved to the venv interpreter when `backend/app.py` landed: `tests/test_app.py`
 imports FastAPI, and on a bare interpreter it raises `SkipTest` rather than failing — which would
 quietly drop the tick-token cases from the gate. The dependency-free core still runs anywhere:
-`python3 -m unittest discover -s tests` from the repo root on any 3.10+, 81 of the 96. No
+`python3 -m unittest discover -s tests` from the repo root on any 3.10+, 176 of the 201. No
 `PYTHONPATH` since the Aug 23 layout move — `backend/` sits at the repo root and `python -m`
 puts the working directory on `sys.path` itself. The old `PYTHONPATH=src` still *appears* to
 work because it is simply ignored; `src/` no longer exists.
@@ -266,9 +304,11 @@ through `StaticFiles` from the same Python process that runs the agent. Node is 
 contains no JavaScript toolchain. A framework here would buy component structure this UI is
 too small to need, and cost a second toolchain in the image and a fourth thing to break.
 
-The ledger core has **no runtime dependencies**, and that is worth keeping: it is why 81 of
-the 96 tests run on any 3.10+ interpreter with nothing installed. Only the route tests need
-the venv, because only the perimeter imports a third-party package.
+The ledger core has **no runtime dependencies**, and that is worth keeping: it is why 176 of
+the 201 tests run on any 3.10+ interpreter with nothing installed. The venv is needed by the
+route tests, by the ones that wrap a tool in ADK to check its declared schema, and by the ones
+that assert the Parallel request body against a mock transport — everything else, the
+snapshot-backed wiki reads and the whole search tool included, runs bare.
 
 Python ≥3.10; developed on 3.14.4. Resolved versions as of Aug 15, 2026: `google-adk` 2.7.0,
 `google-genai` 2.18.1, `parallel-web` 1.3.0.
@@ -313,9 +353,13 @@ r = client.search(
 ```
 
 `session_id` is echoed back and should be threaded through every call in one run so later
-searches get contextual results. `usage` bills one `sku_search` per **call**, not per query,
-so batching queries into one call is free. Measured latency 1.4-5.8s; `mode` defaults to
-`advanced`.
+searches get contextual results. Measured latency 1.4-5.8s; `mode` defaults to `advanced`.
+
+**Billing is two meters, not one — measured live Aug 23, 2026.** `sku_search` is one per
+**call** regardless of how many queries it carries, so batching a claim's queries is free.
+But a 20-result call also billed `sku_extract_excerpts: 10`, and that meter scales with what
+comes back, so "one call costs one search" is only half the story. Read the real numbers off
+`usage`, which `WebSearch.search` puts in its payload for exactly this reason.
 
 **Unverified, and marked so deliberately:** that the Gemini IAM role is `roles/aiplatform.user`
 after the Enterprise rebrand, and the free-tier limits quoted in `summary.md` §12. Both are
@@ -389,12 +433,126 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   `NodeTimeoutError` is) — its own docstring says "Internal" → drive the publish gate with the
   public `google.adk.tools.request_input` tool and let the runtime raise it, rather than
   importing it from `workflow._errors` and raising it directly.
+- **Setting `timeout=` on a Parallel call bounds nothing — the SDK retries timeouts.**
+  `timeout` is a deadline for *one attempt*; `max_retries` (default 2) makes three of them,
+  with exponential backoff in between, so the real ceiling is
+  `(max_retries + 1) * timeout + backoff`. Left at the SDK's defaults that is **1801.5s** —
+  600s per attempt, longer than the 900s Cloud Run request it runs inside. Setting `timeout=30`
+  alone still gives 91.5s, which looks like 30 and is not → set **both**, and read the ceiling
+  off `web_search.worst_case_seconds()` rather than off the timeout. Ours is 15s × 2 attempts
+  = 30.5s, against a measured search latency of 1.4-5.8s. Retries are also not free: a search
+  that timed out may still have been served, so each one risks a second `sku_search`.
+- **A bare `dir/` in `.gitignore` matches that directory at every depth.** Adding `wiki/` for
+  the local MediaWiki install also ignored `backend/core/wiki/` — and because the other files
+  there were already tracked, only the newest one, `snapshots.py`, silently vanished from the
+  commit. A half-built package, failing on someone else's clone rather than here → **anchor any
+  pattern that names a directory the codebase also uses**: `/wiki/`, `/fixtures/`. Asserted by
+  `tests/test_profile.py`, which fails if any file under `backend/`, `tests/` or `scripts/`
+  is ignored. Found by copying `git ls-files` plus untracked-not-ignored into a temp dir and
+  running the suite there; `git status` shows nothing, because an ignored file is not
+  "untracked" — it is invisible.
+- **Homebrew's MariaDB refuses `-u root` whatever the password.** Root authenticates over
+  `unix_socket`, so only the OS root can use it → connect as the installing user instead
+  (`mariadb -e '...'` with no `-u`), which Homebrew grants. Applies to every setup command.
+- **Main-account login via `action=login` is deprecated and refused.** A password that works
+  in the browser fails at the API with no useful reason → create a BotPassword. Non-interactive
+  and scriptable: `maintenance/run.php createBotPassword --appid=... <user>`, which removes the
+  `Special:BotPasswords` web step entirely. The username becomes `User@appid`.
+- **A csrf token fetched before logging in is silently useless.** It belongs to the anonymous
+  session, so the edit fails later with `badtoken` and nothing points at the cause → discard
+  any cached token on login. `MediaWikiWriter.login` does this; a test asserts it.
+- **The default rate limit trips while seeding.** Twelve `action=edit` calls back to back
+  exceed the per-account `edit` limit on a fresh wiki, and the failure looks like a permissions
+  problem → raised in `wiki-config/LocalSettings.overrides.php`. Our instance has one client,
+  so the limiter protects nothing here.
+- **MediaWiki 1.43.9 runs on PHP 8.5** despite predating it — `composer.json` says `>=8.1.0`
+  with no upper bound, and the CLI installer, API and maintenance scripts all work. Verified
+  Aug 23, 2026, because the version match with the real MCU Wiki was worth more than staying
+  on a blessed PHP.
+- **`max_results` above 20 is silently reduced, not rejected.** Asking for 30 returns 20
+  with `warnings: [Warning(message='Reducing max_results=30 to 20.', type=
+  'input_validation_warning')]` — a 200, not an error, so nothing raises and the missing
+  results look like the web being thin → read `result.warnings` when tuning retrieval; 20 is
+  the ceiling.
+- **`parallel.types.SourcePolicy` is the wrong `SourcePolicy`.** Two classes share the name:
+  the response model under `types.shared` (re-exported at `parallel.types`) and the TypedDict
+  param under `types.shared_params`. Only the second is accepted by `search()`, and passing a
+  bare dict instead fails mypy strict rather than at runtime → import from
+  `parallel.types.shared_params`.
+- **`omit` is not `None` in the Parallel SDK.** The sentinel drops a field from the request
+  body; `None` sends an explicit null. On `session_id` that is the difference between letting
+  the server generate one and overriding it with nothing → `from parallel import omit`.
+- **Importing an ADK symbol from its package fails mypy while working at runtime.** ADK 2.7
+  builds `google.adk.tools.__all__` at runtime from a lazy mapping, so under `strict` (which
+  implies `no_implicit_reexport`) `from google.adk.tools import FunctionTool` is
+  `Module ... does not explicitly export attribute "FunctionTool"` → import from the concrete
+  module the mapping names, `google.adk.tools.function_tool`. Same shape for the other lazy
+  packages; the mapping at the top of each `__init__.py` is the reference.
 
 ## 7. Code conventions
 
 - **Catch narrowly inside ADK tools.** ADK 2.0 catches exceptions to drive automatic retry;
   a broad `except Exception:` masks the failure and permanently disables retry for that step.
   `except BaseException:` also traps `NodeInterruptedError` and breaks the HITL approval gate.
+  The line to draw is *domain error versus transport error*: a missing page or a missing
+  heading is an answer, so return it as a value the model can act on — retrying it just burns
+  a round trip on something that will never succeed. A timeout, a refused socket or a 5xx is
+  worth retrying, so let it propagate. Concretely: catch `WikiError`, never `URLError`.
+- **A tool binds its `WikiProfile`; it never takes one as an argument.** A profile is not
+  JSON, so a model could not pass one — and a tool that let it choose the wiki would hand back
+  the decision the profile exists to take away (§2). Every model-facing parameter is
+  JSON-expressible — a scalar, or a list of them — because that is what ADK's schema builder
+  turns into a declaration. Build with a classmethod (`WikiRead.live`,
+  `WebSearch.recorded`) and hand the bound method to `FunctionTool`.
+- **Every search a claim needs rides one call, and one call is enough.** `sku_search` is
+  billed per *call*, not per query, so `search_queries` is a list and the signature enforces
+  the batching; a single-query tool would make fan-out cost four searches for the same
+  evidence. Splitting retrieval into per-domain or per-tier calls is the tempting mistake, and
+  it was measured on Aug 23, 2026 and is not worth it: one default call on demo claim #1
+  returned **6 distinct publishers spanning tiers 1, 2 and 3**, against a confidence model that
+  saturates at 3. Doubling `max_results` to 20 returned **the same 6 domains** — deeper coverage
+  of the same publishers (variety 3->9, deadline 2->4), not a wider set — while roughly doubling
+  the `sku_extract_excerpts` meter. Corollary: never call search to "check" something already
+  retrieved — convert the payload you have with `sources_in` rather than asking again.
+- **A citation is filtered by wording, never chosen by tier — `ledger/citations.py`.** Tier
+  orders *authority*, not *completeness*, and the two come apart. Measured Aug 23, 2026:
+  `marvel.com` and `disney.com` (tier 1) list Channing Tatum in the *Doomsday* cast **without
+  naming the character**, so they support "Tatum is in the film" and not the claim, which is
+  about Gambit; the character is named only by `deadline.com` and `variety.com` prose (tier 2)
+  and a `themoviedb.org` table (tier 3). "Cite your best source" therefore footnotes the
+  sentence to a page that does not contain it — and nothing catches it, because the claim is
+  true, six publishers agree and confidence scores 1.0. So: `supporting()` keeps only sources
+  whose excerpt contains every required term, *then* ranks by tier. `best_citation()` returns
+  `None` rather than falling back, and `uncited()` is the state a reviewer must see.
+  **Filtering costs no evidence** — `recompute_confidence` still counts every source, so
+  `marvel.com` corroborates without being the footnote. The default required term is
+  `entity_ref.base`; the Draft stage should pass the wording it actually wrote, which on the
+  measured batch narrows five citable sources to two.
+- **Tier is attached where the results arrive, from the profile's table, and the vendor is
+  never asked.** Parallel returns no authority or confidence field, which is what makes this
+  safe: there is no vendor number for a model to anchor on. The same URL is tier 1 to the MCU
+  wiki and tier 4 to Wikipedia, and that is correct — tier is the wiki's policy, not a
+  property of the publisher.
+- **Tool logic imports no ADK.** Wrapping happens where the graph is constructed. This keeps
+  the cold-start deferral above honest and keeps every tool — and therefore the demo's
+  deterministic fallback — runnable on an interpreter with nothing installed.
+- **A write addresses a section by heading; the index is re-resolved immediately before it.**
+  MediaWiki addresses sections by position, so `section=3` means "the fourth heading right now"
+  and anything inserted above silently renumbers the rest. A drafted edit can be minutes old at
+  approval, so `WikiWrite.write_section` takes a heading, re-reads the page, resolves the index,
+  and uses that same read's timestamp as `basetimestamp`. There is deliberately no way to pass
+  an index — if there were, a stale one eventually would be. A heading that no longer exists is
+  a reason to re-plan and never to create one (§2), so it comes back with the headings that do.
+- **An edit conflict is a return value, not an exception.** It means "re-read and re-draft",
+  which is an instruction; raising it makes ADK retry the identical stale text against a page
+  that has already moved, which cannot succeed. Match on `WikiError.code == "editconflict"`,
+  never on the message — MediaWiki distinguishes `editconflict`, `protectedpage` and `badtoken`
+  by code and they need different responses. Verified against the real API on Aug 23, 2026.
+- **Reading a page is two calls, never one.** An outline (sections, sizes, revision, no text)
+  and then one section by heading. A single "read the page" tool puts 50KB of wikitext in
+  front of the model to answer a structural question, and the corpus holds a 202KB page.
+  Reads return the subtree; writes target the heading's own index — `core/wiki/sections.py`
+  is the reason those differ, so surface both rather than making the caller guess.
 - **Never append to `context.session.events`.** It circumvents the 2.0 graph engine and
   breaks determinism. Return values; let the runner emit.
 - **Import ADK, `google-genai` and `parallel-web` inside the route handlers, never at module

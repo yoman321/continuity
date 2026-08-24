@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from backend.core.ledger.schema import Source
 from backend.core.ledger.tiers import UNKNOWN_TIER
-from backend.core.profile import MCU_FANDOM, PROFILES, WIKIPEDIA_EN
+from backend.core.profile import MCU_FANDOM, PROFILES, WIKIPEDIA_EN, local_wiki
 
 NOW = datetime(2026, 8, 23, 12, 0, tzinfo=timezone.utc)
 
@@ -150,3 +150,110 @@ class TestWritePolicy(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLocalWiki(unittest.TestCase):
+    """Our own instance, and the two things that make it different from the wikis we read.
+
+    `AGENTS.md` §2 forbids writing to any real wiki, and the endpoint of our own is a
+    deployment identifier that `.env` owns exclusively. Both show up here as properties of the
+    profile rather than as prose someone has to remember.
+    """
+
+    def test_it_is_the_only_writable_profile(self) -> None:
+        self.assertTrue(local_wiki("http://example.invalid/api.php").writable)
+        for name, profile in PROFILES.items():
+            self.assertFalse(profile.writable, f"{name} must not be writable")
+
+    def test_the_endpoint_is_injected_and_never_hardcoded(self) -> None:
+        """A factory with no default, not a constant.
+
+        `AGENTS.md` §2 keeps the *value* of a deployment identifier in `.env` alone; naming the
+        variable is fine and `README.md` does it. So this asserts two things about the value:
+        no caller can get an endpoint without supplying one, and no host of ours is written
+        down here.
+        """
+        import inspect
+
+        api_url = inspect.signature(local_wiki).parameters["api_url"]
+        self.assertIs(api_url.default, inspect.Parameter.empty)
+
+        known = Path(__file__).resolve().parents[1] / "backend/core/profile/known.py"
+        source = known.read_text("utf-8")
+        for host in ("localhost", "127.0.0.1", "0.0.0.0", ".internal", "ngrok"):
+            self.assertNotIn(host, source)
+        self.assertEqual(local_wiki("http://x/api.php").api_url, "http://x/api.php")
+
+    def test_it_inherits_the_grammar_of_the_wiki_it_is_seeded_from(self) -> None:
+        """It holds `snapshots/seed/`, so it must parse those titles the way Fandom does —
+        otherwise a variant subpage stops being a variant halfway through the pipeline."""
+        local = local_wiki("http://x/api.php")
+        self.assertEqual(local.subpages, MCU_FANDOM.subpages)
+        self.assertEqual(local.section_vocabulary, MCU_FANDOM.section_vocabulary)
+        self.assertEqual(local.licence, MCU_FANDOM.licence)
+        self.assertEqual(
+            local.entity_ref("Blade/Universe Defender Blade"),
+            MCU_FANDOM.entity_ref("Blade/Universe Defender Blade"),
+        )
+
+
+class TestNothingSourceIsIgnored(unittest.TestCase):
+    """No source file may be excluded from a commit by `.gitignore`.
+
+    This exists because it happened. A `wiki/` entry added for the local MediaWiki install
+    matched *any* directory named wiki at any depth, including `backend/core/wiki/` — and
+    because the other files there were already tracked, only the newest one disappeared. The
+    package would have been committed half-built, and the failure would have surfaced on
+    someone else's clone rather than here. `.gitignore` directory patterns are anchored now,
+    and this asserts it stays that way.
+    """
+
+    def ignored(self, paths: list[str]) -> list[str]:
+        import shutil
+        import subprocess
+
+        if shutil.which("git") is None:  # pragma: no cover - git is present in this repo
+            raise unittest.SkipTest("needs git")
+        root = Path(__file__).resolve().parents[1]
+        # These assert a property of *this repository's* ignore rules, so they are meaningless
+        # outside a work tree — a copied tree, or a source tarball, has no rules to check.
+        inside = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=root, capture_output=True, text=True,
+        )
+        if inside.returncode != 0:  # pragma: no cover - only outside a checkout
+            raise unittest.SkipTest("not a git work tree")
+        # `check-ignore` exits 1 when nothing matches, which is the good case.
+        result = subprocess.run(
+            ["git", "check-ignore", "--stdin"],
+            input="\n".join(paths), cwd=root, capture_output=True, text=True,
+        )
+        return [line for line in result.stdout.splitlines() if line.strip()]
+
+    def test_no_python_source_is_ignored(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        sources = [
+            str(p.relative_to(root))
+            for folder in ("backend", "tests", "scripts")
+            for p in (root / folder).rglob("*.py")
+            if "__pycache__" not in p.parts
+        ]
+        self.assertGreater(len(sources), 20, "found suspiciously few source files")
+        self.assertEqual(self.ignored(sources), [])
+
+    def test_the_committed_config_and_scripts_are_not_ignored(self) -> None:
+        wanted = [
+            "wiki-config/LocalSettings.overrides.php",
+            "scripts/setup_wiki.sh",
+            "snapshots/manifest.json",
+            "pyproject.toml",
+            ".env.example",
+        ]
+        self.assertEqual(self.ignored(wanted), [])
+
+    def test_the_things_that_must_stay_out_really_are_out(self) -> None:
+        """The other half: anchoring the patterns must not have unignored the install."""
+        self.assertEqual(
+            sorted(self.ignored([".env", "wiki/LocalSettings.php", "fixtures/searches.json"])),
+            [".env", "fixtures/searches.json", "wiki/LocalSettings.php"],
+        )

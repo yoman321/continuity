@@ -16,6 +16,7 @@ enforced here so no caller can forget them:
 from __future__ import annotations
 
 import hashlib
+import http.cookiejar
 import json
 import re
 import urllib.parse
@@ -44,6 +45,12 @@ def slug_for(title: str) -> str:
 def parse_timestamp(raw: str) -> datetime:
     """MediaWiki ISO-8601. `datetime.fromisoformat` only accepts the `Z` suffix on 3.11+."""
     return datetime.strptime(raw, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+
+
+def format_timestamp(when: datetime) -> str:
+    """The inverse. MediaWiki wants `Z`, and `isoformat()` writes `+00:00` — which `rvstart`
+    tolerates and `basetimestamp` on an edit does not, so the two are not interchangeable."""
+    return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +82,17 @@ class PageRevision:
 
 
 class WikiError(RuntimeError):
-    """A page was missing, or the API answered in a shape we refuse to guess about."""
+    """A page was missing, or the API answered in a shape we refuse to guess about.
+
+    `code` carries MediaWiki's own machine-readable error code when there was one. Callers need
+    it because the API reports outcomes that are not all the same kind of thing: `editconflict`
+    means re-read and re-draft, `protectedpage` means give up, `badtoken` means the session is
+    wrong. Matching on the human-readable message instead is how those get conflated.
+    """
+
+    def __init__(self, message: str, *, code: str = "") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 def build_query(
@@ -100,7 +117,7 @@ def build_query(
         "formatversion": "2",
     }
     if before is not None:
-        params["rvstart"] = before.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        params["rvstart"] = format_timestamp(before)
         params["rvdir"] = "older"
     return params
 
@@ -171,7 +188,8 @@ class MediaWikiReader:
             body = response.read().decode("utf-8")
         parsed: dict[str, Any] = json.loads(body)
         if "error" in parsed:
-            raise WikiError(f"API error: {parsed['error']}")
+            error = parsed["error"]
+            raise WikiError(f"API error: {error}", code=str(error.get("code", "")))
         return parsed
 
     def revision(self, title: str, *, before: datetime | None = None) -> PageRevision:
@@ -189,3 +207,126 @@ class MediaWikiReader:
         })
         query: dict[str, Any] = payload.get("query", {})
         return query
+
+
+class MediaWikiWriter:
+    """Write-side adapter: log in, hold the session, and edit.
+
+    Separate from `MediaWikiReader` because writing needs three things reading does not — a
+    logged-in session, a CSRF token, and a cookie jar to carry both. Reads stay anonymous and
+    stateless, which is why the reader can be pointed at Fandom and this cannot.
+
+    **Only ever constructed against our own instance.** `for_profile` refuses a profile whose
+    `writable` is false, which is every profile we ship except `local_wiki()`. `AGENTS.md` §2
+    forbids writing to a real wiki, and an unsanctioned bot edit gets the account banned — so
+    that rule is a raised exception here, not a line in a document.
+
+    Network is confined to `post`, mirroring the reader's `fetch`, so everything above it is
+    testable without a socket.
+    """
+
+    def __init__(self, api_url: str, *, user_agent: str, timeout: float = 30.0) -> None:
+        self.api_url = api_url
+        self.user_agent = user_agent
+        self.timeout = timeout
+        self._csrf: str | None = None
+        # MediaWiki carries the login session in cookies; urlopen alone drops them.
+        self._opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
+        )
+
+    @classmethod
+    def for_profile(cls, profile: WikiProfile, *, timeout: float = 30.0) -> MediaWikiWriter:
+        if not profile.writable:
+            raise WikiError(
+                f"{profile.name} is not writable. Writes go only to our own seeded instance "
+                f"(`AGENTS.md` §2); build the profile with `local_wiki()`."
+            )
+        return cls(profile.api_url, user_agent=profile.user_agent, timeout=timeout)
+
+    def post(self, params: dict[str, str]) -> dict[str, Any]:
+        """The only method that opens a socket."""
+        body = urllib.parse.urlencode({**params, "format": "json", "formatversion": "2"})
+        request = urllib.request.Request(
+            self.api_url, data=body.encode("utf-8"), headers={"User-Agent": self.user_agent}
+        )
+        with self._opener.open(request, timeout=self.timeout) as response:
+            parsed: dict[str, Any] = json.loads(response.read().decode("utf-8"))
+        if "error" in parsed:
+            error = parsed["error"]
+            raise WikiError(f"API error: {error}", code=str(error.get("code", "")))
+        return parsed
+
+    def token(self, kind: str) -> str:
+        """Fetch a token. `login` before logging in, `csrf` after — they are not the same and
+        a csrf token issued to an anonymous session is silently useless."""
+        payload = self.post({"action": "query", "meta": "tokens", "type": kind})
+        token: str = payload["query"]["tokens"][f"{kind}token"]
+        return token
+
+    def login(self, username: str, password: str) -> str:
+        """Log in with a BotPassword — `User@appid` plus its generated secret.
+
+        Main-account API login is deprecated and refused on current MediaWiki; a BotPassword is
+        the supported path and is separately revocable, which is why the seeder gets one rather
+        than the admin's own credentials.
+        """
+        payload = self.post({
+            "action": "login",
+            "lgname": username,
+            "lgpassword": password,
+            "lgtoken": self.token("login"),
+        })
+        result = payload.get("login", {})
+        if result.get("result") != "Success":
+            # Never interpolate the password, and MediaWiki does not echo it either.
+            raise WikiError(f"login failed for {username}: {result.get('reason', result)}")
+        self._csrf = None  # tokens are session-scoped; the old one belongs to the anon session
+        return str(result.get("lgusername", username))
+
+    @property
+    def csrf(self) -> str:
+        """Cached edit token. One per session, reused across edits."""
+        if self._csrf is None:
+            self._csrf = self.token("csrf")
+        return self._csrf
+
+    def edit(
+        self,
+        title: str,
+        text: str,
+        *,
+        summary: str,
+        section: int | None = None,
+        basetimestamp: datetime | None = None,
+        bot: bool = True,
+    ) -> dict[str, Any]:
+        """Write `text`, to a whole page or to one section of it.
+
+        `basetimestamp` is the edit-conflict guard: it is the timestamp of the revision the
+        text was derived from, and MediaWiki refuses the edit if anything landed since. Passing
+        it is the difference between failing loudly and silently overwriting someone
+        (`AGENTS.md` §2), which is why both read calls return the revision they came from.
+
+        `section` addresses the heading's own index, never the subtree — re-resolve it from
+        the stored heading first, because indices shift when anything is inserted above.
+        """
+        params = {
+            "action": "edit",
+            "title": title,
+            "text": text,
+            "summary": summary,
+            "token": self.csrf,
+        }
+        if section is not None:
+            params["section"] = str(section)
+        if basetimestamp is not None:
+            params["basetimestamp"] = format_timestamp(basetimestamp)
+        if bot:
+            params["bot"] = "1"
+        result: dict[str, Any] = self.post(params).get("edit", {})
+        if result.get("result") != "Success":
+            raise WikiError(
+                f"edit of {title!r} failed: {result}", code=str(result.get("code", ""))
+            )
+        return result

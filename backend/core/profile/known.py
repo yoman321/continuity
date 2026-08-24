@@ -140,3 +140,34 @@ PROFILES: dict[str, WikiProfile] = {
     "mcu-fandom": MCU_FANDOM,
     "wikipedia-en": WIKIPEDIA_EN,
 }
+
+
+def local_wiki(api_url: str, *, name: str = "Continuity Wiki") -> WikiProfile:
+    """Our own MediaWiki instance — the only wiki this agent may write to.
+
+    A factory rather than a constant because the endpoint is a deployment identifier and the
+    repo is public: `AGENTS.md` §2 keeps those in `.env` and nowhere else, so the caller reads
+    `MEDIAWIKI_API_URL` and passes it in. That the URL cannot be hardcoded is the invariant;
+    that this reads like every other profile is the point of having profiles at all.
+
+    Everything except `writable` mirrors `MCU_FANDOM`, and not by coincidence — this instance
+    is *seeded from* `snapshots/seed/`, so it holds that wiki's pages under that wiki's title
+    grammar and section vocabulary. Give it Wikipedia's grammar and `Blade/Universe Defender
+    Blade` would stop being a variant of `Blade` halfway through the pipeline.
+
+    Pointing the agent at a different wiki is this function and nothing else: no branch, no
+    flag, no code path that knows which instance it is talking to.
+    """
+    return WikiProfile(
+        name=name,
+        api_url=api_url,
+        subpages=MCU_FANDOM.subpages,
+        section_vocabulary=MCU_FANDOM.section_vocabulary,
+        domain_tiers=MCU_FANDOM.domain_tiers,
+        # Share-alike carries onto a copy: the seed text is CC BY-SA 3.0 and so is this
+        # instance, whatever the software's default footer says (`snapshots/ATTRIBUTION.md`).
+        licence=MCU_FANDOM.licence,
+        licence_url=MCU_FANDOM.licence_url,
+        user_agent=USER_AGENT,
+        writable=True,
+    )

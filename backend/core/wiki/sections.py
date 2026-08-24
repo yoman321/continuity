@@ -80,8 +80,14 @@ def subtree(sections: tuple[Section, ...], index: int) -> tuple[Section, ...]:
     wrong for a read: slicing `Films` alone yields the heading and nothing else, because its
     text ends where the first subsection begins. Reviewers need the whole subtree; the write
     path still targets one index.
+
+    The lead is its own subtree and nothing else. Its level is 0 — a sentinel, not a heading
+    depth — so the "deeper than me" rule below would swallow every section on the page and
+    hand a caller who asked for the infobox the entire article instead.
     """
     head = sections[index]
+    if head.is_lead:
+        return (head,)
     kept = [head]
     for section in sections[index + 1 :]:
         if section.level <= head.level:

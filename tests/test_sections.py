@@ -145,3 +145,23 @@ class TestAgainstSnapshots(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestLeadSubtree(unittest.TestCase):
+    """The lead is level 0, which is a sentinel and not a depth.
+
+    Without the guard in `subtree`, every `==` section counts as nested under the lead and
+    `subtree(sections, 0)` returns the whole page — measured at 50,326 of 50,454 characters on
+    the D&W seed. A caller asking for the infobox would get the article.
+    """
+
+    def test_the_lead_subtree_is_only_the_lead(self) -> None:
+        sections = split_sections("intro\n\n==A==\na\n\n===A1===\nx\n\n==B==\nb\n")
+        self.assertEqual(subtree(sections, 0), (sections[0],))
+
+    def test_the_lead_subtree_does_not_swallow_a_real_page(self) -> None:
+        raw = (SNAPSHOTS / "seed" / "Deadpool_Wolverine.wikitext").read_text(encoding="utf-8")
+        sections = split_sections(raw)
+        lead = "".join(s.text for s in subtree(sections, 0))
+        self.assertEqual(lead, sections[0].text)
+        self.assertLess(len(lead), len(raw) / 2)

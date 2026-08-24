@@ -7,10 +7,11 @@ from .known import (
     PROFILES,
     USER_AGENT,
     WIKIPEDIA_EN,
+    local_wiki,
 )
 from .schema import WikiProfile
 
 __all__ = [
     "ENCYCLOPEDIC_TIERS", "ENTERTAINMENT_TIERS", "MCU_FANDOM", "PROFILES",
-    "USER_AGENT", "WIKIPEDIA_EN", "WikiProfile",
+    "USER_AGENT", "WIKIPEDIA_EN", "WikiProfile", "local_wiki",
 ]

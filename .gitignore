@@ -18,6 +18,18 @@ venv/
 .ruff_cache/
 .mypy_cache/
 
+# The local MediaWiki install. Third-party GPL software, ~50MB, reproducible from
+# scripts/setup_wiki.sh — so it is a build artifact here, not source. Also keeps it out of
+# Cloud Build, since .gcloudignore includes this file.
+# Leading slash is load-bearing: bare `wiki/` matches ANY directory named wiki at any depth,
+# which silently swallowed backend/core/wiki/snapshots.py. Anchor anything that names a
+# directory the codebase also uses as a package.
+/wiki/
+
+# Recorded search cassettes. Third-party web excerpts, so they stay out of a public MIT
+# repo (`CLAUDE.md` §6) — a fresh clone runs live or records its own. Anchored, as above.
+/fixtures/
+
 # ADK / agent local state
 .adk/
 *.sqlite
