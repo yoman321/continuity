@@ -147,9 +147,9 @@ class TestClaimTransitions(unittest.TestCase):
         self.assertEqual(claim.check_interval, timedelta(hours=48))
         self.assertEqual(claim.research_rounds, 0)
 
-    def test_changed_halves_the_interval_and_marks_stale(self) -> None:
+    def test_changed_halves_the_interval_and_needs_a_human(self) -> None:
         claim = make_claim().seeded(NOW).changed(NOW)
-        self.assertEqual(claim.status, ClaimStatus.STALE)
+        self.assertEqual(claim.status, ClaimStatus.UNRESOLVED)
         self.assertEqual(claim.check_interval, timedelta(hours=12))
 
     def test_is_due_respects_the_schedule(self) -> None:
@@ -197,14 +197,49 @@ class TestClaimTransitions(unittest.TestCase):
         self.assertIsNotNone(claim.next_check_at)  # revisit queue, `summary.md` §7
         self.assertLess(claim.confidence, AUTO_APPLY_THRESHOLD)
 
-    def test_exhausted_is_distinct_from_unresolved(self) -> None:
-        claim = make_claim().seeded(NOW).exhausted(NOW)
-        self.assertEqual(claim.status, ClaimStatus.EXHAUSTED)
+    def test_a_spent_budget_with_nothing_found_is_no_change(self) -> None:
+        # There is no `exhausted` transition: no new data is no change, and the record says so
+        # by having gained no sources rather than by carrying a fourth status.
+        claim = make_claim().seeded(NOW)
+        for _ in range(MAX_RESEARCH_ROUNDS):
+            claim = claim.researched("objective", ())
+        claim = claim.unchanged(NOW)
+
+        self.assertEqual(claim.status, ClaimStatus.VERIFIED)
+        self.assertEqual(claim.sources, ())
         self.assertFalse(claim.is_contradicted)
+        # And the budget resets, or a claim that once ran dry could never research again.
+        self.assertFalse(claim.budget_spent)
+
+    def test_a_rejected_draft_is_the_same_transition_as_no_change(self) -> None:
+        # A reviewer keeping the existing text means the page stands, which is `unchanged`.
+        # There is deliberately no separate `rejected` transition to diverge from it.
+        stale = make_claim().seeded(NOW).changed(NOW)
+        restored = stale.unchanged(NOW)
+
+        self.assertEqual(restored.status, ClaimStatus.VERIFIED)
+        self.assertEqual(restored.check_interval, timedelta(hours=24))
+
+    def test_only_two_statuses_exist(self) -> None:
+        # The whole point of the collapse: status answers "does a human need to look at this",
+        # and any third value would be answering a different question on the same field.
+        self.assertEqual(
+            [s.value for s in ClaimStatus], ["verified", "unresolved"]
+        )
+
+    def test_no_transition_produces_anything_else(self) -> None:
+        claim = make_claim().seeded(NOW)
+        produced = {
+            claim.unchanged(NOW).status,
+            claim.changed(NOW).status,
+            claim.unresolved(NOW, Contradiction("n", "a", "b")).status,
+            claim.researched("objective", ()).status,
+        }
+        self.assertLessEqual(produced, set(ClaimStatus))
 
 
 class TestAutoApplyGate(unittest.TestCase):
-    def test_high_confidence_stale_claim_is_appliable(self) -> None:
+    def test_high_confidence_changed_claim_is_appliable(self) -> None:
         claim = make_claim().researched("objective", (
             Source.create("https://marvel.com/a", "…", NOW, domain_tiers=TIERS),
         )).changed(NOW)
@@ -234,7 +269,7 @@ class TestImmutability(unittest.TestCase):
         # Dynamic on purpose: direct assignment is a *static* error mypy already catches, so
         # writing it that way would fail typecheck. This pins the runtime guarantee too.
         with self.assertRaises(FrozenInstanceError):
-            setattr(claim, "status", ClaimStatus.APPLIED)  # noqa: B010
+            setattr(claim, "status", ClaimStatus.UNRESOLVED)  # noqa: B010
 
 
 if __name__ == "__main__":

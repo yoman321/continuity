@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -35,9 +35,9 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend.core.ledger.decay import Wave
-from backend.core.ledger.schema import Claim, ClaimKind, ClaimStatus, Contradiction, Source
+from backend.core.ledger.schema import Claim, ClaimKind, Contradiction, Source
 from backend.core.profile import MCU_FANDOM
-from backend.core.wiki import find_section, slug_for, split_sections, subtree
+from backend.core.wiki import diff, find_section, slug_for, split_sections, subtree, to_payload
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOTS = REPO_ROOT / "snapshots"
@@ -364,10 +364,9 @@ def build_claim(demo: DemoClaim, section_index: int) -> Claim:
         else:  # pragma: no cover - guarded by the fixture, not by input
             raise ValueError(f"{demo.claim_id}: unknown outcome {demo.outcome!r}")
 
-    # A drafted replacement means an edit is waiting on the human gate, which is a distinct
-    # status from "we know this is stale".
-    if demo.replacement is not None:
-        claim = replace(claim, status=ClaimStatus.DRAFTED)
+    # No status is set by hand here any more. `changed()` already leaves a claim `UNRESOLVED`,
+    # which is what a drafted edit awaiting the gate *is* — the queue below is what says an
+    # edit exists, and the claim only says a human has to look.
     return claim
 
 
@@ -503,6 +502,10 @@ def build_queue(claims: dict[str, Claim]) -> list[dict[str, Any]]:
             "section_heading": demo.section_heading or "(lead)",
             "before": demo.anchor,
             "after": demo.replacement,
+            # Computed by the core, not by the browser: what a reviewer sees and what a test
+            # asserts must be the same rows. `before`/`after` stay in the payload because the
+            # diff is a view of them — the content is what gets written, not the rendering.
+            "diff": to_payload(diff(demo.anchor, demo.replacement)),
             "rationale": demo.rationale,
             "confidence": claim.confidence,
             "auto_appliable": claim.auto_appliable,
@@ -531,10 +534,11 @@ def main() -> int:
         "pages": pages,
         "claims": [serialise_claim(claims[d.claim_id], d) for d in DEMO_CLAIMS],
         "queue": queue,
+        # No planned total: a claim is tracked once a run writes it back, so how many exist is
+        # an output of the pipeline and not a number this fixture may assert (`AGENTS.md` §2).
         "counts": {
             "claims": len(claims),
             "queued": len(queue),
-            "planned_claims": 50,  # `seed-plan.md` §2; these six are the ones that carry §4
         },
     }
 

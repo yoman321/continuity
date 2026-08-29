@@ -186,7 +186,7 @@
       "wikitext_anchor": "|movie = ''[[Deadpool & Wolverine]]''",
       "section_index": 0,
       "section_heading": "(lead)",
-      "status": "drafted",
+      "status": "unresolved",
       "confidence": 0.98,
       "auto_appliable": true,
       "objective": "Which announced films does Channing Tatum's Gambit appear in?",
@@ -235,7 +235,7 @@
       "wikitext_anchor": "sent to the [[Void]], where Wolverine",
       "section_index": 2,
       "section_heading": "Plot",
-      "status": "drafted",
+      "status": "unresolved",
       "confidence": 0.85,
       "auto_appliable": true,
       "objective": "What does the title 'Void' resolve to on this wiki today?",
@@ -313,7 +313,7 @@
       "wikitext_anchor": "|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
       "section_index": 0,
       "section_heading": "(lead)",
-      "status": "drafted",
+      "status": "unresolved",
       "confidence": 0.95,
       "auto_appliable": true,
       "objective": "Which films are currently slated in Phase Six?",
@@ -440,6 +440,34 @@
       "section_heading": "(lead)",
       "before": "|movie = ''[[Deadpool & Wolverine]]''",
       "after": "|movie = ''[[Deadpool & Wolverine]]''<br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small>",
+      "diff": [
+        {
+          "kind": "removed",
+          "segments": [
+            {
+              "text": "|movie = ''[[Deadpool & ",
+              "changed": false
+            },
+            {
+              "text": "Wolverine]]''",
+              "changed": true
+            }
+          ]
+        },
+        {
+          "kind": "added",
+          "segments": [
+            {
+              "text": "|movie = ''[[Deadpool & ",
+              "changed": false
+            },
+            {
+              "text": "Wolverine]]''<br>''[[Avengers: Doomsday]]'' <small>(unreleased)</small>",
+              "changed": true
+            }
+          ]
+        }
+      ],
       "rationale": "The infobox lists one film. A second is announced, so the field is incomplete rather than wrong \u2014 appended in the wiki's existing <br> convention, no new field and no new section.",
       "confidence": 0.98,
       "auto_appliable": true,
@@ -455,6 +483,42 @@
       "section_heading": "Plot",
       "before": "sent to the [[Void]], where Wolverine",
       "after": "sent to the [[Void (End of Time)|Void]], where Wolverine",
+      "diff": [
+        {
+          "kind": "removed",
+          "segments": [
+            {
+              "text": "sent to the ",
+              "changed": false
+            },
+            {
+              "text": "[[Void]],",
+              "changed": true
+            },
+            {
+              "text": " where Wolverine",
+              "changed": false
+            }
+          ]
+        },
+        {
+          "kind": "added",
+          "segments": [
+            {
+              "text": "sent to the ",
+              "changed": false
+            },
+            {
+              "text": "[[Void (End of Time)|Void]],",
+              "changed": true
+            },
+            {
+              "text": " where Wolverine",
+              "changed": false
+            }
+          ]
+        }
+      ],
       "rationale": "Nobody edited this page \u2014 the target moved underneath it. 'Void' now resolves to Sentry's Void, so the link sends readers to the wrong character. Piped to the explicit title so the displayed text is unchanged.",
       "confidence": 0.85,
       "auto_appliable": true,
@@ -470,6 +534,42 @@
       "section_heading": "(lead)",
       "before": "|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
       "after": "|films = ''[[The Fantastic Four: First Steps]]''<br>''[[Spider-Man: Brand New Day]]''<br>''[[Avengers: Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
+      "diff": [
+        {
+          "kind": "removed",
+          "segments": [
+            {
+              "text": "|films = ''[[The Fantastic Four: First ",
+              "changed": false
+            },
+            {
+              "text": "Steps]]''<br>''[[Avengers:",
+              "changed": true
+            },
+            {
+              "text": " Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
+              "changed": false
+            }
+          ]
+        },
+        {
+          "kind": "added",
+          "segments": [
+            {
+              "text": "|films = ''[[The Fantastic Four: First ",
+              "changed": false
+            },
+            {
+              "text": "Steps]]''<br>''[[Spider-Man: Brand New Day]]''<br>''[[Avengers:",
+              "changed": true
+            },
+            {
+              "text": " Doomsday]]''<br>''[[Avengers: Secret Wars]]''",
+              "changed": false
+            }
+          ]
+        }
+      ],
       "rationale": "One research round yields the whole slate at once. Note what is *not* proposed: the live wiki renamed this section Films -> Projects, and renaming a section is an editorial convention decision no source implies (AGENTS.md \u00a72).",
       "confidence": 0.95,
       "auto_appliable": true,
@@ -479,7 +579,6 @@
   ],
   "counts": {
     "claims": 6,
-    "queued": 3,
-    "planned_claims": 50
+    "queued": 3
   }
 }

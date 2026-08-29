@@ -37,12 +37,17 @@ class ClaimKind(str, Enum):
 
 
 class ClaimStatus(str, Enum):
-    VERIFIED = "verified"  # checked against the world, still correct
-    STALE = "stale"  # checked, no longer correct, edit not yet drafted
-    DRAFTED = "drafted"  # edit drafted, awaiting the human gate
-    APPLIED = "applied"  # written back to the wiki
-    UNRESOLVED = "unresolved"  # sources conflict; deliberately not answered
-    EXHAUSTED = "exhausted"  # research budget spent without a conclusion
+    """Whether a human has to look at this claim. Two answers, and deliberately no more.
+
+    Six values were tried first — `stale`, `drafted`, `applied` and `exhausted` alongside
+    these two — and they conflated three different questions: what the agent concluded, where
+    an edit is in the publish pipeline, and whether the data is old. Only the first belongs on
+    the record. Where an edit sits is the *queue's* state, not the claim's, and age is not a
+    state at all: it is `next_check_at` compared to the clock (`is_due`).
+    """
+
+    VERIFIED = "verified"  # checked; the page stands, nothing for a reviewer to do
+    UNRESOLVED = "unresolved"  # a human decides: an edit at the gate, or sources that conflict
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,12 +162,14 @@ class Claim:
         """Whether this may be applied without a human decision.
 
         Dry-run is the default and the publish gate is a judging criterion, so this only ever
-        gates the *proposal*; it never bypasses the gate itself (`summary.md` §6).
+        gates the *proposal*; it never bypasses the gate itself (`summary.md` §6). Every
+        candidate is `UNRESOLVED` by definition — a verified claim has no edit to apply — and
+        the contradicted ones are exactly the ones a reviewer must see.
         """
         return (
             self.confidence >= tiers.AUTO_APPLY_THRESHOLD
             and not self.is_contradicted
-            and self.status in (ClaimStatus.STALE, ClaimStatus.DRAFTED)
+            and self.status is ClaimStatus.UNRESOLVED
         )
 
     @property
@@ -170,6 +177,10 @@ class Claim:
         return self.research_rounds >= MAX_RESEARCH_ROUNDS
 
     def is_due(self, now: datetime) -> bool:
+        """Whether the schedule says to check this again — and therefore whether the record is
+        stale. Staleness is time against `next_check_at`, never a stored status: a claim goes
+        stale because nothing has re-checked it for as long as its own interval allows, and
+        one run turns it back into `VERIFIED` or `UNRESOLVED`."""
         return self.next_check_at is None or now >= self.next_check_at
 
     def recompute_confidence(self) -> float:
@@ -197,13 +208,23 @@ class Claim:
         return replace(candidate, confidence=candidate.recompute_confidence())
 
     def unchanged(self, now: datetime) -> Claim:
-        """Still correct. Interval doubles — most claims live here and drift to the ceiling."""
+        """Still correct. Interval doubles — most claims live here and drift to the ceiling.
+
+        Three outcomes land here, because the record cannot tell them apart and should not
+        pretend to: retrieval confirmed the claim, retrieval found nothing new, or a reviewer
+        rejected a drafted edit and kept the existing text. All three mean the page stands. The
+        difference between "confirmed" and "nothing found" is visible in `sources` — the
+        confirmed one gained some — and the cost of treating them alike is in `summary.md` §10.
+        """
         return replace(self._rescheduled(now, changed=False),
                        status=ClaimStatus.VERIFIED, research_rounds=0)
 
     def changed(self, now: datetime) -> Claim:
-        """No longer correct. Interval halves; the draft stage picks it up from STALE."""
-        return replace(self._rescheduled(now, changed=True), status=ClaimStatus.STALE)
+        """No longer correct. Interval halves, and a human now has to approve the fix, which is
+        what `UNRESOLVED` means — the draft stage picks the claim up from here. A conflict and
+        a pending edit are the same status on purpose; `is_contradicted` is what tells them
+        apart, and it is derived rather than stored."""
+        return replace(self._rescheduled(now, changed=True), status=ClaimStatus.UNRESOLVED)
 
     def unresolved(self, now: datetime, contradiction: Contradiction) -> Claim:
         """Sources conflict and the agent declines to pick. Stays scheduled so it is
@@ -213,7 +234,3 @@ class Claim:
                             contradicts=(*self.contradicts, contradiction))
         return replace(candidate, confidence=candidate.recompute_confidence())
 
-    def exhausted(self, now: datetime) -> Claim:
-        """Budget spent without a conclusion. Distinct from UNRESOLVED: nothing was found to
-        conflict, so this is a retrieval failure, not a genuine disagreement."""
-        return replace(self._rescheduled(now, changed=False), status=ClaimStatus.EXHAUSTED)

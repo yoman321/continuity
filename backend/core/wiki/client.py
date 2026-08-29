@@ -167,23 +167,52 @@ def parse_revision(payload: dict[str, Any], requested_title: str) -> PageRevisio
     )
 
 
+#: Where the wiki credential travels. A header rather than a query parameter because a URL is
+#: logged by every proxy it passes and shows up in error messages; a header is not. MediaWiki
+#: itself ignores this today (see `AGENTS.md` §2) — the gate is ours, and it is what makes the
+#: agent reach its own wiki the way it reaches anything external.
+API_KEY_HEADER = "X-API-Key"
+
+
 class MediaWikiReader:
     """Thin read client. One method that touches the network, so it is the only thing to
     stub when the pipeline is tested offline."""
 
-    def __init__(self, api_url: str, *, user_agent: str, timeout: float = 30.0) -> None:
+    def __init__(self, api_url: str, *, user_agent: str, timeout: float = 30.0,
+                 api_key: str | None = None) -> None:
         self.api_url = api_url
         self.user_agent = user_agent
         self.timeout = timeout
+        self.api_key = api_key
 
     @classmethod
-    def for_profile(cls, profile: WikiProfile, *, timeout: float = 30.0) -> MediaWikiReader:
-        """The normal way to build one — endpoint and User-Agent both come from the wiki."""
-        return cls(profile.api_url, user_agent=profile.user_agent, timeout=timeout)
+    def for_profile(cls, profile: WikiProfile, *, timeout: float = 30.0,
+                    api_key: str | None = None) -> MediaWikiReader:
+        """The normal way to build one — endpoint and User-Agent both come from the wiki.
+
+        Refuses to build against a gated endpoint with no key, the same way the writer refuses
+        a profile that is not writable: a misconfiguration should be an exception at
+        construction, not an unauthorised request at the first read.
+        """
+        if profile.requires_key and not api_key:
+            raise WikiError(
+                f"{profile.name} requires an API key and none was supplied. Read it from "
+                f"MEDIAWIKI_API_KEY and pass it in; it is never stored on a profile."
+            )
+        return cls(profile.api_url, user_agent=profile.user_agent, timeout=timeout,
+                   api_key=api_key)
+
+    def headers(self) -> dict[str, str]:
+        """What goes on the wire. The key is a header, never a query parameter — a URL ends up
+        in access logs, browser history and error messages, and this one is a credential."""
+        sent = {"User-Agent": self.user_agent}
+        if self.api_key:
+            sent[API_KEY_HEADER] = self.api_key
+        return sent
 
     def fetch(self, params: dict[str, str]) -> dict[str, Any]:
         url = f"{self.api_url}?{urllib.parse.urlencode(params)}"
-        request = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
+        request = urllib.request.Request(url, headers=self.headers())
         with urllib.request.urlopen(request, timeout=self.timeout) as response:
             body = response.read().decode("utf-8")
         parsed: dict[str, Any] = json.loads(body)
@@ -225,10 +254,12 @@ class MediaWikiWriter:
     testable without a socket.
     """
 
-    def __init__(self, api_url: str, *, user_agent: str, timeout: float = 30.0) -> None:
+    def __init__(self, api_url: str, *, user_agent: str, timeout: float = 30.0,
+                 api_key: str | None = None) -> None:
         self.api_url = api_url
         self.user_agent = user_agent
         self.timeout = timeout
+        self.api_key = api_key
         self._csrf: str | None = None
         # MediaWiki carries the login session in cookies; urlopen alone drops them.
         self._opener = urllib.request.build_opener(
@@ -236,19 +267,33 @@ class MediaWikiWriter:
         )
 
     @classmethod
-    def for_profile(cls, profile: WikiProfile, *, timeout: float = 30.0) -> MediaWikiWriter:
+    def for_profile(cls, profile: WikiProfile, *, timeout: float = 30.0,
+                    api_key: str | None = None) -> MediaWikiWriter:
         if not profile.writable:
             raise WikiError(
                 f"{profile.name} is not writable. Writes go only to our own seeded instance "
                 f"(`AGENTS.md` §2); build the profile with `local_wiki()`."
             )
-        return cls(profile.api_url, user_agent=profile.user_agent, timeout=timeout)
+        if profile.requires_key and not api_key:
+            raise WikiError(
+                f"{profile.name} requires an API key and none was supplied. Read it from "
+                f"MEDIAWIKI_API_KEY and pass it in; it is never stored on a profile."
+            )
+        return cls(profile.api_url, user_agent=profile.user_agent, timeout=timeout,
+                   api_key=api_key)
+
+    def headers(self) -> dict[str, str]:
+        """Same contract as the reader's: the key rides a header, never the URL."""
+        sent = {"User-Agent": self.user_agent}
+        if self.api_key:
+            sent[API_KEY_HEADER] = self.api_key
+        return sent
 
     def post(self, params: dict[str, str]) -> dict[str, Any]:
         """The only method that opens a socket."""
         body = urllib.parse.urlencode({**params, "format": "json", "formatversion": "2"})
         request = urllib.request.Request(
-            self.api_url, data=body.encode("utf-8"), headers={"User-Agent": self.user_agent}
+            self.api_url, data=body.encode("utf-8"), headers=self.headers()
         )
         with self._opener.open(request, timeout=self.timeout) as response:
             parsed: dict[str, Any] = json.loads(response.read().decode("utf-8"))

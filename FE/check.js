@@ -164,6 +164,31 @@ async function checkViews() {
   }
 }
 
+// -- diffs -------------------------------------------------------------------
+
+function checkDiffs() {
+  console.log("\n# diffs");
+  for (const item of state.queue) {
+    const rows = item.diff || [];
+    check(`${item.edit_id}: has diff rows`, rows.length > 0, `${rows.length}`);
+
+    // The invariant the whole gate rests on: the rows *are* the two texts. If they are not,
+    // the reviewer approved something other than what would be written to the wiki.
+    const side = (kinds) => rows.filter((r) => kinds.includes(r.kind))
+      .map((r) => r.segments.map((s) => s.text).join("")).join("\n");
+    check(`${item.edit_id}: rows rebuild before`, side(["context", "removed"]) === item.before);
+    check(`${item.edit_id}: rows rebuild after`, side(["context", "added"]) === item.after);
+
+    const changed = rows.some((r) => r.segments.some((s) => s.changed));
+    const added = rows.filter((r) => r.kind === "added").length;
+    check(`${item.edit_id}: something is marked`, changed || added > 0);
+
+    const kinds = new Set(rows.map((r) => r.kind));
+    const known = [...kinds].every((k) => ["context", "removed", "added"].includes(k));
+    check(`${item.edit_id}: only known row kinds`, known, [...kinds].join(", "));
+  }
+}
+
 // -- wiring ------------------------------------------------------------------
 
 function checkWiring() {
@@ -196,6 +221,7 @@ function checkWiring() {
   checkRenderer(W);
   checkAnchors(W);
   await checkViews();
+  checkDiffs();
   checkWiring();
   console.log(failures ? `\n${failures} FAILURE(S)` : "\nall FE checks passed");
   process.exit(failures ? 1 : 0);

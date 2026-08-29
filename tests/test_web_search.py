@@ -211,8 +211,19 @@ class TestLedgerConversion(unittest.TestCase):
         sources_in(payload)
         self.assertEqual(len(fake.requests), 1)
 
-    def test_an_errored_payload_yields_no_sources_rather_than_raising(self) -> None:
+    def test_an_errored_payload_refuses_to_become_sources(self) -> None:
+        # A failed search is not a finding about the world. Converting it to zero sources
+        # would route to `unchanged`, which doubles the interval — so an expired key would
+        # make the agent check that claim less often, silently.
         payload = WebSearch(MCU_FANDOM, Terminal()).search(search_queries=["q"], objective="o")
+        with self.assertRaises(SearchError) as caught:
+            sources_in(payload)
+        self.assertIn("Discard the round", str(caught.exception))
+
+    def test_a_search_that_found_nothing_is_still_a_real_answer(self) -> None:
+        # Distinct from the case above, and it must stay distinct: retrieval ran, the world
+        # said nothing, and that legitimately spends a round and reschedules.
+        payload = {"results": [], "retrieved_at": "2026-08-15T12:00:00+00:00"}
         self.assertEqual(sources_in(payload), ())
 
     def test_the_excerpts_are_joined_only_at_the_ledger_boundary(self) -> None:

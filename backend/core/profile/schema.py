@@ -39,6 +39,13 @@ class WikiProfile:
     # tier <=3 entries become Parallel's `source_policy.include_domains` (`AGENTS.md` §7).
     domain_tiers: Mapping[str, int]
 
+    # The pages this wiki is monitored on. Config, not discovery: the agent is not a crawler,
+    # and "which pages do we maintain" is a decision someone made, not something to infer from
+    # a category listing. It lives here because it is per-wiki exactly like `section_vocabulary`,
+    # and because the ingest pass has to start somewhere — an empty ledger and no page list is
+    # an agent with nothing to do.
+    pages: tuple[str, ...]
+
     licence: str
     licence_url: str
 
@@ -53,6 +60,14 @@ class WikiProfile:
     # which makes the invariant a value the write path can check rather than prose it can
     # violate silently.
     writable: bool = False
+
+    # Whether this endpoint demands a credential. A fact about the endpoint, not a preference:
+    # Fandom's action API is open, ours is gated. The *value* never lives on a profile — the
+    # repo is public and a profile is source (§2) — so the caller reads it from `.env` or
+    # Secret Manager and passes it to the adapter, exactly as it already does for the bot
+    # password. Our own wiki sets this so the agent reaches it the way it reaches anything
+    # external: through a configured endpoint, with a credential, failing closed without one.
+    requires_key: bool = False
 
     def entity_ref(self, title: str) -> EntityRef:
         """Which subject `title` names, under this wiki's title grammar."""

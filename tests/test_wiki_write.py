@@ -20,11 +20,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 from backend.core.profile import MCU_FANDOM, PROFILES, WIKIPEDIA_EN, local_wiki
-from backend.core.wiki import MediaWikiWriter, WikiError
+from backend.core.wiki import API_KEY_HEADER, MediaWikiReader, MediaWikiWriter, WikiError
 
 API = "http://wiki.invalid/api.php"
 OURS = local_wiki(API)
 SECRET = "0123456789abcdef0123456789abcdef"
+KEY = "dummy-local-wiki-key"
 
 
 class Recording(MediaWikiWriter):
@@ -71,7 +72,7 @@ class TestWriteGuard(unittest.TestCase):
         self.assertIn("local_wiki()", str(caught.exception))
 
     def test_our_own_instance_is_accepted(self) -> None:
-        writer = MediaWikiWriter.for_profile(OURS)
+        writer = MediaWikiWriter.for_profile(OURS, api_key=KEY)
         self.assertEqual(writer.api_url, API)
         self.assertEqual(writer.user_agent, OURS.user_agent)
 
@@ -80,6 +81,52 @@ class TestWriteGuard(unittest.TestCase):
         from backend.core.wiki import MediaWikiReader
 
         self.assertEqual(MediaWikiReader.for_profile(MCU_FANDOM).api_url, MCU_FANDOM.api_url)
+
+
+class TestApiKeyGate(unittest.TestCase):
+    """Our own wiki is reached the way anything external is: endpoint plus credential.
+
+    The point is not that MediaWiki checks the key — it does not, today. The point is that the
+    agent has no privileged path to its own instance: the endpoint is configured, the
+    credential is required, the failure is at construction, and the secret travels the same
+    route as every other one. Pointing this at a wiki that really does gate reads is then a
+    value in `.env`, not a code change.
+    """
+
+    def test_a_gated_profile_refuses_to_build_without_a_key(self) -> None:
+        with self.assertRaises(WikiError):
+            MediaWikiReader.for_profile(OURS)
+        with self.assertRaises(WikiError):
+            MediaWikiWriter.for_profile(OURS)
+
+    def test_the_refusal_names_the_variable_to_set(self) -> None:
+        with self.assertRaises(WikiError) as caught:
+            MediaWikiReader.for_profile(OURS)
+        self.assertIn("MEDIAWIKI_API_KEY", str(caught.exception))
+
+    def test_the_key_rides_a_header_and_never_the_url(self) -> None:
+        # A URL is logged by every proxy it passes and lands in error messages; a header is
+        # not. This is the only reason the header exists rather than a query parameter.
+        reader = MediaWikiReader.for_profile(OURS, api_key=KEY)
+        self.assertEqual(reader.headers()[API_KEY_HEADER], KEY)
+        self.assertNotIn(KEY, reader.api_url)
+
+    def test_both_adapters_send_the_same_header(self) -> None:
+        reader = MediaWikiReader.for_profile(OURS, api_key=KEY)
+        writer = MediaWikiWriter.for_profile(OURS, api_key=KEY)
+        self.assertEqual(reader.headers(), writer.headers())
+
+    def test_an_open_wiki_sends_no_key_at_all(self) -> None:
+        # Fandom's action API is genuinely open. `requires_key` describes the endpoint, so an
+        # ungated one must not start carrying a credential it never asked for.
+        self.assertNotIn(API_KEY_HEADER, MediaWikiReader.for_profile(MCU_FANDOM).headers())
+
+    def test_no_shipped_profile_carries_a_key_value(self) -> None:
+        # The repo is public and a profile is source (`AGENTS.md` §2). `requires_key` is a
+        # boolean; the value comes from the environment.
+        for name, profile in PROFILES.items():
+            with self.subTest(profile=name):
+                self.assertFalse(hasattr(profile, "api_key"))
 
 
 class TestLogin(unittest.TestCase):

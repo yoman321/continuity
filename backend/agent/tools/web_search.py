@@ -401,9 +401,25 @@ def sources_in(payload: dict[str, Any]) -> tuple[Source, ...]:
     """Ledger records from a `WebSearch.search` payload. Pure — no second call, no re-billing.
 
     Tier and domain are already resolved in the payload, so this needs no profile and cannot
-    disagree with what the model was shown. An errored payload yields nothing rather than
-    raising: a failed search is a claim with no new evidence, not a crash.
+    disagree with what the model was shown.
+
+    **An errored payload raises, and that is a reversal.** This used to return `()` on the
+    reasoning that a failed search is a claim with no new evidence rather than a crash. That
+    was true until `ClaimStatus` collapsed to two values: "no new evidence" now routes to
+    `unchanged`, which *doubles* the recheck interval — so an expired key or a cassette miss
+    would quietly make the agent look at that claim less often, and nothing would report it.
+    An infrastructure failure must not be recorded as a finding about the world. A search that
+    genuinely returned nothing still yields `()`, because that is a real answer; the two are
+    distinguishable in the payload and must stay distinguishable here.
+
+    Discard the round instead: write nothing to the ledger, leave the claim's schedule and its
+    research budget untouched, and let it come due again (`AGENTS.md` §7).
     """
+    if "error" in payload:
+        raise SearchError(
+            f"search failed, so there is nothing to record: {payload['error']}. "
+            "Discard the round — do not write it to the ledger as a finding."
+        )
     if "results" not in payload:
         return ()
     retrieved_at = datetime.fromisoformat(payload["retrieved_at"])

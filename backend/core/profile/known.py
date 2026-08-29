@@ -111,12 +111,32 @@ WIKIPEDIA_SECTIONS = frozenset({
     "See also", "References", "External links", "Notes", "Bibliography",
 })
 
+# The 12 pages in `snapshots/`, resolved titles as the puller recorded them. Eight subjects
+# plus the variant subpages and the low-drift control set (`seed-plan.md` §2). Our own instance
+# is seeded from exactly these, so both profiles monitor the same set.
+MCU_PAGES: tuple[str, ...] = (
+    "Deadpool & Wolverine",
+    "Gambit",
+    "Void (End of Time)",
+    "Human Torch",
+    "Human Torch/Void-Analyzing Fantastic Four",
+    "Phase Six",
+    "Deadpool",
+    "Blade/Universe Defender Blade",
+    "Wolverine",
+    "Cassandra Nova",
+    "Time Variance Authority",
+    "Phase Five",
+)
+
+
 MCU_FANDOM = WikiProfile(
     name="Marvel Cinematic Universe Wiki",
     api_url="https://marvelcinematicuniverse.fandom.com/api.php",
     subpages=True,
     section_vocabulary=MCU_FANDOM_SECTIONS,
     domain_tiers=ENTERTAINMENT_TIERS,
+    pages=MCU_PAGES,
     # From the wiki's own `Project:Copyrights` (revision 3728), because `siprop=rightsinfo`
     # answers a bare `CC-BY-SA` (`AGENTS.md` §6). Share-alike carries onto our own edits.
     licence="CC BY-SA 3.0 Unported",
@@ -131,6 +151,9 @@ WIKIPEDIA_EN = WikiProfile(
     subpages=False,
     section_vocabulary=WIKIPEDIA_SECTIONS,
     domain_tiers=ENCYCLOPEDIC_TIERS,
+    # Illustrative, like the tier table: the Wikipedia profile exists to prove the core is
+    # wiki-agnostic, not to be monitored.
+    pages=("Deadpool & Wolverine",),
     licence="CC BY-SA 4.0",
     licence_url="https://creativecommons.org/licenses/by-sa/4.0/",
     user_agent=USER_AGENT,
@@ -164,10 +187,15 @@ def local_wiki(api_url: str, *, name: str = "Continuity Wiki") -> WikiProfile:
         subpages=MCU_FANDOM.subpages,
         section_vocabulary=MCU_FANDOM.section_vocabulary,
         domain_tiers=MCU_FANDOM.domain_tiers,
+        # Our instance is seeded from exactly these, so it monitors the same set upstream does.
+        pages=MCU_FANDOM.pages,
         # Share-alike carries onto a copy: the seed text is CC BY-SA 3.0 and so is this
         # instance, whatever the software's default footer says (`snapshots/ATTRIBUTION.md`).
         licence=MCU_FANDOM.licence,
         licence_url=MCU_FANDOM.licence_url,
         user_agent=USER_AGENT,
         writable=True,
+        # Treated as external even though it is ours: a configured endpoint plus a credential,
+        # failing closed without one. The agent gets no privileged path to its own wiki.
+        requires_key=True,
     )

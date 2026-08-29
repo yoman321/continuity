@@ -110,12 +110,7 @@
           confidenceBar(item.confidence) +
         "</header>" +
         '<p class="summary">' + esc(item.summary) + "</p>" +
-        '<div class="diff">' +
-          '<div class="diff-row del"><span class="gutter">−</span><code>' +
-            esc(item.before) + "</code></div>" +
-          '<div class="diff-row ins"><span class="gutter">+</span><code>' +
-            esc(item.after) + "</code></div>" +
-        "</div>" +
+        diffBlock(item) +
         '<p class="rationale">' + esc(item.rationale) + "</p>" +
         sourceList(claimFor(item.claim_id).sources) +
         '<footer class="actions">' +
@@ -130,6 +125,22 @@
     }).join("");
   }
 
+  // The rows come from the backend, computed by core/wiki/diff.py — the browser renders them
+  // and never derives them, so what is on screen is what the tests assert on.
+  var GUTTER = { context: "\u00a0", removed: "\u2212", added: "+" };
+  var ROW_CLASS = { context: "ctx", removed: "del", added: "ins" };
+
+  function diffBlock(item) {
+    var rows = item.diff || [];
+    return '<div class="diff">' + rows.map(function (row) {
+      var body = row.segments.map(function (seg) {
+        return seg.changed ? '<mark>' + esc(seg.text) + "</mark>" : esc(seg.text);
+      }).join("");
+      return '<div class="diff-row ' + ROW_CLASS[row.kind] + '"><span class="gutter">' +
+        GUTTER[row.kind] + "</span><code>" + body + "</code></div>";
+    }).join("") + "</div>";
+  }
+
   function claimFor(claimId) {
     for (var i = 0; i < state.claims.length; i++) {
       if (state.claims[i].claim_id === claimId) return state.claims[i];
@@ -141,8 +152,8 @@
     var intro = '<div class="lede"><h1>Claim ledger</h1><p>The agent\'s memory. Each claim ' +
       'carries its own recheck interval, which doubles when nothing changed and halves when ' +
       'something did — so the schedule is something the agent decides, not a cron table. ' +
-      'Showing ' + state.counts.claims + " of " + state.counts.planned_claims +
-      " planned claims.</p></div>";
+      "The ledger holds what runs have written to it — " + state.counts.claims +
+      " claims right now.</p></div>";
 
     var rows = state.claims.map(function (c) {
       return "<tr>" +

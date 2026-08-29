@@ -3,7 +3,16 @@
 Demo subject for the wiki maintainer agent. Defines what goes into the seeded MediaWiki
 instance and what the claim ledger tracks.
 
-**Settled:** MCU Wiki as the single source · 8 pages · 50 claims · freeze at 2024-08-09.
+**Settled:** MCU Wiki as the single source · 8 pages · freeze at 2024-08-09.
+
+**There is no claim count.** The ledger has two collections and they fill at different times.
+The **section baseline** is filled first, by an ingest pass that reads every page in §2 and
+records its sections verbatim — deterministic, no model, no key beyond the endpoint's own
+(`AGENTS.md` §2). **Claims** are what a pipeline run then produces *against* that baseline, and
+one is tracked only once a run has written it back. So a planned claim total would be a target
+invented ahead of the machine meant to fill it, and every document quoting it would need
+correcting the first time a run disagreed. §3 says what *kinds* of claim these pages carry and
+§4 names the six the video depends on; neither is a quota.
 
 **Verified against the live wiki, Aug 15, 2026.** Seed revision `2019481`
 (2024-08-08T23:57:40Z, 50,454 bytes) exists and pulls cleanly; templating is light enough
@@ -60,21 +69,21 @@ made. That is the product working, not a mismatch.
 
 ---
 
-## 2. Page list (8 pages, 50 claims)
+## 2. Page list (8 pages)
 
 All from **Marvel Cinematic Universe Wiki** — deepest page structure, cleanest ripple.
 Titles below are the resolved ones; drift is measured seed → live, both pulled Aug 15, 2026.
 
-| # | Page | Claims | Seed → now | Why it's here |
-|---|---|---|---|---|
-| 1 | `Deadpool & Wolverine` | 14 | 50,454 → 60,864 (+21%) | The trunk |
-| 2 | `Gambit` | 6 | 8,179 → 15,473 (**+89%**) | Cast in *Avengers: Doomsday* — the lead beat (§4) |
-| 3 | `Void (End of Time)` | 6 | 15,102 → 20,768 (+38%) | The disambiguation cascade (§4) |
-| 4 | `Human Torch` | 5 | 2,990 → 18,028 (**+503%**) | *First Steps* released; variant-vs-prime precision test |
-| 5 | `Phase Six` | 5 | 1,580 → 7,309 (**+363%**) | Slate composition — the fastest-moving list page |
-| 6 | `Deadpool` | 5 | 67,530 → 80,534 (+19%) | Character ripple from the trunk |
-| 7 | `Blade/Universe Defender Blade` | 5 | 9,379 → 16,221 (+73%) | Variant subpage — proves the agent tracks subpages |
-| 8 | Low-drift control set | 4 | +2% to +3% | `Wolverine`, `Cassandra Nova`, `Time Variance Authority`, `Phase Five` |
+| # | Page | Seed → now | Why it's here |
+|---|---|---|---|
+| 1 | `Deadpool & Wolverine` | 50,454 → 60,864 (+21%) | The trunk |
+| 2 | `Gambit` | 8,179 → 15,473 (**+89%**) | Cast in *Avengers: Doomsday* — the lead beat (§4) |
+| 3 | `Void (End of Time)` | 15,102 → 20,768 (+38%) | The disambiguation cascade (§4) |
+| 4 | `Human Torch` | 2,990 → 18,028 (**+503%**) | *First Steps* released; variant-vs-prime precision test |
+| 5 | `Phase Six` | 1,580 → 7,309 (**+363%**) | Slate composition — the fastest-moving list page |
+| 6 | `Deadpool` | 67,530 → 80,534 (+19%) | Character ripple from the trunk |
+| 7 | `Blade/Universe Defender Blade` | 9,379 → 16,221 (+73%) | Variant subpage — proves the agent tracks subpages |
+| 8 | Low-drift control set | +2% to +3% | `Wolverine`, `Cassandra Nova`, `Time Variance Authority`, `Phase Five` |
 
 **Page 8 is not filler.** Those four moved 2–3% in two years. They are what proves the
 decay ladder: claims that should double their interval every run and settle at the 6-month
@@ -87,9 +96,13 @@ characters live on **variant subpages** (`Human Torch/Void-Analyzing Fantastic F
 pages. `Elektra` is the 136KB Daredevil-series page and is *not* a D&W ripple target.
 Resolve redirects before seeding or the ledger will point at the wrong pages.
 
+**The operative list is `MCU_PAGES` in `backend/core/profile/known.py`**, which is what the
+ingest pass actually reads; this table is the reasoning behind it — why each page is here, and
+the measured drift that earned it a place. Add a page in both or in neither.
+
 **8 rows, 12 files.** Row 8 is four pages, and the pull adds
 `Human Torch/Void-Analyzing Fantastic Four` — §4.3 is a test of telling the variant from the
-prime, which needs both sides present. It carries no claims of its own; the count stays 50.
+prime, which needs both sides present. It carries no claims of its own.
 Every byte figure in the table above was reproduced by the pull, so the drift numbers are
 measured, not estimated (`snapshots/manifest.json`).
 
@@ -100,32 +113,36 @@ measured, not estimated (`snapshots/manifest.json`).
 Mapped to summary.md §7. The wave sets the initial `next_check_at`; the agent's decay logic
 takes over from there.
 
+Each heading below describes the *kind* of claim these pages carry, not an inventory of them.
+No *claim* on this page exists until a run has written it back (§1) — the section baseline is
+recorded before that, and is what those claims get proposed against.
+
 The waves are **not** the film's commercial lifecycle. This is a post-release, in-universe
 wiki: nothing here moves because box office settled, it moves because *another film shipped
 or another cast announcement landed*. What drives change is external events in the
 franchise, which is exactly what Parallel is good at finding.
 
-**Settled — should decay to the 6-month ceiling within two runs (13)**
+**Settled — should decay to the 6-month ceiling within two runs**
 Release date · runtime · director · writers · composer · principal cast and portrayers ·
 production-history dates · plot beats · the strike delay
 
 The control group. If every claim is volatile the decay ladder proves nothing.
 
-**In-universe, slow (11)**
+**In-universe, slow**
 Character fates · relationship status · variant designations · TVA continuity with *Loki*
 S2 · Cassandra–Xavier relationship · costume and artefact details
 
 Moves only when a later installment retcons it. Low yield, and that is the point: most
 research rounds should end in "no change," which is what makes the ones that don't legible.
 
-**Release-driven (14)**
+**Release-driven**
 Cross-reference targets · variant-vs-prime disambiguation · "appearances in" lists · Phase
 membership · link targets that a newer page has since claimed
 
 Re-tested every time an MCU film or series ships. `Void (End of Time)` and `Human Torch`
 both sit here, and both are wrong in the seed today.
 
-**Announcement-driven (12)**
+**Announcement-driven**
 Future appearances · casting for unreleased films · slate dates and delays · retcons
 trailed in interviews
 
@@ -141,11 +158,11 @@ confirmed against the live wiki on Aug 15, 2026 — each is genuinely stale in t
 
 | # | Claim | Seeded as | Demonstrates |
 |---|---|---|---|
-| 1 | **Gambit's future appearances** | Cast credit only, no future work | Cast in *Avengers: Doomsday*. One search, one confirmed fact, and it lands on `Gambit` **and** `Phase Six` **and** the film's appearances context. The cascade, legible in seconds |
+| 1 | **Gambit's future appearances** | Cast credit only, no future work | Cast in *Avengers: Doomsday*. One search, one confirmed fact, and it lands on `Gambit` **and** `Phase Six` **and** the film's appearances context. The cascade, legible in seconds — and since fan-out runs after the gate (summary.md §6) it is the reviewer's approval that visibly sets it off |
 | 2 | **`[[Void]]` link target** | `[[Void]]`, plain | *Thunderbolts* gave `Void` to Sentry; the seed's link now sends readers to the wrong character. **Nobody edited the page — the world moved underneath it.** Forces the agent to pick between two live targets on evidence |
 | 3 | **Human Torch identity** | Flat reference to Johnny Storm | *First Steps* introduced the prime MCU Johnny Storm (that page grew **+503%**). The D&W character is a Void variant. The correct edit distinguishes them; the tempting edit conflates them. **This is the precision test — the one where a wrong answer is worse than no answer** |
 | 4 | **Phase Six composition** | 1,580-byte stub | +363% and still moving. One research round yields several claims at once — shows batching and the ripple into `Phase Five` boundaries |
-| 5 | **An announcement-driven claim whose sources split** | Not present | Trade outlets routinely disagree on confirmed-vs-in-talks, on slate dates, and on delays → the **conflicting** bucket (summary.md §6): both readings side by side with tiers and citations, resolved by the reviewer. No specific fact is pre-picked — any of the 12 announcement-driven claims (§3) can supply it, and the classifier produces the bucket generically |
+| 5 | **An announcement-driven claim whose sources split** | Not present | Trade outlets routinely disagree on confirmed-vs-in-talks, on slate dates, and on delays → the **conflicting** bucket (summary.md §6): both readings side by side with tiers and citations, resolved by the reviewer. No specific fact is pre-picked — any announcement-driven claim (§3) can supply it, and the classifier produces the bucket generically |
 | 6 | **A shipped film's release date** | Absent or "TBD" | Trivially verifiable, single authoritative source. One easy claim so the diff queue isn't all hard cases |
 
 **Ordering for the video.** Open with **#1** — the cascade is the design's distinctive
@@ -186,8 +203,10 @@ re-checking the claim against the world.
 
 ## 6. What this unblocks
 
-The ledger schema. Per summary.md §10, every other interface falls out of it — and the
-fields are now derivable from the claim set above rather than guessed:
+The ledger schema — both halves of it. The **section baseline** falls straight out of §2 and
+§7: a page, its sections as MediaWiki addresses them, and the revision they came from. The
+**claim** record is the interesting one, and per summary.md §10 every other interface falls out
+of it — with the fields now derivable from the claim set above rather than guessed:
 
 - `as_of` / source publication date, for recency-based adjudication (§1)
 - `ripple_targets[]`, for the Gambit → `Phase Six` cascade (§4.1)
@@ -209,7 +228,10 @@ Two fields the *revised* claim set forces that the old one did not:
 
 ## 7. Pulling the seed — verified mechanics
 
-MCU Wiki runs MediaWiki 1.43.9 with the action API open and unauthenticated. Two calls:
+MCU Wiki runs MediaWiki 1.43.9 with the action API open and unauthenticated — which is why
+the puller needs no credential. Our own seeded instance is the opposite by choice: the agent
+treats it as an external service and will not read it without `MEDIAWIKI_API_KEY`
+(`AGENTS.md` §2). Two calls:
 find the revision at the freeze date, then fetch its content by id.
 
 ```bash

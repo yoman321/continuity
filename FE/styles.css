@@ -129,12 +129,10 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px; }
 
 .pill.ok { background: #e4f2ea; color: var(--ok); }
 .pill.warn { background: #fbf0dd; color: var(--warn); }
+/* Two, because `ClaimStatus` has two. A claim either needs a reviewer or it does not;
+   where a drafted edit sits is the queue's business, and age is next_check_at vs the clock. */
 .status-verified { background: #e4f2ea; color: var(--ok); }
-.status-drafted { background: #fbf0dd; color: var(--warn); }
-.status-stale { background: #fae7e3; color: var(--danger); }
 .status-unresolved { background: #ece9f7; color: var(--violet); }
-.status-applied { background: var(--accent-soft); color: var(--accent); }
-.status-exhausted { background: var(--rule-soft); color: var(--ink-soft); }
 
 .stub-banner {
   max-width: 1120px;
@@ -195,6 +193,11 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px; }
 .diff-row .gutter { color: var(--ink-faint); user-select: none; }
 .diff-row.del { background: #fdf1ef; }
 .diff-row.ins { background: #eef7f1; }
+.diff-row.ctx { background: transparent; color: var(--ink-soft); }
+/* The words that actually moved, inside a line that was edited rather than replaced. */
+.diff-row mark { background: none; padding: 0 1px; border-radius: 2px; font-weight: 600; }
+.diff-row.del mark { background: #f7c9c0; color: var(--danger); }
+.diff-row.ins mark { background: #b8e2c8; color: var(--ok); }
 
 .rationale {
   margin: 12px 0;

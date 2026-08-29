@@ -36,6 +36,10 @@ venv/
 *.sqlite3
 *.db
 
+# The local claim ledger (`backend/core/ledger/store.py`). Run state, not source: it is what
+# a run writes back, and committing it would ship one machine's schedule to every other.
+/data/
+
 # Node — the FE is vanilla and has no build step (AGENTS.md §5); node only runs FE/check.js.
 # These stay as a guard: if a toolchain ever creeps in, its output must not be committed.
 node_modules/

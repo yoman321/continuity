@@ -139,10 +139,9 @@ Wikipedia, all of Fandom, and thousands of independent wikis, all exposing the s
 historical revisions from Wikipedia, MCU Fandom, Star Wars Fandom and Memory Alpha with **no
 code changes** — only a different `api_url`. The read layer already generalizes.
 
-What does *not* generalize is everything that encodes one wiki's conventions, and those are
-currently hardcoded:
+What does *not* generalize is everything that encodes one wiki's conventions:
 
-| Varies per wiki | Today | Elsewhere |
+| Varies per wiki | The demo profile | Elsewhere |
 |---|---|---|
 | Title conventions | `/` splits a variant subpage | Wikipedia disables mainspace subpages — `AC/DC` is a real 202KB article our parser splits into `AC` + `DC` |
 | Section vocabulary | no Box office / Reception anywhere | Wikipedia has all three, so §5's "that claim has no home" reasoning inverts |
@@ -151,8 +150,10 @@ currently hardcoded:
 | Write policy | our own instance | Wikipedia needs Bot Approval Group sign-off; stricter, not looser |
 
 So the architectural unit is a **wiki profile**: endpoint, title grammar, section vocabulary,
-tier table, licence, auth. The agent core stays wiki-agnostic and reads the profile. Anything
-wiki-specific that leaks into the core is the bug (`AGENTS.md` §2).
+tier table, licence, auth, and the pages it monitors. Built Aug 23, 2026 — `WikiProfile` carries
+them and the core reads them, so the middle column above is what a profile *holds*, not something
+compiled in. The agent core stays wiki-agnostic. Anything wiki-specific that leaks into the core
+is the bug (`AGENTS.md` §2).
 
 **Build general, demo specific.** Generality is proved by a second profile running as a smoke
 test, not by a broader video. The 3-minute demo still runs entirely on D&W, because a concrete
@@ -208,28 +209,36 @@ the integration must be present in your code."*
 
 ## 6. Architecture
 
-### Control flow (7 stages, 2 feedback loops)
+### Control flow (7 stages, 3 backward edges)
 
 ```
-Audit page ──→ Research ──→ Classify
-(ledger picks  (Parallel    (still true /
- due claims)    search)      new / conflicting)
-    ▲               ▲            │
-    │               └────────────┘  retry: thin retrieval
-    │                            ▼
-    │                         Fan-out
-    │                    (add the claims a
-    │                     new fact implicates)
-    │                            │
-Publish ←──── Verify ←──── Draft edit
-(human edits  (check for    (section-level
- or approves)  conflicts)    diff)
-                  └────────────→┘  retry: introduced conflict
+Audit ──→ Research ──→ Classify ──→ Draft ──→ Verify ──→ Publish ──→ Fan-out
+          ▲  ▲            │           ▲         │                       │
+          │  └────────────┘           └─────────┘                       │
+          │    thin retrieval           introduced conflict             │
+          └─────────────────────────────────────────────────────────────┘
+              one hop, capped, and only for an edit a human approved
 ```
 
-The two return arrows and the fan-out are where the agentic behaviour lives — the arrows
-because a stage's output decides whether the next one runs, the fan-out because it changes
-the scope of the run in flight.
+| Stage | What it does |
+|---|---|
+| **Audit** | hands over the claims whose `next_check_at` has passed, and says why it passed over the rest |
+| **Research** | one batched Parallel search per claim set, against the objective the ledger holds |
+| **Classify** | Gemini reads the excerpts against the page and sorts each claim: still true / new / conflicting |
+| **Draft** | a section-level edit, rendered as a diff, with citations and a confidence score |
+| **Verify** | re-read the drafted section for a contradiction the edit itself introduced |
+| **Publish** | the human gate — approve, hand-edit or reject. The only stage that writes to the wiki |
+| **Fan-out** | takes the edit that was *actually applied* and expands it into the claims it implicates on other pages |
+
+**Before Audit, and outside the graph:** the baseline ingest reads every page in
+`WikiProfile.pages`, splits it, and stores the sections verbatim. It is deterministic — no model
+call and no judgement — so it is a pre-pass rather than a stage, and everything above runs
+against a baseline that already exists. Keeping it separate is what stops Audit doing double
+duty; the reasoning is under the claim ledger below.
+
+The three backward edges are where the agentic behaviour lives — the first two because a
+stage's output decides whether the next one runs, and Fan-out because it decides how much of
+the wiki this run touches at all. The run ends at Fan-out; the next tick re-enters at Audit.
 
 ### The classify stage — decided Aug 22, 2026
 
@@ -242,6 +251,24 @@ into exactly three buckets:
 | **Still true** | the page already says this, and retrieval confirms it | the claim, its refreshed citation, and a bumped `last_verified` — no diff |
 | **New** | retrieval carries something the page does not have | a drafted section-level insert with citations |
 | **Conflicting** | page and sources disagree, or sources disagree with each other | both readings side by side, each with its tier and citation, and no auto-resolution |
+
+**The queue reads like a git review, and that is deliberate.** A drafted edit is shown as a
+diff — removed lines in red, added in green, and inside a line that was edited rather than
+replaced, the exact words that moved. A reviewer approving an edit is answering "is this change
+right?", and two blocks of text side by side do not answer it: the eye has to find the
+difference before it can judge it. The one rule borrowed outright from git is that **the diff is
+computed, never stored** — git holds snapshots and computes `git diff` on demand, and here a
+stored diff would be correct only until the page moved, which the gate's whole purpose is to
+allow time for. A conflicting claim is the one row that is not a diff: it is a choice between
+readings of the world, each with its tier and citation, and resolving it is what produces the
+diff rather than something the diff can express.
+
+**One "conflict" here, not two.** Git's merge conflicts come from two branches editing a common
+ancestor concurrently; this project assumes a single editor while the agent runs (`AGENTS.md`
+§2), so the
+page at publish time is the revision the draft was taken against and a *text* conflict cannot
+arise. The only conflict a reviewer resolves is the semantic one: two sources disagreeing about
+the world.
 
 **The buckets are not naturally disjoint, and that had to be measured to be believed.** As
 worded above, "page and sources disagree" swallows "retrieval carries something the page
@@ -288,12 +315,35 @@ first move.
 draft is 90% right, and rejecting throws away correct research along with the bad sentence.
 The gate accepts a hand-edited version of the draft as a third outcome.
 
-### The fan-out stage — decided Aug 22, 2026
+### The fan-out stage — decided Aug 22, 2026; moved after Publish Aug 29, 2026
 
 A confirmed fact rarely belongs to one claim. Gambit's *Doomsday* casting lands on `Gambit`,
 on `Phase Six`, and on the film page's appearances context (`seed-plan.md` §4.1) — one search,
-three pages. Fan-out is the stage that turns a single *new*-bucket result into the full set of
-claims it implicates, and hands that widened set to Draft.
+three pages. Fan-out is the stage that turns an *applied* edit into the full set of claims it
+implicates, and hands that widened set back to Research.
+
+**It runs after the publish gate, not before it — corrected Aug 29, 2026.** The original design
+put Fan-out between Classify and Draft, so a *new*-bucket classification widened the run and one
+Draft pass covered the trunk claim and its dependents together. That is wrong about what causes a
+ripple. What implicates other pages is not what the agent proposed; it is what the wiki now says,
+and the two differ in three ordinary ways. The reviewer rejects, and the run has already spent
+research and drafts on the dependents of a fact that never landed. The reviewer hand-edits — the
+gate accepts that as a third outcome, so "cast in *Doomsday*" can leave the queue as "in talks for
+*Doomsday*" — and every dependent drafted from the pre-gate text now overstates its premise, which
+no later stage catches because Verify only reads the page it is editing. Or Verify sends the draft
+back and the text that propagates changes underneath the fan-out that already happened. Reading
+the published revision instead of the proposal removes all three by construction rather than by
+another check.
+
+It also fixes the gate itself. Under the old order a reviewer met the trunk edit and its
+dependents in one queue, and approving a dependent meant approving a premise still sitting
+unapproved two cards above. Now the premise is settled before its consequences are drafted, and
+the causality is visible: approving an edit is what puts the next cards in the queue.
+
+**What it costs** is a second pass through the gate inside one run — the trunk edit, then what it
+implicates. That is the same `request_input` pause the graph already has to survive once, so it is
+not new machinery, and the run being long-lived across a human decision is what the HITL gate
+means in the first place.
 
 `ripple_targets[]` on the `Claim` record already stores the links the ledger knows about, so
 the stage starts from a lookup, not a guess. What it adds on top is discovery: a fact can
@@ -302,18 +352,27 @@ starts better informed. The ledger gets denser with use.
 
 **Why this is the stage that answers the pipeline objection.** A retry edge only says "try
 again," which a `for` loop also does. Fan-out means the set of claims a run touches was not
-knowable when the run started — Audit picked the due claims, and research findings added more.
-That is §4's requirement 2 (plan chosen at runtime, varying by input) demonstrated rather than
-asserted, and it is also the video's opening beat, so the most convincing evidence of autonomy
-and the most legible thing on screen are the same feature.
+knowable when the run started — Audit picked the due claims, and what happened at the gate added
+more. Moving it after Publish strengthens that rather than weakening it: the working set is now
+decided by a human answer mid-run, which is a plan chosen at runtime in the least arguable way
+available. That is §4's requirement 2 (plan chosen at runtime, varying by input) demonstrated
+rather than asserted, and it is also the video's opening beat, so the most convincing evidence of
+autonomy and the most legible thing on screen are the same feature.
 
 **Bounded, like every other loop here.** Fan-out expands the working set, so it needs a ceiling
 or one busy news day turns a tick into a full-wiki rewrite: cap the added claims per run, and
 do not let a fanned-in claim fan out again in the same run. One hop, not transitive closure.
 
+That cap now carries a second job. `Fan-out → Research` is a genuine cycle in the graph, and the
+non-transitive rule is the only thing that breaks it: a fanned-in claim runs Research → Classify →
+Draft → Verify → Publish and stops there. Before the move the rule was a cost control; now
+termination depends on it, so it belongs in the node rather than in a config a future run could
+raise.
+
 **The second hop happens next tick, not this one.** Capping at one hop does not lose the rest of
 the cascade. A claim fanned into a run has been touched, so its `next_check_at` is pulled forward
-and it fans out from *itself* on a later tick — the full graph still gets walked, just in bounded
+and it fans out from *itself* on a later tick — and so is a claim the cap excluded from this run,
+which is what keeps the ceiling a deferral rather than a drop — the full graph still gets walked, just in bounded
 steps with a human gate between each. The pull-forward is a rule rather than an implication (§7):
 a fanned-in claim left to decay like a quiet one would double its interval and put the second hop
 weeks away, which silently converts a cascade into an unrelated edit much later.
@@ -321,19 +380,61 @@ weeks away, which silently converts a cascade into an unrelated edit much later.
 **What keeps this agentic (§4).** Fetch → classify → human is a linear pipeline on its own,
 and §4's litmus test would fail it. Four things keep it from being one, and all four have
 to survive implementation: the ledger decides *which* claims are fetched and when
-(`next_check_at` is agent-chosen, §7); fan-out lets the findings widen the run; a thin or
+(`next_check_at` is agent-chosen, §7); fan-out lets an approved edit widen the run; a thin or
 off-target retrieval sends the graph back to Research with a broadened objective rather than
 forward to a bad classification; and a draft that introduces a conflict elsewhere on the page
 goes back to Draft. Cut them and this becomes RAG with a review screen — the exact quiet
 failure §4 names.
 
 ### The claim ledger (central state)
+
+**Two collections, written at different times.** `sections` is the baseline — what each
+monitored page says right now, recorded verbatim by an ingest pass that reads the wiki, splits
+it and stores it. `claims` is what the agent tracks. The split exists because the two need
+different things: deciding what a page *asserts* is a judgement and needs the model, while
+recording what a page *says* is deterministic and needs nothing. So step 1 of a run has no key,
+no model call and no failure mode beyond the wiki being unreachable — and everything research
+later finds is measured against a baseline that already exists rather than against a claim set
+being invented in the same breath.
+
+A page's sections are replaced as one set, never merged, because their indices are only
+meaningful relative to each other; and `WikiProfile.pages` names what to ingest, because the
+agent is not a crawler and which pages we maintain is a decision somebody made.
+
 One row per atomic claim:
 `claim_id`, `page`, `section`, `text`, `status`, `confidence`, `sources[]`,
 `last_verified`, `next_check_at`, `contradicts[]`
 
 This is what makes it stateful rather than a prompt chain, and what lets the agent answer
 "have I already checked this?"
+
+**`status` has two values, and answers one question: does a human need to look at this.**
+`verified` means the page stands and there is nothing for a reviewer to do. `unresolved` means
+a person decides — either sources conflict and the agent declined to pick, or an edit is
+drafted and waiting at the publish gate. Those two are one status on purpose: both are rows in
+the review queue, and `contradicts[]` is what tells them apart, derived rather than stored.
+
+Two things deliberately *not* on the record. **Where an edit sits in the publish pipeline** is
+the queue's state, not the claim's — drafted, approved and applied describe an edit, and a
+rejected edit leaves the claim exactly as it was, so the claim never needed to know. **Age** is
+not a status either: a claim goes stale by the clock passing `next_check_at`, which is a
+comparison, not a state to write down. One run turns a stale record back into `verified` or
+`unresolved`, and that is the only thing that ever writes `status`.
+
+**Claims are filled by runs, never by hand.** The baseline arrives first, from the ingest pass;
+a claim is tracked only once a run has proposed it against that baseline, checked it and written
+it back. The six claims in `FE/data/demo-state.json` are a fixture standing in for state no run
+has produced yet (`AGENTS.md` §4). So no target count appears anywhere in these documents — how
+many claims exist is an output of the pipeline, and `seed-plan.md` §3 describes the kinds the
+seed carries rather than a quota.
+
+**Local now, Firestore after the deploy weekend.** The store is a JSON file on disk today and a
+Firestore collection in Phase 2, and the port is deliberately boring: one module owns the
+document shape, both stores write it, and the adapter is a transport swap. Building it this way
+round is what lets the graph be assembled and tested with no database, no emulator and no cloud
+project — the same argument that put `SnapshotPageSource` behind the wiki reads. The rules that
+make the local store *behave* like Firestore rather than merely stand in for it are invariants
+now, in `AGENTS.md` §2, because getting either wrong is a failure that appears only after deploy.
 
 ### Stack
 
@@ -414,16 +515,29 @@ tick route has to authenticate itself, which is an invariant rather than a nicet
 (`AGENTS.md` §2).
 
 ### Guardrails (double as "bounded autonomy" judging points)
-- Max 3 research rounds per claim
-- Confidence threshold below which nothing auto-applies
-- Dry-run by default
-- Human approval gate before publish
+- Max 3 research rounds per claim. `MAX_RESEARCH_ROUNDS` and `Claim.budget_spent` are in the
+  core, but **nothing refuses a fourth round yet**: `record_research` spends a round without
+  consulting the budget, so the Research node is where the check has to land
+- Confidence threshold below which nothing auto-applies — `Claim.auto_appliable`, against
+  `tiers.AUTO_APPLY_THRESHOLD`, and never a bypass of the gate below
+- Dry-run by default: nothing reaches the wiki that has not passed the gate
+- Human approval gate before publish — and since fan-out follows it (§6), the gate also decides
+  whether the run widens at all
 
 ### Error recovery to build *and* demo
 - Parallel returns nothing useful → broaden the semantic objective, retry
+- Parallel *errors* — no key, a quota, retries exhausted → discard the round outright: no
+  sources, no budget spent, no schedule change, and the claim simply comes due again. Not the
+  same case as the line above, and the distinction is load-bearing: recording an error as zero
+  sources routes to `unchanged`, which **doubles** the interval, so a broken key would make the
+  agent check that claim less and less often while reporting nothing (`AGENTS.md` §7)
 - Sources irreconcilable → mark unresolved, publish the rest
 - MediaWiki edit conflict (a human edited mid-run) → re-read, rebase, retry
-  — **best thing to put on camera**: real, unglamorous, proves the loop works
+  — **best thing to put on camera**: real, unglamorous, proves the loop works.
+  Note the relationship to the single-editor assumption (`AGENTS.md` §2): the assumption is
+  what lets the *review queue* skip text conflicts, and this is the guard that catches the
+  assumption being wrong. Demonstrating it means deliberately breaking the assumption on
+  camera, which is the honest way to show a guard — the recovery is re-draft, not a merge UI
 
 ---
 
@@ -445,11 +559,13 @@ the interval; something changed → halve it. Floor ~6 hours, ceiling ~6 months.
 daily → monthly → biannual ladder naturally. An agent choosing its own cadence reads as
 more agentic than one obeying a cron table.
 
-**Fan-out overrides decay.** A claim pulled into a run by fan-out (§6) is rescheduled as if it
-changed — interval halved, `next_check_at` pulled forward — however small its own edit was, and
-even if it got none. Sitting next to a fact that just moved is the best available signal that a
-claim is about to move too, and it is what makes the second hop of a cascade arrive soon instead
-of at the ceiling.
+**Fan-out overrides decay.** A claim named by fan-out (§6) is rescheduled as if it changed —
+interval halved, `next_check_at` pulled forward — however small its own edit was, even if it got
+none, and even if the per-run cap kept it out of this run entirely. Sitting next to a fact that
+just moved is the best available signal that a claim is about to move too, and it is what makes
+the second hop of a cascade arrive soon instead of at the ceiling. Because fan-out now runs after
+the gate, the signal is stronger than it was: the fact next door did not merely get proposed, it
+got published.
 
 **Parallel Monitor = a second, independent schedule owned by Parallel.** Don't build it —
 running both means duplicate work, duplicate cost, dedup logic, and webhook failure modes.
@@ -468,8 +584,9 @@ What moves a claim is another release or another announcement.
 | Announcement-driven | casting and slate reporting | never fully — this is where `unresolved` lives |
 
 So the question is never "is there enough data yet" — it's "which claims have enough data
-*right now*," which the confidence threshold already answers. Claim counts per wave and the
-mapping onto the 50-claim set are in `seed-plan.md` §3.
+*right now*," which the confidence threshold already answers. What kinds of claim each wave
+carries is in `seed-plan.md` §3; how many exist is an output of the pipeline and never a target
+(`AGENTS.md` §2).
 
 ### Unresolved-claim revisit queue
 When the reviewer defers a conflict rather than resolving it (§6), the claim keeps
@@ -507,7 +624,7 @@ Say so explicitly — it reads as editorial judgment, not omission.
 film?" is one call answering one question. Most claims never move and decay to a 6-month
 interval within a couple of runs.
 
-**Hackathon scope: one wiki, one film, ~12 source domains, ~50 tracked claims.**
+**Hackathon scope: one wiki, one film, ~12 source domains.**
 
 ---
 
@@ -515,15 +632,21 @@ interval within a couple of runs.
 
 Beat order follows `seed-plan.md` §4, which names the specific claim behind each.
 
-1. Audit picks ~14 claims out of ~300 — and says why
+1. Audit picks the claims that are due — and says why it passed over the rest
 2. **The cascade** (§4.1): one confirmed announcement lands on three pages at once. Opens the
-   video because it reads in seconds
+   video because it reads in seconds. Since Fan-out moved after the gate (§6) this beat now shows
+   the *approval* as the cause — approve the trunk edit and the queue repopulates with the two
+   pages it implicates, on camera. That folds a first look at the diff queue into beat 2; beat 4
+   still earns its place on citations and confidence, which this beat does not stop to read
 3. **The claim that broke without an edit** (§4.2): a link that was right in 2024 and now
    points at the wrong character, because a later film took the name. No page diff would
    surface it — this is the case for the product
 4. Diff queue with citations and confidence badges
 5. **Break something live** — revoke the Parallel key, or edit the page underneath it —
-   and show recovery
+   and show recovery. Editing the page underneath is deliberately breaking the single-editor
+   assumption (`AGENTS.md` §2): `basetimestamp` catches it, the write is refused rather than
+   overwriting the human, and the claim is re-drafted. Showing a guard fire is worth more than
+   claiming the case cannot happen
 6. **Close on the conflicting bucket** (§6): the agent puts two readings side by side with
    their tiers and citations and declines to pick, handing the judgement to the reviewer. An
    agent that says *"these disagree and I am not resolving it"* reads as more trustworthy than
@@ -540,15 +663,21 @@ is not the plan — the plan is the two ordered phases after it.
 
 **Everything buildable locally is built locally first — decided Aug 23, 2026.** MediaWiki cannot
 tell a MariaDB container from Cloud SQL, `.env` already stands in for Secret Manager by design
-(`AGENTS.md` §2), and the Firestore emulator covers the ledger adapter — so no item in Phase 1
-needs a cloud resource to exist, and the Cloud SQL meter does not start until the instance does.
+(`AGENTS.md` §2), and the ledger is a JSON file holding the documents Firestore will later
+hold — so no item in Phase 1 needs a cloud resource to exist, and the Cloud SQL meter does not
+start until the instance does. The Firestore *emulator* covers none of this and was never available:
+it needs a JRE and a `gcloud` component that are not installed, which is why the store ports by
+document shape instead (Aug 29, 2026 entry below).
 The one thing local work genuinely cannot prove is whether `continuity-run@`'s three roles are
 sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
 account impersonation closes even that, and it is Phase 2's first item.
 
-As of Aug 23, 2026 the critical path is **(1)** the 7-stage ADK graph, **(2)** recording the
-demo video, **(3)** the deploy weekend. The local MediaWiki — item (2) until this afternoon —
-is up, seeded and verified, so the agent now has somewhere it is allowed to write.
+As of Aug 29, 2026 the critical path is **(1)** the 7-stage ADK graph, **(2)** recording the
+demo video, **(3)** the deploy weekend. Two of the graph's seven stages now have working
+implementations underneath them — the baseline half of Audit, and Classify against real Gemini
+— so what is left of (1) is the wiring, the two stages that still need a model (claim proposal
+and Draft), and the `Draft` record they write to. The local MediaWiki, which held item (2) until
+Aug 29, is up, seeded and verified, so the agent now has somewhere it is allowed to write.
 Both vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written,
 so what is left is the agent itself. Nothing here is blocked on an unknown API.
 
@@ -604,7 +733,7 @@ is pasting a URL into a form.
 - [x] Draft the claim ledger schema — done Aug 15, 2026. `backend/core/ledger/` (then
       `src/continuity/ledger/`): the `Claim`
       record with `claim_kind` and `entity_ref`, the domain→tier table with deterministic
-      confidence, and the double/halve/clamp decay logic. Dependency-free and frozen; 31 tests
+      confidence, and the double/halve/clamp decay logic. Dependency-free and frozen; tests
       pass, mypy strict and ruff clean
 - [x] Establish the verification gate — done Aug 15, 2026, with the first module. Commands in
       `AGENTS.md` §5
@@ -688,7 +817,9 @@ is pasting a URL into a form.
       discovery, with the new edges written back. Capped per run and one hop only. Reasoning in §6.
       This is the cascade beat (`seed-plan.md` §4.1) becoming a stage instead of an aspiration —
       the field existed on the record and nothing consumed it. Fanned-in claims reschedule as
-      *changed* so the capped second hop still arrives soon (§7)
+      *changed* so the capped second hop still arrives soon (§7). **Position superseded Aug 29,
+      2026** — the stage stands, but it runs after Publish rather than before Draft; see the
+      entry below
 - [x] Write `README.md` — done Aug 15, 2026. What the product is, local run for both halves,
       routes, env vars, the deploy procedure (which until now lived only in conversation), repo
       layout and the MIT/CC BY-SA split
@@ -721,7 +852,7 @@ is pasting a URL into a form.
       neither shipped profile has it. And the section vocabulary is read off `snapshots/seed/`
       rather than imagined, which caught two headings I had dropped when transcribing
       (`Notable Pruned Objects`, `Time Variance Authority Files`) — the test found them, not a
-      re-read. 96 tests pass (was 82; `tests/test_profile.py` adds 14), mypy strict and ruff
+      re-read. Tests pass — `tests/test_profile.py` is new — mypy strict and ruff
       clean, and `build_demo_state.py` regenerates `demo-state.json` byte-identically, which is
       the evidence that a refactor this wide changed no computed output
 
@@ -733,8 +864,8 @@ is pasting a URL into a form.
       not: the property is about what modules import, not where they sit, so it moved into the
       import path — `backend.core.*` is the deterministic half, everything else under
       `backend/` is perimeter — which is more visible than a directory split because it shows
-      at every call site rather than only in the tree. 81 of 96 tests still run with nothing
-      installed, which is the number that would have moved if the boundary had actually eroded.
+      at every call site rather than only in the tree. The core's tests still run with nothing
+      installed, which is what would have broken if the boundary had actually eroded.
       **One new risk, which did not exist before and is the real cost:** `backend/__init__.py`
       now executes before every `backend.core.*` import, so a single vendor import there would
       make the dependency-free half require the SDKs *and* defeat `app.py`'s cold-start
@@ -764,7 +895,7 @@ is pasting a URL into a form.
       depth, so `subtree(sections, 0)` counted every section as nested under it and returned
       50,326 of a 50,454-byte page to a caller who asked for the infobox. Fixed in the core
       with a guard and two tests rather than worked around in the one caller that found it.
-      119 tests pass (was 96), 102 of them on an interpreter with nothing installed; mypy
+      Tests pass, the core's still on an interpreter with nothing installed; mypy
       strict, ruff and `node FE/check.js` all clean
 
 - [x] **Build the Parallel search tool** — done Aug 23, 2026, the second of the four. The
@@ -801,7 +932,7 @@ is pasting a URL into a form.
       clone runs live or records its own. **No live call has been made yet**, so the mock
       transport is the only evidence the request is accepted; the first real one both confirms
       that and seeds the cassette.
-      152 tests pass (was 119), 127 of them with nothing installed; mypy strict, ruff and
+      Tests pass, the core's with nothing installed; mypy strict, ruff and
       `node FE/check.js` clean. One bug caught by its own test: `tier_counts` was keyed by int,
       which JSON silently stringifies — the model would have been shown a dict the node never
       built
@@ -830,7 +961,7 @@ is pasting a URL into a form.
       hit is `AGENTS.md` §7's "never trust the structure of an excerpt" in the flesh — its role
       mapping is a scraped table while the tier-2 headline states it in prose. The call is
       recorded to `fixtures/searches.json` (gitignored) so the tool is now also proven live and
-      the cassette has its first entry. 152 tests, 127 of them bare
+      the cassette has its first entry
 
 - [x] **Citations are filtered by wording, not chosen by tier** — done Aug 23, 2026, in
       `backend/core/ledger/citations.py`, closing the gap the live search exposed. The tier
@@ -855,7 +986,7 @@ is pasting a URL into a form.
       is `entity_ref.base` rather than the full title, because a variant subpage's suffix is a
       wiki naming convention no publisher writes — requiring it would reject every source in
       existence, and telling a variant from its prime is the classify stage's job.
-      169 tests (was 152), 144 of them bare; `demo-state.json` still regenerates
+      Tests pass bare; `demo-state.json` still regenerates
       byte-identically, which is the evidence this added a path rather than changing one
 
 - [x] **The local wiki is up and seeded** — Aug 23, 2026. MediaWiki **1.43.9** on PHP 8.5 and
@@ -894,7 +1025,7 @@ is pasting a URL into a form.
       because root authenticates over `unix_socket`, and main-account API login is deprecated
       and refused so a BotPassword is the only way in — scriptable, as it turns out, via
       `createBotPassword.php`, which removes the manual `Special:BotPasswords` step the plan had
-      assumed. 186 tests, 161 of them bare
+      assumed
 
 - [x] **Build the MediaWiki section-write tool** — done Aug 23, 2026, the third of the four, and
       the first thing in this project that changes a page. **It addresses sections by heading and
@@ -918,7 +1049,306 @@ is pasting a URL into a form.
       restored the page and reported "no change" for the other 11, so idempotence is measured
       too. Matching on the code rather than the message matters — `editconflict`, `protectedpage`
       and `badtoken` all arrive as failures and need different responses, so `WikiError` now
-      carries MediaWiki's own code. 198 tests, 173 of them bare
+      carries MediaWiki's own code
+
+- [x] **Drop every tracked-claim count** — Aug 29, 2026. `seed-plan.md` committed to 50 claims
+      across 8 pages, §9 beat 1 here said "~14 out of ~300" and §8 said "~50 tracked": three
+      numbers that disagreed with each other, against a repo holding six — hand-written fixture
+      literals in `build_demo_state.py`, driven through the real transitions and dumped to JSON.
+      Nothing in Phase 1 authored the rest, and nothing was going to: the ledger tool is storage
+      by design, and the graph consumes claims rather than writing new ones. The fix is to stop
+      treating a count as a commitment. Claims are an *output* of a full pipeline run, and a
+      claim is tracked only once a run has written it back — so the numbers are gone from
+      `seed-plan.md` §1/§2/§3 and §8/§9 here, the page list keeps its measured drift and loses
+      its Claims column, `build_demo_state.py` no longer emits `planned_claims`, and `AGENTS.md`
+      §2 forbids restating a total. The volatility waves stay as what they always were — a
+      description of the kinds of claim the seed carries — and the six in `seed-plan.md` §4 stay
+      as the beats the video needs. Nothing about the seeded wiki changes: 8 pages, 12 files,
+      freeze at 2024-08-09
+
+- [x] **Build the ledger local-first, port it to Firestore later** — Aug 29, 2026. Firestore was
+      always the target (`AGENTS.md` §3) but nothing could be built against it: the emulator needs
+      a JRE and a `gcloud` component neither installed, and a cloud project is Phase 2 work. The
+      alternative to waiting is to make the *shape* the portable thing rather than the storage.
+      So `documents.py` emits only value types Firestore's document model accepts — `str`, `int`,
+      `float`, `bool`, `None`, `datetime`, `list`, `dict` — and the adapter will hand a document
+      to `.set()` with nothing in between; a test asserts that property directly rather than
+      trusting it. JSON's lack of a timestamp type is the single difference, and the local store
+      is what pays for it. Two behaviours are guarded because they diverge *silently*: a
+      Firestore inequality filter does not match null-valued fields, so `put` refuses a claim
+      whose `next_check_at` is `None` — otherwise an unseeded claim is due in memory and
+      invisible deployed, passing every local test. And `due()` orders by
+      `(next_check_at, claim_id)` because Firestore's implicit `order_by` tiebreak is the
+      document id, so a limited query pages the same way in both. The file store *inherits* the
+      in-memory one rather than reimplementing it, so `due` and `all` cannot drift from the
+      semantics the graph is tested against. What this buys immediately: the 7-stage graph can
+      be written and run end to end with no database, no emulator, no cloud project and no
+      network — the same argument that put `SnapshotPageSource` behind the wiki reads. Rejected:
+      SQLite, which contradicts the schema-flexibility rule above for no gain a JSON document
+      store does not already give at this scale
+
+- [x] **Drop every test count too** — Aug 29, 2026. Nine decision-log entries carried a running
+      tally (`31 tests`, `96 tests pass (was 82)`, `198 tests, 173 of them bare`) and `AGENTS.md`
+      and `README.md` each restated a current one. Two of the `AGENTS.md` figures were already
+      stale by two commits, in a file whose whole job is to be current. The tally is the same
+      mistake as the claim count above in a different costume: a number written into prose is a
+      number no command maintains, correct for one commit and quietly wrong after. It is also
+      unverifiable in retrospect — nobody can re-measure what the suite held on Aug 23, so the
+      figure in a dated entry is an assertion the repo cannot back. What the entries were
+      actually claiming is that the gate passed and the core still ran bare, and that survives
+      the numbers being gone. `AGENTS.md` §5 now forbids restating a count anywhere; the command
+      reports it.
+
+- [x] **The ledger tool reports outcomes; it does not write the schedule** — Aug 29, 2026.
+      The last of the four tool signatures, and the one where the design question was real.
+      Written as a passthrough over `ClaimStore.put` it would have been ten lines — and it would
+      have handed the model `next_check_at`, `check_interval` and `confidence`, which are the
+      three numbers the deterministic core exists to compute. A model could then schedule a
+      claim for never or assert 0.95 behind one blog post, and the decay ladder on camera would
+      be model output wearing the ladder's clothes. So the write side takes an *outcome* —
+      `unchanged`, `changed`, `unresolved`, `exhausted` — and calls the matching `Claim`
+      transition; `record_research` takes urls and excerpts and looks the tier up against the
+      profile's own table rather than accepting one; and `track_claim` does not let the model
+      name the claim, because the audit stage re-reads the same eight pages every cycle and a
+      model-chosen id would be phrased differently each time — the ledger would double in size
+      per run rather than recognise what it already tracks. (It first *derived* the id from page
+      + anchor, which was wrong for a different reason; see the Aug 29 entry below.) The rule is
+      one line: **the model reports what it found, the core decides what that means.** Pinned by a test that asserts no write method has a
+      schedule-shaped parameter at all.
+
+      **Six operations, not the two this was scoped as.** Due claims and write-back were the
+      two named when the ledger was still a design; a claims collection that starts empty
+      (`seed-plan.md` §3) also has to be *filled*, so the audit stage needs `track_claim`, evidence has to arrive
+      without the model setting tiers so research needs `record_research`, the fan-out stage has
+      to record `ripple_targets`, and `read_claim` is how those targets are followed. Each one is
+      storage plus a core call; none of them decides anything.
+
+      **Two gaps this exposed, both left open deliberately.** `ClaimStatus` has `DRAFTED` and
+      `APPLIED` but `schema.py` has no transition that produces either, so the draft and publish
+      stages have nothing to call — that is a core change and belongs to whoever writes those
+      nodes, not to the tool. And because the claim id hashes the anchor, an edit that rewrites
+      the anchor yields a new id on the next audit, orphaning the old record; closing it needs
+      the publish-stage transition that does not exist yet, which is the same gap.
+
+      *Both were closed the same day, and not the way this entry expected.* `DRAFTED` and
+      `APPLIED` were deleted rather than given transitions, and the id stopped being derived at
+      all — the two entries below.
+
+- [x] **Two claim statuses, not six** — Aug 29, 2026. `ClaimStatus` was `verified`, `stale`,
+      `drafted`, `applied`, `unresolved`, `exhausted`, and the ledger tool's gaps exposed why
+      that was wrong: no transition produced `drafted` or `applied`, `build_demo_state.py` was
+      already reaching past the state machine with `replace(claim, status=DRAFTED)` to fake one,
+      and `auto_appliable` gated on a value nothing could reach. The six were answering three
+      different questions on one field — what the agent concluded, where an edit sits in the
+      publish pipeline, and how old the data is. Only the first belongs on the claim. So:
+      **`verified` and `unresolved`, answering "does a human need to look at this".** A drafted
+      edit awaiting the gate is `unresolved` for the same reason a conflict is — both are rows
+      in the review queue — and `contradicts[]` distinguishes them, derived rather than stored.
+      Where an edit sits belongs to the queue. Staleness is `now >= next_check_at`, a comparison
+      rather than a state, and one run resolves it back to one of the two.
+
+      **Three consequences fell out, and two of them deleted code.** `exhausted` collapsed into
+      `unchanged`: if three rounds of research found nothing, there is no new data, which is no
+      change — and the record still distinguishes "confirmed" from "found nothing", because the
+      confirmed one gained sources. A rejected draft is also `unchanged`, since the reviewer
+      keeping the existing text means the page stands; there is no separate `rejected`
+      transition to drift from it, and the doubling is right because a human just affirmed the
+      claim. The tool's outcomes went from four to three.
+
+      **The cost, accepted knowingly:** treating "confirmed" and "nothing found" alike is
+      exactly the rot the parked *confirmed vs unchallenged* item below describes — a claim
+      nobody can source has its interval doubled like one that was corroborated, so it is asked
+      about ever less often. That item is now the mitigation for a decision rather than a
+      refinement of one. `DOCUMENT_VERSION` went to 2; a v1 ledger is refused rather than
+      migrated, because `drafted` and `applied` have no honest mapping onto the new pair.
+
+- [x] **Claim ids are a counter, not a hash of the claim** — Aug 29, 2026. The ledger tool
+      first derived the id from page + anchor, so that re-auditing a page would recognise a
+      claim it already tracked rather than proposing a duplicate. That solved the duplicate and
+      created a worse one: an applied edit rewrites the anchor by definition, so the record
+      would be re-keyed on every successful edit — and `ripple_targets` holds claim ids as
+      strings on *other* claims, so each re-key would silently dangle every reference to it. A
+      cascade the fan-out stage recorded would quietly stop working, with no error anywhere.
+
+      **So identity is allocated and never recomputed.** `ClaimStore.next_claim_id` hands out
+      `claim-0001`, `claim-0002`, … — max-plus-one rather than count-plus-one, so a removed
+      claim never frees its number for a different claim to inherit. Recognising an existing
+      claim moved to a lookup: `for_page(page)` plus an exact anchor match. That is one equality
+      filter, which Firestore serves from its automatic single-field index, so it adds no
+      composite index and nothing the emulator would fail to catch. The anchor is *where* a
+      claim sits; the id is *what it is*; conflating them was the bug.
+
+      The alternative considered and rejected was retiring the old record and inserting a fresh
+      one on every applied edit. It loses the sources that justified the edit, so a claim would
+      show 0.0 confidence in the ledger view immediately after the agent applied a well-cited
+      change to it — on camera, right after the strongest beat — and it resets the interval to
+      the wave seed, which is backwards for a claim that just proved it moves.
+
+      **What this does not fix:** a *third-party* edit. If a human rewrites the anchor on the
+      wiki, our publish stage never runs, the lookup misses and the next audit tracks a
+      duplicate. Closing that means the audit stage comparing proposed claims against the claims
+      already on that page and judging which are the same — a matching decision for the model,
+      not an id scheme, and it belongs to whoever writes the audit node.
+
+- [x] **Assume a single editor while the agent runs, and build the review queue as a git diff**
+      — Aug 29, 2026. Two decisions, and the first is what makes the second simple.
+
+      **The assumption:** nobody else edits a page between the read that drafts an edit and the
+      write that publishes it. This is a hackathon assumption, taken knowingly, and it is now an
+      invariant in `AGENTS.md` §2 so it is not silently relied on. It removes an entire class of
+      work: git's three-way merge machinery exists because two branches edit a common ancestor
+      concurrently, and with one editor the page at publish time *is* the base, so there is no
+      third side, no conflict markers, and no "keep ours / keep theirs" row in the queue. It
+      also means "publish all approved edits" needs no atomicity story — MediaWiki has no
+      transaction across pages, and under this assumption it does not need one. The guard
+      survives the assumption: `WikiWrite` still sends `basetimestamp` and still returns
+      `conflict` as a value, so a real concurrent edit fails loudly instead of overwriting
+      someone. What was dropped is the *flow*, not the safety. It belongs in the submission
+      description, because a judge editing the wiki mid-run is exactly how it gets found.
+
+      **The diff:** `core/wiki/diff.py`, stdlib `difflib`, pure. Line-level first, then
+      word-level inside a changed pair — what git and MediaWiki's own diff view both do. The
+      rows are computed in the core and shipped in the payload rather than derived in the
+      browser, for the same reason every other number on screen is: what a reviewer sees and
+      what a test asserts cannot be allowed to disagree. `FE/check.js` now verifies the shipped
+      rows rebuild `before` and `after` byte for byte — a diff that cannot round-trip its own
+      input is not evidence anyone can approve on.
+
+      **Two bugs the tests caught while writing it,** both the kind that would have shipped
+      looking fine: whitespace attached to the word before it made the last word of a line read
+      as different from the same word mid-line, so untouched words came back highlighted; and
+      the similarity floor that separates "edited line" from "different line" was measured over
+      a token stream containing whitespace, so two unrelated sentences scored 0.33 on their
+      shared spaces alone and cleared a 0.3 floor. A floor that never fires is not a floor.
+
+- [x] **Step 1 of a run: the deterministic baseline pass** — Aug 29, 2026. The ledger now has
+      two collections. `sections` holds what each monitored page says, read verbatim and split
+      by `split_sections`; `claims` holds what the agent tracks. Ingest is
+      `backend/agent/ingest.py`, driven by `scripts/ingest_baseline.py`, and it runs against
+      `snapshots/` offline or against our own MediaWiki with `--live` — the same call either
+      way, because both satisfy `PageSource`. Measured on the committed corpus: **12 pages, 284
+      sections**, and a second run reports every page `unchanged`. Pointed at the `current`
+      corpus instead — two years of real drift — it reports the drift per page rather than
+      being told about it.
+
+      **Why the baseline is not claims.** Extracting atomic claims is a judgement about what a
+      page asserts, so it needs the model, and there is still no Gemini adapter in the repo —
+      the perimeter was proven by ad-hoc benchmark runs and nothing was committed. *(Both halves
+      of that were overtaken later the same day: `agent/model.py` landed, and the live read now
+      requires a key. Offline against `snapshots/` it still needs neither.)* Recording
+      what a page *says* needs nothing. Splitting them means step 1 works today, and claims get
+      proposed against a baseline that
+      already exists instead of being the only thing the ledger holds. It also settles the Audit
+      ambiguity noted below: baseline-fill and due-claim selection are two passes, not one
+      stage doing double duty.
+
+      **Two rules the tests pin.** A page's sections are replaced as a set, never merged —
+      indices are only meaningful relative to each other, so inserting a heading at the top
+      renumbers everything below and a merge would file one section's text under another's
+      index, silently. And a missing page is a result while a transport failure propagates:
+      the same narrow-catching rule as the read tool, because swallowing a timeout turns an
+      outage into an empty baseline.
+
+      `WikiProfile.pages` closes the "no page list" gap — the agent is not a crawler, and which
+      pages we maintain is config, sitting beside `section_vocabulary` where the rest of the
+      per-wiki decisions live.
+
+- [x] **The wiki is an external service, including our own** — Aug 29, 2026. The agent had an
+      unauthenticated path to the instance it writes to, purely because we happen to own it.
+      That is the wrong shape: every other perimeter in this system is a configured endpoint
+      plus a credential that fails closed, and the one we control was the exception. Now
+      `local_wiki()` carries `requires_key=True`, both adapters refuse to construct without
+      `MEDIAWIKI_API_KEY`, `setup_wiki.sh` generates it, and it rides an `X-API-Key` header —
+      not a query parameter, because a URL is logged by every proxy it passes.
+
+      **What is real and what is not.** MediaWiki ignores the header; the gate is ours. What
+      the change actually buys is that the endpoint is configured, the credential is required,
+      the failure happens at construction rather than as an unauthorised request mid-run, and
+      the secret flows through `.env` and Secret Manager like every other. Pointing the agent
+      at a wiki that genuinely gates reads becomes a value in `.env` rather than a code change.
+      The upgrade to real enforcement is MediaWiki's own — `$wgGroupPermissions['*']['read'] =
+      false` plus the bot login the writer already performs — and it is recorded in
+      `AGENTS.md` §2 so nobody mistakes the dummy for authentication.
+
+      `requires_key` describes the *endpoint*, not a preference, so Fandom's genuinely open API
+      stays keyless and is tested not to start sending a credential it never asked for. The
+      `snapshots/` path needs no key at all: it is a committed corpus, not a service, which is
+      why the whole baseline can still be built offline.
+
+- [x] **A failed search is discarded, not recorded** — Aug 29, 2026. Found by running the
+      research path end to end after the status collapse: a cassette miss returned an errored
+      payload, `sources_in` converted it to zero sources exactly as documented, and downstream
+      that is indistinguishable from "retrieval found nothing" — which now routes to
+      `unchanged` and *doubles* the recheck interval. So an expired Parallel key would make the
+      agent check every affected claim progressively less often, silently, while looking
+      healthy. The old contract ("a failed search is a claim with no new evidence, not a crash")
+      was correct when `exhausted` was its own status and wrong the moment that collapsed;
+      `sources_in` now raises instead. Nothing about a failed search reaches the ledger: no
+      round spent, schedule untouched, claim comes due again. A search that ran and found
+      nothing still spends a round — that is a real answer about the world, and the two cases
+      stay distinguishable in the payload.
+
+- [x] **Classify runs, on real Gemini** — Aug 29, 2026. There was no model adapter in the repo
+      at all: the perimeter had been proven by ad-hoc benchmark runs in August and nothing was
+      committed, so every stage needing a judgement was a design. Two modules close that.
+
+      **`agent/model.py` — the Gemini perimeter**, shaped like the search one: a request is a
+      system instruction, a prompt and a JSON schema; `ModelSource` is the protocol; `GeminiModel`
+      is live over `google-genai` on ADC; `RecordedModel` replays a cassette. Structured output
+      rather than prose parsed afterwards, `temperature=0` because the ladder is filmed, AFC
+      disabled because the stages call tools themselves and a model invoking one mid-judgement
+      would be a second unlogged control path. The cassette key covers instruction + prompt +
+      schema, so an edited prompt *misses* rather than replaying the old prompt's answer — the
+      failure a deterministic fallback is most likely to hide, and the one that looks like
+      everything working.
+
+      **`agent/classify.py` — the stage and its prompt.** The four rules from `AGENTS.md` §7 are
+      now text in `SYSTEM` rather than a specification: precedence order stated out loud, "an
+      absence on the page is not a contradiction" in capitals, the subject including its variant,
+      and filter-then-classify as two ordered steps. The output surface is deliberately tiny —
+      one bucket, plus a note and two urls when conflicting — and every number that follows is
+      computed by `decay.py` from that one word, so a bad judgement produces a wrong bucket and
+      never a corrupted schedule. A `Verdict` has no field that could carry an interval, and a
+      test asserts it.
+
+      **Measured, not asserted.** `scripts/classify_once.py` runs the built half of the pipeline
+      end to end — baseline → claim → replayed search → classify → ledger write. Against real
+      Gemini on the lead beat it returns `new`: *"Channing Tatum will reprise his role as Gambit
+      in Avengers: Doomsday, which is not currently mentioned in the section."* That is rule 2
+      working — the page does not contradict the fact, it lacks it — and it is the bucket the
+      demo depends on. Replaying the cassette gives the identical verdict with no key and no
+      network.
+
+      **The gap this leaves open, stated plainly.** The benchmark behind those four rules is
+      still not in the repo, so the rules are pinned by asserting their presence in `SYSTEM`
+      rather than by re-measuring their effect — a prompt edit can be caught for *dropping* a
+      rule but not for weakening one. Rebuilding it is now the last engineering item in Phase 1
+      below, with the case set and the two run modes written out.
+
+- [x] **Fan-out moves after the publish gate** — Aug 29, 2026. It sat between Classify and Draft
+      since Aug 22, so a *new*-bucket classification widened the run and one Draft pass covered a
+      claim and everything it implicated. That ordering assumes the agent's proposal is what
+      ripples. It is not: what ripples is what the wiki ends up saying, and the gate is allowed to
+      change that — reject (dependents researched and drafted for a fact that never landed),
+      hand-edit (dependents that overstate a premise the reviewer softened, caught by nothing,
+      because Verify only reads the page it is editing), or a Verify bounce that redrafts the
+      trunk after the fan-out already fired. Reading the published revision removes all three by
+      construction. It also un-inverts the queue, where approving a dependent used to mean
+      approving a premise sitting unapproved two cards above.
+
+      **Three structural consequences, all recorded.** The graph gains a third backward edge,
+      `Fan-out → Research`, so §6's diagram, the "two backward edges" count everywhere it
+      appeared, and `AGENTS.md` §7's construction rule all change. The run pauses at Publish twice
+      — the same `request_input` machinery, used once more. And the one-hop rule stops being a
+      cost control and becomes the termination argument: `Fan-out → Research` is a real cycle, and
+      a fanned-in claim not fanning out again is the only thing that breaks it, so the cap belongs
+      in the node rather than in a config.
+
+      **Nothing built has to change**, which is why this is cheap now and would not have been in a
+      week: the graph is the one unbuilt piece, `link_ripple_targets` never cared when it was
+      called, and `decay.next_interval(..., changed=True)` still supplies the pull-forward. What
+      does change is the video: beat 2 (§9) now shows the approval as the visible cause of the
+      cascade, which is a better shot than the one it replaces.
 
 ### Phase 1 — local; nothing in the cloud has to exist
 
@@ -929,35 +1359,44 @@ agent to film, not because it ranks low: it is both a hard requirement (§2) and
 rush, so everything above it exists to serve it, and the two *if time permits* items are what
 gets cut to protect it.
 
-- [ ] Define the last ADK tool signature — **ledger read/write**. The other three are done and
-      set the pattern: the profile is bound at construction and never appears in a signature,
-      every model-facing argument is JSON-expressible, domain errors come back as values while
-      transport errors raise, and each has a live source and a deterministic replay behind one
-      protocol (`AGENTS.md` §7). This one is the seam Firestore lands behind, so its whole job is
-      to be defined *before* the graph is written — the alternative is rewriting every node that
-      touches state once persistence arrives. Two operations the graph actually needs: claims due
-      at a given time (the audit stage's input), and a claim written back after a transition. The
-      pure core already does the deciding — `Claim.is_due`, and the transitions that return new
-      records — so this is storage and nothing else; no logic may migrate into it. The
-      deterministic replay here is an in-memory store, which makes the whole graph runnable with
-      no database at all
+- [x] Define the last ADK tool signature — **the ledger tool** — Aug 29, 2026.
+      `backend/agent/tools/ledger.py`, following the pattern the other three set: the profile is
+      bound at construction and never appears in a signature, every model-facing argument is
+      JSON-expressible, domain errors come back as values while transport errors raise
+      (`AGENTS.md` §7). Six operations rather than the two this item first named — see the
+      decision-log entry above for why the count grew and what the write side refuses to accept.
+      The deterministic path is the in-memory store, so the whole graph is runnable with no
+      database at all; the Firestore adapter lands behind the same protocol without a node
+      noticing
 
-- [ ] Build the 7-stage ADK graph — nodes, fan-out, the two backward edges, and the publish gate as
-      the HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
+- [ ] Build the 7-stage ADK graph — nodes, the three backward edges, and the publish gate as the
+      HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
       `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
       assigning `ctx.route`, and the publish gate goes through `google.adk.tools.request_input`
-      — all three traps are in `AGENTS.md` §6. The fan-out reschedule rule needs no core change:
-      `decay.next_interval(..., changed=True)` already exists, so the node just calls it for every
-      claim it fanned in
-- [ ] Build the ledger persistence adapter — Firestore, importing *from* the pure core. Runs
-      against the emulator locally, which needs a JRE plus
+      — all three traps are in `AGENTS.md` §6. Fan-out is the last node, not a middle one, and its
+      backward edge to Research means the run pauses at the gate twice; the node must refuse to
+      fan out a claim that was already fanned in, which is what terminates the cycle. The
+      reschedule rule needs no core change: `decay.next_interval(..., changed=True)` already
+      exists, so the node just calls it for every claim it named
+- [x] Build the ledger store, **locally first** — Aug 29, 2026. `core/ledger/documents.py` owns
+      the stored shape and `core/ledger/store.py` the `ClaimStore` protocol plus two
+      implementations: `InMemoryClaimStore` (the deterministic path, so the graph runs with no
+      database at all) and `JsonFileClaimStore` (the local database, atomic writes, one file of
+      the exact documents Firestore will hold). Both are pure — filesystem only, like
+      `snapshots.py` — and their tests run bare. See the decision-log entry above for what
+      the two portability guards are and why they are guards rather than preferences
+- [ ] Port the store to Firestore — an adapter at the perimeter importing `to_document` /
+      `from_document` and nothing else, so only the transport is new. `google-cloud-firestore`
+      is not yet a dependency. Runs against the emulator locally, which needs a JRE plus
       `gcloud components install cloud-firestore-emulator` — neither present as of Aug 23, 2026.
-      Keep the queries simple (filter and order on `next_check_at`): the emulator does not enforce
-      composite-index requirements, so a query that passes locally can still fail deployed
-- [ ] **Rework `FE/` for the three buckets** — the queue is approve/reject over drafted edits
-      today; it needs the bucket split, a *still true* view that shows confirmations rather
-      than hiding them, a side-by-side conflict view, and an editable draft. `build_demo_state.py`
-      has to emit the bucket per claim. This is rework of a passing component, so re-run
+      The emulator does not enforce composite-index requirements, so the due query stays on
+      `next_check_at` alone (`AGENTS.md` §6)
+- [ ] **Rework `FE/` for the three buckets** — the queue already renders a drafted edit as a
+      git-style diff and takes approve/reject over it; what is missing is the bucket split, a
+      *still true* view that shows confirmations rather than hiding them, a side-by-side conflict
+      view, and an editable draft. Since fan-out runs after the gate (§6), an approval also *adds*
+      cards, so the queue has to handle growing and not only shrinking. `build_demo_state.py` has
+      to emit the bucket per claim. This is rework of a passing component, so re-run
       `node FE/check.js`
 - [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
       depends on it. Not a decision, a check: if the week is quiet, widen the research
@@ -977,14 +1416,48 @@ gets cut to protect it.
 - [ ] *If time permits* — **an explicit retrieval-sufficiency criterion.** Gives the "retry: thin
       retrieval" edge a trigger anyone can implement: N sources at or above the claim's tier floor,
       and for a moving claim at least one published after its `as_of`. Fails → broaden the objective
-      and retry, bounded by `research_rounds` (already capped at 3). Deterministic, so it belongs in
-      the pure core beside the tier table. Satisfies §4's requirement 5, which nothing currently does
+      and retry, bounded by `research_rounds` — whose ceiling exists in the core
+      (`MAX_RESEARCH_ROUNDS`, `Claim.budget_spent`) but is enforced nowhere, since
+      `record_research` spends a round without checking it. This is the natural place to close
+      that. Deterministic, so it belongs in the pure core beside the tier table. Satisfies §4's
+      requirement 5, which nothing currently does
 - [ ] *If time permits* — **split *still true* into confirmed vs unchallenged.** A qualifier inside
       the bucket, not a fourth bucket, so the review split stays three-way. Confirmed = retrieval
       corroborated it; unchallenged = retrieval found nothing against it. Treating them alike is how
       the ledger rots quietly: absence of evidence bumps `last_verified` and doubles the interval, so
       a claim no one can source gets checked ever less often. Fix lands in `decay.py` — unchallenged
       grows the interval by a smaller factor, or not at all
+- [ ] **Rebuild the classify benchmark, as committed test cases.** The four rules in
+      `classify.SYSTEM` each came from a measurement — precedence order took the precision case
+      from 0/3 to 3/3, open-world phrasing moved every model from 50% to ≥88% — and the harness
+      that produced those numbers was never committed. `tests/test_classify.py` asserts each
+      rule is *present* in the prompt, which catches deleting one and cannot catch weakening
+      one: a reworded prompt could drop the precision case back to 0/3 and every test would
+      still pass. Nothing else in the repo protects a measured result this specific.
+
+      **Shape it as cases, not as prose.** One case is a claim, a section, a search payload and
+      the bucket it must land in — the same four inputs `Classifier.classify` already takes, so
+      a case is data rather than a new harness. Four are already specified by the documents that
+      recorded the failures: the variant-vs-prime precision case (`seed-plan.md` §4.3, the one
+      referred to as benchmark case #4), an absence the page simply lacks that must come back
+      `new` and not `conflicting`, a genuine two-source disagreement that must come back
+      `conflicting` with both sides named, and a claim the page already states that must come
+      back `still_true`. A fifth worth adding is a closed-world phrasing of an existing case,
+      asserted to fail, so the ledger's positive-assertion rule is measured rather than trusted.
+
+      **Two modes, and both are the point.** Against the cassette it is deterministic, free and
+      belongs in the normal gate — a prompt edit that changes a verdict fails a test. With
+      `--live` it re-measures against Gemini and reports a pass rate, which is the only thing
+      that can tell you whether a rewrite helped or hurt. Live cannot be in the default suite:
+      it needs ADC, it spends credits, and a non-deterministic assertion in the gate is worse
+      than no assertion.
+
+      **Ordered here deliberately.** It is engineering rather than writing, so it sits above the
+      two writing items — but below the video, because it ships no behaviour a judge will see.
+      If the week collapses, this is cuttable and the video is not. It is on this list rather
+      than in Phase 2 because a prompt is far more likely to be tuned in the last week than
+      after the deploy, which is exactly when the safety net matters most.
+
 - [ ] **Write the shot list** — the §9 beats as an ordered recording plan: which view is on
       screen, what happens on it, how many seconds it gets. Three minutes is 180 seconds and the
       beats do not divide evenly, so this is where the cuts get decided rather than discovered in
@@ -1034,14 +1507,16 @@ first and the metered one comes late. The procedure itself is in `README.md`; th
       visitor. Deadline **Sept 7, 2:00 PM PT** (= 5 PM ET, §2). This is the only submission
       step that ever needed the deploy
 
-**15 days left** as of Aug 23, 2026. Both vendor perimeters are now built and proven against
-the real thing rather than against a design: Parallel search has made a live call, and the wiki
-adapters read and write a real MediaWiki that is up and seeded. The deterministic core, the seed
-corpus, the frontend and the service shell were already real. **What remains is the graph that
-joins them** — seven stages, two backward edges, a fan-out and a human gate — plus the video,
-and then the deploy.
+**9 days left** as of Aug 29, 2026. Both vendor perimeters are built and proven against the real
+thing rather than against a design: Parallel search has made a live call, Gemini classifies a real
+claim through `agent/classify.py`, and the wiki adapters read and write a real MediaWiki that is
+up and seeded. The deterministic core, the seed corpus, the frontend, the service shell and a
+persisting ledger are real, and the baseline pass fills that ledger with no key and no model call.
+**What remains is the graph that joins them** — seven stages, three backward edges and a human
+gate — plus the two stages that still need a model (claim proposal and Draft) and the `Draft`
+record they write to, then the video, then the deploy.
 
-That is a narrower risk than it was this morning, and a different kind. Nothing left depends on
+That is a narrower risk than it was a week ago, and a different kind. Nothing left depends on
 an unknown API or an unproven vendor; every external surface has been called and measured, and
 each one has a deterministic replay behind it, so the graph can be built and tested with no key,
 no network and no container. The risk is now assembly, which is the kind you can work through in
@@ -1176,8 +1651,9 @@ place. Raw script: `bench_classify.py` (scratchpad, not committed).
 *nodes* (`BaseAgent` now subclasses `BaseNode`). `NodeInterruptedError` exists to pause a
 workflow for human-in-the-loop input.
 
-This is what makes §6 buildable as designed rather than a diagram: the 7-stage flow with two
-backward edges maps onto a workflow graph, and the publish approval gate onto HITL. Nothing
+This is what makes §6 buildable as designed rather than a diagram: the 7-stage flow with three
+backward edges maps onto a workflow graph, and the publish approval gate onto HITL — twice per
+run, since fan-out follows it. Nothing
 about the product changed — see `AGENTS.md` §7 for the construction rule.
 
 **Low-code path rejected on evidence.** The "Agent Builder Guide" link resolves to Dialogflow

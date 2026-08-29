@@ -4,7 +4,7 @@ The hosted project URL. Three views over one JSON document:
 
 | View | Route | What it shows |
 |---|---|---|
-| Review queue | `#/queue` | Each drafted edit with its diff, rationale, citations and confidence — the publish gate, with approve/reject |
+| Review queue | `#/queue` | Each drafted edit as a git-style diff — removed lines red, added green, changed words marked — with its rationale, citations and confidence. The publish gate, with approve/reject |
 | Claim ledger | `#/ledger` | Every tracked claim: status, wave, confidence, recheck interval and next check |
 | Wiki pages | `#/wiki/<slug>` | The seeded page as a reader sees it, with each claim's anchor highlighted in place |
 
@@ -56,7 +56,10 @@ Node is used to *check* the FE, never to build or serve it — the container shi
 as-is. The checks are counts and equalities, not eyeballing (`CLAUDE.md` §5): balanced block
 tags, no wikitext leaking into rendered output, every claim anchor highlighted exactly once,
 one queue card per drafted edit, every element `app.js` looks up present in `index.html`,
-every class used actually styled, and no external requests.
+every class used actually styled, and no external requests. The diff rows get their own check:
+concatenating the context and removed rows must reproduce `before` exactly and the context and
+added rows `after`, because a diff that cannot round-trip its own input is not something a
+reviewer can approve on.
 
 ## Files
 
@@ -93,4 +96,12 @@ external asset of any kind.
   own `?diff=` views. Once the seeded instance is up, link through to it rather than growing
   this renderer.
 - **Approve/reject is in-memory.** It marks the card and nothing else. The publish stage that
-  turns an approval into `action=edit&section=N` is not built yet.
+  turns an approval into `action=edit&section=N` is not built yet. Once it is, an approval will
+  also *add* cards: fan-out runs after the gate (`summary.md` §6), so approving an edit is what
+  queues the claims it implicates on other pages.
+- **The diff is two-way, and there is no merge UI.** The project assumes a single editor while
+  the agent runs (`AGENTS.md` §2), so the page at publish time is the revision the draft was
+  taken against and a text conflict cannot arise. There are no conflict markers and no
+  keep-ours/keep-theirs control; if the assumption is violated, the write is refused by
+  `basetimestamp` and the claim is re-drafted. The only conflict a reviewer resolves is the
+  semantic one — two sources disagreeing — and that is a choice between readings, not text.
