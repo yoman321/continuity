@@ -25,10 +25,11 @@ instruction and its own schema, that never sees the sources or the objective —
 texts. Withholding the motive is the point: a reader told why the edit was made will explain
 the edit rather than examine it.
 
-**And it is not Verify.** Verify reads the drafted section against the *rest of the page*, for
-a contradiction the edit introduced elsewhere; this reads `before` against `after` of the same
-anchor, for what the edit did to what was already there. Verify cannot catch the appended
-negation above — the page reads as coherent prose afterwards, because it is.
+**And it feeds Verify rather than duplicating it.** Since Aug 30, 2026 Verify is the human
+gate and holds no model call (`AGENTS.md` §2), so this stage's verdict and flags are most of
+what that screen puts in front of a reviewer. Nothing now reads the drafted edit against the
+*rest of the page* — that check was Verify's and was cut with it; the accepted cost is recorded
+in `summary.md` §6.
 
 **The deterministic fallback is the textual shape** (`CLAUDE.md` §3, `AGENTS.md` §7). When the
 model is unavailable the stage degrades to `diff.shape()` and says so in the flags, so a run

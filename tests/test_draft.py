@@ -29,7 +29,8 @@ from backend.agent.draft import (
     parse,
 )
 from backend.agent.model import ModelError, ModelRequest
-from backend.core.ledger.schema import Claim, ClaimKind, Source, Wave
+from backend.core.ledger.decay import Wave
+from backend.core.ledger.schema import Claim, ClaimKind, Source
 from backend.core.profile import MCU_FANDOM
 from backend.core.wiki import APPEND, MODIFY
 

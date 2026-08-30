@@ -209,13 +209,13 @@ the integration must be present in your code."*
 
 ## 6. Architecture
 
-### Control flow (8 stages, 3 backward edges)
+### Control flow (8 stages, 2 backward edges)
 
 ```
 Audit ──→ Research ──→ Classify ──→ Draft ──→ Diff ──→ Verify ──→ Publish ──→ Fan-out
-          ▲  ▲            │           ▲                  │                       │
-          │  └────────────┘           └──────────────────┘                       │
-          │    thin retrieval           introduced conflict                      │
+          ▲  ▲            │                            (human)    (button)       │
+          │  └────────────┘                                                      │
+          │    thin retrieval                                                    │
           └──────────────────────────────────────────────────────────────────────┘
                one hop, capped, and only for an edit a human approved
 ```
@@ -227,8 +227,8 @@ Audit ──→ Research ──→ Classify ──→ Draft ──→ Diff ─�
 | **Classify** | Gemini reads the excerpts against the page and sorts each claim: still true / new / conflicting |
 | **Draft** | a section-level edit, rendered as a diff, with citations and a confidence score |
 | **Diff** | reads the edit for what it did to the *ideas* already on the page — kept, added, dropped or reversed |
-| **Verify** | re-read the drafted section for a contradiction the edit itself introduced |
-| **Publish** | the human gate — approve, hand-edit or reject. The only stage that writes to the wiki |
+| **Verify** | the human gate. Every section with a diff is a card: the reviewer reads it beside the Diff stage's flags, edits the text in place if they want to, and accepts or rejects. Accepting writes nothing. No model call |
+| **Publish** | the write, and the second gate. One button over the accepted set, unlocked only once every card has a decision, so the run can still be discarded whole. The API then applies each approved text with `action=edit&section=N`. The only stage that touches the wiki |
 | **Fan-out** | takes the edit that was *actually applied* and expands it into the claims it implicates on other pages |
 
 **Before Audit, and outside the graph:** the baseline ingest reads every page in
@@ -237,14 +237,16 @@ call and no judgement — so it is a pre-pass rather than a stage, and everythin
 against a baseline that already exists. Keeping it separate is what stops Audit doing double
 duty; the reasoning is under the claim ledger below.
 
-Diff adds no backward edge. What it finds goes to the reviewer as a flag on the card, not back
-to Draft for another attempt: a second automatic-retry edge would double the termination surface
-the one-hop rule already has to carry, and an overreach is exactly the kind of thing a person
-should see rather than have quietly re-attempted.
+Neither Diff nor Verify adds a backward edge, so **Draft has no automatic retry path at all.**
+What Diff finds arrives at Verify as a flag on the card; what Verify decides, a person types.
+Both are cases where the fix is a human reading the edit rather than a second machine attempt,
+and an automatic-retry edge into Draft would double the termination surface the one-hop fan-out
+rule already has to carry. This is the Aug 30, 2026 simplification recorded below.
 
-The three backward edges are where the agentic behaviour lives — the first two because a
-stage's output decides whether the next one runs, and Fan-out because it decides how much of
-the wiki this run touches at all. The run ends at Fan-out; the next tick re-enters at Audit.
+The two backward edges are where the agentic behaviour lives — `Classify → Research` because a
+stage's output decides whether the next one runs, and `Fan-out → Research` because it decides
+how much of the wiki this run touches at all. The run ends at Fan-out; the next tick re-enters
+at Audit.
 
 ### The classify stage — decided Aug 22, 2026
 
@@ -397,17 +399,16 @@ classification bucket — only the two texts. A reader handed the motive explain
 reader handed only the before and after examines it. The bucket comes back in afterwards, in
 the deterministic core, when the verdict is held against it.
 
-**And it is not Verify.** Verify reads the drafted section against the rest of the page, for a
-contradiction the edit introduced *elsewhere*; this reads `before` against `after` of the same
-anchor, for what the edit did to what was already there. Verify cannot catch the appended
-negation above, because afterwards the page reads as perfectly coherent prose — it is coherent,
-and it is wrong.
+**And it is not Verify.** Since Aug 30, 2026 Verify is the human gate and holds no model call at
+all, so what it puts on screen is largely *this* stage's output — the per-assertion verdict and
+its flags, rendered beside the diff. Diff is the last reading the machine does; Verify is where
+a person acts on it. The page-coherence check Verify used to be is gone, and what it would have
+caught is named as an accepted gap in that decision.
 
 **What it does when it finds one:** flags the card, and the run continues to the gate. It gets
-no backward edge. Draft already has one automatic retry path, from Verify, and a second would
-double the termination surface that the one-hop fan-out rule already has to carry; more to the
-point an overreach is precisely the thing a person should see rather than have quietly
-re-attempted on their behalf.
+no backward edge, and after this stage nothing else does either. An overreach is precisely the
+thing a person should see rather than have quietly re-attempted on their behalf — and the
+reviewer can now fix it in place at Verify rather than wait for a second draft.
 
 **The fallback is the floor it sits on** (`CLAUDE.md` §3). With no model — expired credential,
 no quota, no network — the stage degrades to the textual shape and marks the card `text_only`,
@@ -426,18 +427,16 @@ on `Phase Six`, and on the film page's appearances context (`seed-plan.md` §4.1
 three pages. Fan-out is the stage that turns an *applied* edit into the full set of claims it
 implicates, and hands that widened set back to Research.
 
-**It runs after the publish gate, not before it — corrected Aug 29, 2026.** The original design
+**It runs after the gate and the write, not before them — corrected Aug 29, 2026.** The original design
 put Fan-out between Classify and Draft, so a *new*-bucket classification widened the run and one
 Draft pass covered the trunk claim and its dependents together. That is wrong about what causes a
 ripple. What implicates other pages is not what the agent proposed; it is what the wiki now says,
-and the two differ in three ordinary ways. The reviewer rejects, and the run has already spent
-research and drafts on the dependents of a fact that never landed. The reviewer hand-edits — the
-gate accepts that as a third outcome, so "cast in *Doomsday*" can leave the queue as "in talks for
-*Doomsday*" — and every dependent drafted from the pre-gate text now overstates its premise, which
-no later stage catches because Verify only reads the page it is editing. Or Verify sends the draft
-back and the text that propagates changes underneath the fan-out that already happened. Reading
-the published revision instead of the proposal removes all three by construction rather than by
-another check.
+and the two differ in two ordinary ways. The reviewer rejects, and the run has already spent
+research and drafts on the dependents of a fact that never landed. The reviewer hand-edits — which
+since Aug 30, 2026 is the whole purpose of the Verify gate, so "cast in *Doomsday*" can leave the
+queue as "in talks for *Doomsday*" — and every dependent drafted from the pre-gate text now
+overstates its premise, which nothing downstream catches. Reading the published revision instead
+of the proposal removes both by construction rather than by another check.
 
 It also fixes the gate itself. Under the old order a reviewer met the trunk edit and its
 dependents in one queue, and approving a dependent meant approving a premise still sitting
@@ -469,7 +468,7 @@ do not let a fanned-in claim fan out again in the same run. One hop, not transit
 
 That cap now carries a second job. `Fan-out → Research` is a genuine cycle in the graph, and the
 non-transitive rule is the only thing that breaks it: a fanned-in claim runs Research → Classify →
-Draft → Verify → Publish and stops there. Before the move the rule was a cost control; now
+Draft → Diff → Verify → Publish and stops there. Before the move the rule was a cost control; now
 termination depends on it, so it belongs in the node rather than in a config a future run could
 raise.
 
@@ -482,17 +481,23 @@ a fanned-in claim left to decay like a quiet one would double its interval and p
 weeks away, which silently converts a cascade into an unrelated edit much later.
 
 **What keeps this agentic (§4).** Fetch → classify → human is a linear pipeline on its own,
-and §4's litmus test would fail it. Four things keep it from being one, and all four have
+and §4's litmus test would fail it. **Three** things keep it from being one, and all three have
 to survive implementation: the ledger decides *which* claims are fetched and when
-(`next_check_at` is agent-chosen, §7); fan-out lets an approved edit widen the run; a thin or
-off-target retrieval sends the graph back to Research with a broadened objective rather than
-forward to a bad classification; and a draft that introduces a conflict elsewhere on the page
-goes back to Draft. Cut them and this becomes RAG with a review screen — the exact quiet
-failure §4 names.
+(`next_check_at` is agent-chosen, §7); fan-out lets an approved edit widen the run; and a thin
+or off-target retrieval sends the graph back to Research with a broadened objective rather than
+forward to a bad classification.
+
+A fourth was cut on Aug 30, 2026 — a draft that introduced a conflict elsewhere on the page used
+to go back to Draft — so the remaining three now carry this argument alone. Fan-out is the
+strongest of them: after the gate move the working set is decided by a human answer mid-run,
+which is a plan chosen at runtime in the least arguable way available. Cut these three as well
+and this becomes RAG with a review screen — the exact quiet failure §4 names.
 
 ### The claim ledger (central state)
 
-**Two collections, written at different times.** `sections` is the baseline — what each
+**Two collections carry the agent's memory, written at different times** — and a third,
+`drafts`, carries the review that follows them (see the decision log entry "The review draft is
+a stored document"). `sections` is the baseline — what each
 monitored page says right now, recorded verbatim by an ingest pass that reads the wiki, splits
 it and stores it. `claims` is what the agent tracks. The split exists because the two need
 different things: deciding what a page *asserts* is a judgement and needs the model, while
@@ -515,7 +520,7 @@ This is what makes it stateful rather than a prompt chain, and what lets the age
 **`status` has two values, and answers one question: does a human need to look at this.**
 `verified` means the page stands and there is nothing for a reviewer to do. `unresolved` means
 a person decides — either sources conflict and the agent declined to pick, or an edit is
-drafted and waiting at the publish gate. Those two are one status on purpose: both are rows in
+drafted and waiting at the Verify gate. Those two are one status on purpose: both are rows in
 the review queue, and `contradicts[]` is what tells them apart, derived rather than stored.
 
 Two things deliberately *not* on the record. **Where an edit sits in the publish pipeline** is
@@ -625,8 +630,10 @@ tick route has to authenticate itself, which is an invariant rather than a nicet
 - Confidence threshold below which nothing auto-applies — `Claim.auto_appliable`, against
   `tiers.AUTO_APPLY_THRESHOLD`, and never a bypass of the gate below
 - Dry-run by default: nothing reaches the wiki that has not passed the gate
-- Human approval gate before publish — and since fan-out follows it (§6), the gate also decides
-  whether the run widens at all
+- Human approval gate before publish — the **Verify** stage, where the run pauses and the
+  reviewer accepts or rejects each diff, editing its text first if they want to. One card per
+  section with a change; Publish fires only on a button press. Since fan-out follows it (§6),
+  the gate also decides whether the run widens at all
 - **An edit may not take away what it was not asked to take away.** A claim classified `new`
   means the page is incomplete, not wrong, so a draft for it has nothing to remove. Two readings
   enforce that: `diff.shape()` on the text, free and deterministic, and the Diff stage on the
@@ -781,11 +788,12 @@ The one thing local work genuinely cannot prove is whether `continuity-run@`'s t
 sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
 account impersonation closes even that, and it is Phase 2's first item.
 
-As of Aug 29, 2026 the critical path is **(1)** the 8-stage ADK graph, **(2)** recording the
+As of Aug 30, 2026 the critical path is **(1)** the 8-stage ADK graph, **(2)** recording the
 demo video, **(3)** the deploy weekend. Four of the graph's eight stages now have working
 implementations underneath them — the baseline half of Audit, Classify against real Gemini,
-Draft with the `Draft` record it writes to, and Diff — so what is left of (1) is the wiring and
-the two stages that still need a model, claim proposal and Verify. The local MediaWiki, which
+Draft with the `Draft` record it writes to, and Diff — so what is left of (1) is the wiring,
+claim proposal (now the only stage that still needs a model), and the Verify gate, which since
+Aug 30 needs no model at all and is FE work plus the publish route. The local MediaWiki, which
 held item (2) until Aug 29, is up, seeded and verified, so the agent now has somewhere it is
 allowed to write.
 Both vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written,
@@ -1462,6 +1470,15 @@ is pasting a URL into a form.
       does change is the video: beat 2 (§9) now shows the approval as the visible cause of the
       cascade, which is a better shot than the one it replaces.
 
+      *Two details of this entry were overtaken on Aug 30, 2026, and are left as written because
+      they record the reasoning at the time.* The third backward edge it added, `Verify → Draft`,
+      was removed when Verify stopped being a model stage, so the graph is back to two; and the
+      "Verify bounce" it lists as the third way a proposal and a publication diverge can no
+      longer happen. Its "the run pauses at Publish twice" is now "pauses at Verify twice" —
+      Publish became the write alone, fired by a button. The entry's conclusion is unaffected:
+      the other two ways, rejection and hand-edit, are what the gate move was for, and hand-edit
+      is now the gate's whole purpose.
+
 - [x] **Build the draft stage, and let the diff check it** — Aug 29, 2026. `agent/draft.py`,
       `diff.shape()`, and the `Draft` record that had no home. The stage rewrites the anchor
       rather than the section, takes the Classify bucket as an input rather than re-asking the
@@ -1474,7 +1491,8 @@ is pasting a URL into a form.
       displaced part of it is arithmetic over two strings, and it can be held against the
       bucket. `new` means incomplete rather than wrong, so a `new` draft that removed text is
       `overreached` and the queue flags it. That failure had no other catcher — Verify looks
-      for a contradiction the edit *introduced*, not for wording it took away.
+      for a contradiction the edit *introduced*, not for wording it took away. *(Verify stopped
+      being a model stage on Aug 30, 2026, so that catcher is now the Diff stage alone.)*
 
       **Containment, because our own fixtures rule out the alternatives.** `GAM-APP-01` appends
       with no whitespace and breaks every token-level test; `DW-VOID-01` inserts inside the
@@ -1525,6 +1543,227 @@ is pasting a URL into a form.
       The harness rebuild in Phase 1 now has a second stage to cover, and the appended-negation
       case is the one to score first.
 
+- [x] **Verify becomes the human gate, not a model stage** — decided Aug 30, 2026, and it is a
+      hackathon simplification taken knowingly. Verify was specified as a Gemini node that
+      re-read the drafted section against the rest of the page, looking for a contradiction the
+      edit introduced *elsewhere*, and bounced the draft back to Draft when it found one. It is
+      now four things, none of which is a model call: no agent checks whether a statement
+      contradicts another; **every section with a diff is a card the reviewer accepts or
+      rejects**; it is where the reviewer **edits the draft text in place**, which is the
+      outcome the old design listed and had nowhere to put; and it ends with a button that hits
+      the publish API. Diff scaffolds the change and renders it — Verify is where a person
+      changes it.
+
+      **Publish and the gate stop being one stage.** The table in §6 used to give Publish all
+      three jobs — pause, decide, write. Now Verify holds the pause and the decision and
+      Publish is the write, fired by `POST /api/queue/{edit_id}`. That is also where
+      `google.adk.tools.request_input` goes (`AGENTS.md` §6), and it is a better fit than the
+      old placement: the run has to survive a human editing text, not just clicking yes.
+
+      **Three structural consequences.** The `Verify → Draft` backward edge is gone, so the
+      graph is **eight stages and two backward edges** — `Classify → Research` and
+      `Fan-out → Research` — and every count in these documents changes with it. Draft therefore
+      has *no* automatic retry path, which is a simplification and not a loss: the reviewer
+      fixes the draft rather than waiting for a second one, and the one-hop fan-out rule is now
+      the sole termination argument. And §6's "what keeps this agentic" list drops from four
+      items to three.
+
+      **The cost, stated plainly: page-level coherence is now nobody's job.** An edit that is
+      clean at its anchor and contradicts a sentence three sections away ships unless the
+      reviewer notices. Nothing else catches it — Classify reads the world against the page,
+      Diff reads `after` against `before` of the same anchor, and neither looks at the rest of
+      the page. This is accepted rather than mitigated. Three things make it survivable for a
+      demo: the reviewer is reading the drafted section anyway, edits are anchor-sized so the
+      blast radius is one sentence, and §4's requirement 5 was never carried by Verify — it
+      belongs to the retrieval-sufficiency item still open below. The strongest agentic evidence,
+      fan-out deciding the working set from a human answer mid-run, is untouched.
+
+      **What it buys** is that Verify becomes buildable this week and needs no model, no prompt
+      and no benchmark: it is the FE queue rework already on the list, plus one route that
+      already exists as a guarded shell. It converts the largest unbuilt stage into work whose
+      shape is known.
+
+      **One candidate per change, and the reviewer decides per diff — settled the same day.**
+      The open question was whether Draft should emit several candidates for the reviewer to
+      choose between. It should not: **Draft returns exactly one candidate and keeps doing so.**
+      There is no picker and no multi-candidate machinery. What replaces it is a uniform gate —
+      **every section with a diff is a card, and the reviewer accepts or rejects that card**,
+      having edited its text first if they want to. One candidate is enough precisely because
+      the decision is not *which* edit but *whether* this edit.
+
+      This makes a `conflicting` claim unexceptional at the gate: it is another card with the
+      same two buttons, which is what "it acts the same as when there is a conflict" means.
+      Nothing about conflict handling is a separate interaction mode, so the side-by-side
+      readings are a matter of what the card *displays* — both readings with their tiers and
+      citations — rather than a second control. Rejecting such a card leaves the claim
+      `unresolved` for the revisit queue (§7) rather than picking a side on the reviewer's
+      behalf, which is the behaviour §9's closing beat depends on and it needs no new stage
+
+- [x] **The gate reaches the wiki as a corner button that opens the run in a popup** — decided
+      and built Aug 30, 2026. The Verify gate had no way in from the thing it edits: a reviewer
+      had to know the app existed and go to it. Three options were real. A **browser extension**
+      works on wikis we do not own, but costs a manifest, a content script and a "load unpacked"
+      step on camera, and it renders our gate inside MediaWiki's DOM. A **MediaWiki PHP
+      extension** is days of work and buys nothing site JS does not. **Site JS opening a popup**
+      won: `wiki-config/continuity-launcher.js` is installed as `MediaWiki:Common.js` and puts a
+      floating **Continuity** button in the article's bottom-right corner, which opens
+      `#/verify?page=…&rev=…` in a 960×980 window. `$wgUseSiteJs` defaults true, so it runs for
+      every reader including anonymous ones, and there is nothing to install.
+
+      **A corner button rather than a tab in the skin's own bar**, which is what it was for the
+      first hour. The button is the affordance a reader already reads as "something else is
+      watching this page" — it stands in for the browser extension a real deployment would ship,
+      it owes nothing to the skin's chrome so it survives a skin change, and it is the shape the
+      demo needs: visible in a wide shot without pointing at it.
+
+      **The deciding argument was origin, not effort.** The popup is served from our own host,
+      so `/api/state` and `/api/queue/{edit_id}` stay same-origin and the deploy keeps the "one
+      origin, no CORS, no second deploy" property it was designed around (§6, "Deployment
+      shape"). Every option that renders the gate *inside* the article — extension or injected
+      panel — makes both fetches cross-origin and puts `FE/styles.css` next to a skin's
+      stylesheet. That is a deployment change wearing a frontend change's clothes. The rule is
+      now an invariant in `AGENTS.md` §2.
+
+      **The plug-and-play claim survives it.** The launcher is a *trigger*, not the integration:
+      the integration is the URL. A bookmarklet firing the same `#/verify?page=…` works on a
+      wiki we do not control and needs no install either, which is the honest version of "the
+      agent is pointed at a wiki, not wired to one" — one contract, two ways to fire it. No
+      extension exists or is planned.
+
+      **What it also closed.** Building the popup meant building the gate, so two of the four
+      missing pieces below landed with it: the draft is **editable in place** — a changed card
+      says the diff above it is now only the agent's proposal — and publishing **POSTs the text
+      the reviewer settled on**, never the stored draft. The publish route still answered 501 at
+      that point and the gate printed it verbatim rather than implying a write happened; the
+      entry below is where it became a real write. `window.opener` is deliberately preserved so
+      that the article behind the popup reloads and the reviewer watches the edit land instead
+      of being told it did.
+
+- [x] **The popup shows the run, and the gate has two levels** — decided and built Aug 30, 2026,
+      same session. The popup opens on a **rail of the eight stages** (§6) as a stepper: ticked
+      through Diff, standing on Verify, with a count under each — claims audited, sources
+      retrieved, conflicts found, edits drafted, checks read, cards decided. It is the
+      architecture diagram made into the run's own progress, which is the thing a judge has to
+      understand in the first ten seconds of the video and the thing a static queue never said.
+
+      **Every count is derived from the payload on screen, and that is the constraint.** The
+      rail describes the run that produced the cards below it; it does not simulate one. The
+      sequential reveal is a CSS `animation-delay` per node, not a timer walking a fake state
+      machine, and when the backend is a fixture the rail says so under itself. A rail that
+      animated a run nobody performed would be the most convincing lie on the page — `CLAUDE.md`
+      §6 asks motion to reflect real state, and this is the case that rule exists for.
+
+      **The gate now has two levels: per-card, then per-run.** Accept / Reject on a card decides
+      *what* would go and writes nothing. One **Publish** button at the foot writes the accepted
+      set, and it only unlocks once every card has a decision — so the reviewer reads everything
+      before anything happens, and can still discard the whole run at that point. That is the
+      "final check" a person asked for and it is worth the extra click: a per-card accept that
+      wrote immediately would mean the batch review never existed, and the reviewer would be
+      committing one card at a time without ever seeing the set.
+
+- [x] **The publish route writes, and it writes by substitution** — decided and built Aug 30,
+      2026, same session. `POST /api/queue/{edit_id}` was the last shell in the gate. It now
+      logs in with the BotPassword, re-reads the section and applies the approved text, and
+      answers with the revision id it created. The demo's three edits were published through it
+      end to end and the wiki re-seeded byte-for-byte afterwards.
+
+      **A queued edit is applied as a substitution, not as a section.** The draft names the text
+      it replaces (`before`) and what that text becomes (`after`), so the route re-reads the
+      section and swaps the one for the other in whatever the page says *now*. Writing the
+      drafted section wholesale would have reverted anything else that changed in it while the
+      edit sat at the gate — the same silent overwrite `basetimestamp` exists to catch, one
+      level down, and invisible to it because the write would be a legitimate edit against a
+      current base revision. `core/wiki/sections.py` decides it (pure, refusing an anchor that
+      is missing or ambiguous) and `WikiWrite.write_anchor` performs it.
+
+      **Publishing the same edit twice is refused rather than duplicated.** An edit that *adds*
+      to a line leaves the line it anchored on, so the second approval finds the anchor again
+      and appends the same text a second time — the Gambit card does exactly this, and it is
+      invisible to every guard above it: the anchor resolves, the base revision is current, and
+      MediaWiki accepts the edit. The tool checks whether the replacement is already in the
+      section before substituting, and the route reports that as `409` alongside a conflict and
+      a vanished anchor. The frontend's own guard is per-browser and does not survive a reload,
+      so this had to be server-side.
+
+      **The route is public, so the request decides as little as possible.** Judging requires
+      `--allow-unauthenticated` and there is no session to identify a reviewer by, so the answer
+      is not authentication but blast radius: the body carries a verdict and the reviewer's text,
+      and every argument that decides *where* the write lands — page, heading, anchor, summary —
+      is read from the stored queue entry `edit_id` names. An unknown id is a 404 before
+      anything is read; a known one can only put text where our own agent already proposed a
+      change, on a wiki `MediaWikiWriter.for_profile` will not let be anything but ours. The
+      rule is now an invariant in `AGENTS.md` §2, because the way to lose it is to add one
+      convenient parameter.
+
+      **A rejection is a discard, not a verdict — clarified the same day.** It was briefly
+      built as a 501: nowhere to record the rejection, so refuse it. That was the wrong model.
+      Rejecting a card drops it out of the run, what survives the discards *is* the final draft,
+      and the bar publishes that — so a rejection has nothing to send and no server state to
+      change. The route therefore has one verb and no verdict field at all, and the body is the
+      reviewer's text alone. This is the same fact `AGENTS.md` §2 already recorded on the ledger
+      side, where a discarded draft leaves the claim `unchanged` and there is deliberately no
+      `rejected` transition; the API had drifted from it. Extra fields are refused rather than
+      ignored, so a body that tries to name a page is a 422 and not a quiet publish of the
+      stored draft.
+
+      **The queue itself still comes from the fixture.** The route reads the drafted edit from
+      `FE/data/demo-state.json` because there is no Firestore adapter yet. That is a stub, and
+      it is labelled one — but unlike `/api/state` it claims nothing to the frontend: it is the
+      record of what the agent drafted, and swapping it for the store changes one function.
+
+- [x] **The review draft is a stored document, and the queue stops being a fixture** — decided
+      and built Aug 30, 2026, same session. Until this the drafted edits were a generated JSON
+      file and every verdict lived in a browser tab: closing the popup lost the review, and
+      reloading it re-offered the cards that had just been discarded. Now a run is one
+      `ReviewDraft` in a document store — local JSON file, or Firestore with
+      `DRAFT_STORE=firestore`, holding the identical documents — fetched back by id, with the
+      verdict and any hand-edit written as it is made.
+
+      **One document per run, not one per change.** Publish is a single act over the accepted
+      set and "every card decided" is a property of the *set*, so the set is what gets stored
+      and what carries the published flag. The alternative — a row per change and a flag
+      reconstructed by counting them — puts the gate's central rule in a query rather than in a
+      record, and gives two readers two ways to disagree about whether a run is finished.
+
+      **Three fields carry the lifecycle, and each earns its place.** `decision` is the verdict
+      on one change, and it lives on the change rather than on the claim because `ClaimStatus`
+      has no `rejected` value and must not grow one (`AGENTS.md` §2) — a discarded change leaves
+      its claim untouched, to be drafted again later. `written_revid` is the revision a change
+      actually created: stored because MediaWiki has no cross-page transaction, so a publish can
+      partially fail, and the retry has to write what is outstanding rather than what already
+      landed. `published_at` is stamped only when every accepted change is written *and* at
+      least one was accepted — a run where the reviewer discarded everything published nothing,
+      and a flag saying otherwise would be the demo lying about its own headline moment.
+
+      **The publish request lost its body entirely.** It used to carry the reviewer's text; the
+      text now lives in the draft, so the request carries nothing at all and the route reads
+      everything — pages, anchors, texts, verdicts — from the store. That is a strictly smaller
+      public surface on a route that is `--allow-unauthenticated` by necessity, and it is the
+      shape §2's invariant now fixes.
+
+      **What is still a fixture, and what is not.** The *edits* are still hand-written demo
+      claims driven through the real ledger core by `build_demo_state.py`, because no graph runs
+      yet to produce one — `scripts/seed_drafts.py` loads them into the store and doubles as the
+      demo reset. What is no longer a fixture is the review: the verdicts, the hand-edits, the
+      revisions each change wrote and whether the run is published are real stored state, and
+      `/api/state` still answers 503 so the ledger and page views stay honestly labelled.
+
+      **The Firestore adapter is written and not yet run against Firestore.** It is transport
+      only — `to_document` straight to `.set()`, `.to_dict()` straight back — and its tests use
+      a fake client, the same way the wiki adapter's tests assert what `action=edit` puts on the
+      wire rather than editing a wiki. The emulator still needs a JRE and
+      `gcloud components install cloud-firestore-emulator`, so `DRAFT_STORE=file` stays the
+      default until it has been run for real. Sorting and the unpublished filter are done in
+      Python deliberately: `order_by` plus a filter needs a composite index, the emulator does
+      not enforce index requirements, and a missing one fails only in production.
+
+      Publishing was one POST per accepted edit at this point, in order, because MediaWiki has
+      no cross-page transaction: the batch is not atomic and a partial failure is reported
+      rather than rolled back. The non-atomicity is still true and is an invariant in
+      `AGENTS.md` §2; the request shape is not — the entries below moved the whole set behind
+      one call over a stored draft. The same entries answered "what happens to a rejection":
+      nothing, by design. It is a discard, and the claim behind it is untouched.
+
 ### Phase 1 — local; nothing in the cloud has to exist
 
 Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
@@ -1544,10 +1783,10 @@ gets cut to protect it.
       database at all; the Firestore adapter lands behind the same protocol without a node
       noticing
 
-- [ ] Build the 8-stage ADK graph — nodes, the three backward edges, and the publish gate as the
-      HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
+- [ ] Build the 8-stage ADK graph — nodes, the two backward edges, and **Verify** as the HITL
+      pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
       `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
-      assigning `ctx.route`, and the publish gate goes through `google.adk.tools.request_input`
+      assigning `ctx.route`, and the Verify gate goes through `google.adk.tools.request_input`
       — all three traps are in `AGENTS.md` §6. Fan-out is the last node, not a middle one, and its
       backward edge to Research means the run pauses at the gate twice; the node must refuse to
       fan out a claim that was already fanned in, which is what terminates the cycle. The
@@ -1555,7 +1794,8 @@ gets cut to protect it.
       exists, so the node just calls it for every claim it named. The Draft and Diff nodes are
       written (`agent/draft.py`, `agent/semantic_diff.py`) and sit between Classify and Verify;
       wiring them needs a home for the `Draft` and its `Review`, since nothing persists either
-      yet and the gate is where hours pass
+      yet and the gate is where hours pass. Verify itself is no longer a model node (Aug 30) —
+      it resumes the paused run with whatever text the reviewer approved
 - [x] Build the ledger store, **locally first** — Aug 29, 2026. `core/ledger/documents.py` owns
       the stored shape and `core/ledger/store.py` the `ClaimStore` protocol plus two
       implementations: `InMemoryClaimStore` (the deterministic path, so the graph runs with no
@@ -1564,20 +1804,34 @@ gets cut to protect it.
       `snapshots.py` — and their tests run bare. See the decision-log entry above for what
       the two portability guards are and why they are guards rather than preferences
 - [ ] Port the store to Firestore — an adapter at the perimeter importing `to_document` /
-      `from_document` and nothing else, so only the transport is new. `google-cloud-firestore`
+      `from_document` and nothing else, so only the transport is new. **Half done Aug 30, 2026:**
+      the *drafts* collection has one (`backend/firestore.py`, `DRAFT_STORE=firestore`), written
+      against a fake client because the emulator is not installed; `claims` and `sections` still
+      need theirs, and none of the three has been run against a real instance. `google-cloud-firestore`
       is not yet a dependency. Runs against the emulator locally, which needs a JRE plus
       `gcloud components install cloud-firestore-emulator` — neither present as of Aug 23, 2026.
       The emulator does not enforce composite-index requirements, so the due query stays on
       `next_check_at` alone (`AGENTS.md` §6)
-- [ ] **Rework `FE/` for the three buckets** — the queue already renders a drafted edit as a
-      git-style diff and takes approve/reject over it; what is missing is the bucket split, a
-      *still true* view that shows confirmations rather than hiding them, a side-by-side conflict
-      view, and an editable draft. Since fan-out runs after the gate (§6), an approval also *adds*
-      cards, so the queue has to handle growing and not only shrinking. `build_demo_state.py` has
-      to emit the bucket per claim. `Draft.payload()` already carries `bucket`, `shape` and
-      `flags`, and the queue renders none of them — an `overreached` or `uncited` card must not
-      look like a clean one, which is the whole point of computing the flag. This is rework of a
-      passing component, so re-run `node FE/check.js`
+- [ ] **Build the Verify gate — the `FE/` rework plus the publish route.** Since Aug 30, 2026
+      this *is* the Verify stage (§6), not decoration on it, which moves it from cosmetic rework
+      to a critical-path item. The queue already renders a drafted edit as a git-style diff and
+      takes approve/reject over it. Four things are missing. **The bucket split**, with a *still
+      true* view that shows confirmations rather than hiding them and a side-by-side conflict
+      view; `build_demo_state.py` has to emit the bucket per claim. **The flags**, which are
+      computed and invisible — `Draft.payload()` carries `bucket`, `shape` and `flags` and
+      `Review.payload()` carries the idea-level `verdict` and its per-assertion changes, and the
+      queue renders none of it, so an `overreached`, `uncited` or `hidden_by_text` card looks
+      exactly like a clean one. `hidden_by_text` matters most: the diff renders green and the
+      edit reversed what the passage asserted, so the rendering the reviewer trusts is the one
+      misleading them. ~~**An editable draft**~~ and ~~**the publish button**~~ — both built
+      Aug 30, 2026 with the launcher (entry above): the reviewer changes the text in place and
+      approve publishes that text, not the agent's proposal. ~~**The server half**~~ landed the
+      same day (entry above): the route re-reads the section, substitutes the approved text and
+      answers with the revision it created — and the draft it works from is now stored, so the
+      verdicts and the hand-edits survive a reload. What is left of this item is the two
+      rendering gaps above: the bucket split, and the flags. Since fan-out runs after the gate,
+      an approval also *adds* cards, so the queue has to handle growing and not only shrinking.
+      Rework of a passing component, so re-run `node FE/check.js`
 - [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
       depends on it. Not a decision, a check: if the week is quiet, widen the research
       objective or close on a different beat
@@ -1693,14 +1947,14 @@ first and the metered one comes late. The procedure itself is in `README.md`; th
       visitor. Deadline **Sept 7, 2:00 PM PT** (= 5 PM ET, §2). This is the only submission
       step that ever needed the deploy
 
-**9 days left** as of Aug 29, 2026. Both vendor perimeters are built and proven against the real
+**8 days left** as of Aug 30, 2026. Both vendor perimeters are built and proven against the real
 thing rather than against a design: Parallel search has made a live call, Gemini classifies a real
 claim through `agent/classify.py`, and the wiki adapters read and write a real MediaWiki that is
 up and seeded. The deterministic core, the seed corpus, the frontend, the service shell and a
 persisting ledger are real, and the baseline pass fills that ledger with no key and no model call.
-**What remains is the graph that joins them** — eight stages, three backward edges and a human
-gate — plus the two stages that still need a model, claim proposal and Verify, then the video,
-then the deploy.
+**What remains is the graph that joins them** — eight stages, two backward edges and a human
+gate — plus claim proposal, now the only stage that still needs a model, and the Verify gate
+with the publish route behind it, which need none. Then the video, then the deploy.
 
 That is a narrower risk than it was a week ago, and a different kind. Nothing left depends on
 an unknown API or an unproven vendor; every external surface has been called and measured, and
@@ -1829,16 +2083,17 @@ designed around pro calls being the expensive scarce thing, and they are now not
 system. And there is no per-node model routing to build or explain.
 
 *Scope of the claim:* four cases, one stage. It measures Classify, the node whose errors
-propagate silently; Draft output is human-gated at Publish, so a weaker draft costs a reviewer
-edit rather than a wrong page. Revisit if Draft quality disappoints — the model is named in one
+propagate silently; Draft output is human-gated at Verify, so a weaker draft costs a reviewer
+edit rather than a wrong page — literally so since Aug 30, 2026, when editing the draft in place
+became the gate's purpose. Revisit if Draft quality disappoints — the model is named in one
 place. Raw script: `bench_classify.py` (scratchpad, not committed).
 
 **ADK 2.0 = Workflow Runtime.** Graph execution engine; agents, tools and functions are
 *nodes* (`BaseAgent` now subclasses `BaseNode`). `NodeInterruptedError` exists to pause a
 workflow for human-in-the-loop input.
 
-This is what makes §6 buildable as designed rather than a diagram: the 8-stage flow with three
-backward edges maps onto a workflow graph, and the publish approval gate onto HITL — twice per
+This is what makes §6 buildable as designed rather than a diagram: the 8-stage flow with two
+backward edges maps onto a workflow graph, and the Verify approval gate onto HITL — twice per
 run, since fan-out follows it. Nothing
 about the product changed — see `AGENTS.md` §7 for the construction rule.
 

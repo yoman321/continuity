@@ -23,7 +23,14 @@ from .diff import (
     shape,
     to_payload,
 )
-from .sections import Section, find_section, split_sections, subtree, top_level
+from .sections import (
+    Section,
+    find_section,
+    replace_anchor,
+    split_sections,
+    subtree,
+    top_level,
+)
 from .snapshots import MANIFEST, PageSource, SnapshotPageSource
 
 __all__ = [
@@ -48,6 +55,7 @@ __all__ = [
     "format_timestamp",
     "parse_revision",
     "parse_timestamp",
+    "replace_anchor",
     "shape",
     "slug_for",
     "split_sections",

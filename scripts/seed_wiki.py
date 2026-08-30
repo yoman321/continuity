@@ -62,6 +62,12 @@ def profile_from_env() -> WikiProfile:
     return local_wiki(require("MEDIAWIKI_API_URL"))
 
 
+def api_key() -> str:
+    """The instance is treated as external even though it is ours, so every adapter built here
+    carries the key. It is never stored on the profile (`AGENTS.md` §2)."""
+    return require("MEDIAWIKI_API_KEY")
+
+
 def check_grammar(profile: WikiProfile) -> list[str]:
     """Ask the instance whether it agrees with the profile, rather than assuming it does.
 
@@ -70,7 +76,7 @@ def check_grammar(profile: WikiProfile) -> list[str]:
     being a variant halfway through the pipeline and every claim about it silently attaches to
     the wrong subject — so this is checked before anything is written, not after.
     """
-    reader = MediaWikiReader.for_profile(profile)
+    reader = MediaWikiReader.for_profile(profile, api_key=api_key())
     query = reader.fetch({
         "action": "query", "meta": "siteinfo",
         "siprop": "general|namespaces|rightsinfo",
@@ -94,7 +100,7 @@ def check_grammar(profile: WikiProfile) -> list[str]:
 
 
 def seed(profile: WikiProfile, pages: list[dict[str, Any]]) -> None:
-    writer = MediaWikiWriter.for_profile(profile)
+    writer = MediaWikiWriter.for_profile(profile, api_key=api_key())
     user = writer.login(require("MEDIAWIKI_BOT_USER"), require("MEDIAWIKI_BOT_PASSWORD"))
     print(f"  logged in as {user}")
 
@@ -121,7 +127,7 @@ def verify(profile: WikiProfile, pages: list[dict[str, Any]]) -> list[str]:
     endings and strips trailing whitespace — so "the edit succeeded" is not the same claim as
     "the instance holds the corpus". This checks the second one.
     """
-    reader = MediaWikiReader.for_profile(profile)
+    reader = MediaWikiReader.for_profile(profile, api_key=api_key())
     problems = []
     for entry in pages:
         expected = entry["seed"]["sha256"]

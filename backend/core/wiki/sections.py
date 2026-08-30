@@ -72,6 +72,24 @@ def find_section(sections: tuple[Section, ...], heading: str) -> Section | None:
     return next((s for s in sections if s.heading == heading), None)
 
 
+def replace_anchor(section: Section, anchor: str, replacement: str) -> str | None:
+    """`section.text` with its one occurrence of `anchor` swapped for `replacement`.
+
+    A drafted edit stores the line it changes and what that line becomes, not the section the
+    line sits in — so this is what turns that pair back into the whole-section text an
+    `action=edit&section=N` write needs. Substituting into the section *as read* is the point:
+    sending the section as it looked when the draft was written would silently revert anything
+    else that changed in it while the edit sat at the gate.
+
+    `None`, never a guess, when the anchor is missing or appears more than once. The first
+    means the line is already gone; the second means the draft does not say which of them it
+    meant. Both are reasons to re-read the page and re-draft, and neither is a reason to write.
+    """
+    if not anchor or section.text.count(anchor) != 1:
+        return None
+    return section.text.replace(anchor, replacement)
+
+
 def subtree(sections: tuple[Section, ...], index: int) -> tuple[Section, ...]:
     """A section together with the subsections nested under it.
 

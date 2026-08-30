@@ -11,7 +11,14 @@ import unittest
 from pathlib import Path
 from typing import Any, ClassVar
 
-from backend.core.wiki import find_section, split_sections, subtree, top_level
+from backend.core.wiki import (
+    Section,
+    find_section,
+    replace_anchor,
+    split_sections,
+    subtree,
+    top_level,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SNAPSHOTS = REPO_ROOT / "snapshots"
@@ -94,6 +101,56 @@ class TestFind(unittest.TestCase):
         self.assertIsNone(find_section(split_sections("lead\n==A==\n"), "Cast"))
 
 
+class TestReplaceAnchor(unittest.TestCase):
+    """The line-level write. A drafted edit names the text it replaces, so the section it
+    lands in is whatever the page says at approval time — not what it said at drafting."""
+
+    CAST = "lead\n\n==Cast==\nold cast\nand a line nobody touched\n"
+
+    def _cast(self, page: str = CAST) -> Section:
+        section = find_section(split_sections(page), "Cast")
+        assert section is not None
+        return section
+
+    def test_only_the_anchor_changes(self) -> None:
+        text = replace_anchor(self._cast(), "old cast", "new cast")
+        self.assertEqual(text, "==Cast==\nnew cast\nand a line nobody touched\n")
+
+    def test_the_heading_line_is_carried_through(self) -> None:
+        # `action=edit&section=N` replaces the whole section: a result without its heading
+        # would delete the heading and merge the section into the one above it.
+        text = replace_anchor(self._cast(), "old cast", "new cast")
+        assert text is not None
+        self.assertTrue(text.startswith("==Cast=="))
+
+    def test_a_later_edit_to_the_same_section_survives_the_write(self) -> None:
+        """The reason this substitutes instead of sending the drafted section. Somebody else
+        added a line while the draft sat at the gate; approving must not take it back out."""
+        moved_on = self.CAST.replace("and a line", "and a NEW line\nand a line")
+        text = replace_anchor(self._cast(moved_on), "old cast", "new cast")
+        assert text is not None
+        self.assertIn("and a NEW line", text)
+
+    def test_a_vanished_anchor_is_none_not_an_append(self) -> None:
+        self.assertIsNone(replace_anchor(self._cast(), "text that is not there", "x"))
+
+    def test_an_ambiguous_anchor_is_refused(self) -> None:
+        # Two matches means the draft does not say which one it meant. Picking the first
+        # would be a coin flip that edits a wiki.
+        twice = "lead\n\n==Cast==\nrepeated\nrepeated\n"
+        self.assertIsNone(replace_anchor(self._cast(twice), "repeated", "x"))
+
+    def test_an_empty_anchor_is_refused(self) -> None:
+        # str.count("") counts the gaps between characters, so an empty anchor would look
+        # like a match on a one-character section and replace it.
+        self.assertIsNone(replace_anchor(self._cast(), "", "x"))
+
+    def test_the_lead_is_written_the_same_way(self) -> None:
+        sections = split_sections("|movie = ''[[A]]''\n\n==Cast==\nc\n")
+        text = replace_anchor(sections[0], "|movie = ''[[A]]''", "|movie = ''[[A]]'', ''[[B]]''")
+        self.assertEqual(text, "|movie = ''[[A]]'', ''[[B]]''\n\n")
+
+
 class TestAgainstSnapshots(unittest.TestCase):
     """Real wikitext. Numbers here were measured from the corpus, not assumed."""
 
@@ -131,6 +188,26 @@ class TestAgainstSnapshots(unittest.TestCase):
             raw = (REPO_ROOT / entry["seed"]["file"]).read_text(encoding="utf-8")
             with self.subTest(page=entry["requested_title"]):
                 self.assertGreater(len(split_sections(raw)), 1)
+
+    def test_every_queued_edit_can_actually_be_written(self) -> None:
+        """The publish path resolves a queued edit by heading and then by anchor, and refuses
+        an anchor that is missing or ambiguous. So an anchor that appears twice in its section
+        is a drafted edit that can never be approved — measured here rather than discovered
+        during a demo."""
+        queue = json.loads(
+            (REPO_ROOT / "FE" / "data" / "demo-state.json").read_text(encoding="utf-8")
+        )["queue"]
+        self.assertTrue(queue)
+        for item in queue:
+            with self.subTest(edit=item["edit_id"]):
+                sections = split_sections(self._seed(item["page"]))
+                heading = "" if item["section_index"] == 0 else item["section_heading"]
+                section = sections[0] if heading == "" else find_section(sections, heading)
+                self.assertIsNotNone(section, f"no section {heading!r}")
+                self.assertEqual(section.text.count(item["before"]), 1)  # type: ignore[union-attr]
+                self.assertIsNotNone(
+                    replace_anchor(section, item["before"], item["after"])  # type: ignore[arg-type]
+                )
 
     def test_phase_six_renamed_its_films_section(self) -> None:
         # The live example of why a stored index is not enough, and of `AGENTS.md` §2's

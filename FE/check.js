@@ -92,6 +92,26 @@ function makeNode(id) {
   };
 }
 
+const DRAFT_ID = "draft-check-0001";
+
+/* The draft the stub store hands back: the fixture's queue, undecided and unwritten, in the
+   shape `/api/drafts/{id}` returns. Built from `state.queue` so the card checks below stay
+   assertions about the fixture rather than about a second copy of it. */
+function storedDraft() {
+  return {
+    draft_id: DRAFT_ID,
+    wiki: "check",
+    created_at: "2026-08-30T12:00:00+00:00",
+    published: false,
+    published_at: null,
+    is_decided: false,
+    changes: state.queue.map((item) =>
+      Object.assign({}, item, { decision: "undecided", written_revid: null })),
+    counts: { changes: state.queue.length, accepted: 0, undecided: state.queue.length,
+              written: 0 },
+  };
+}
+
 /* Boot app.js at one route against a stub DOM and return what it wrote into #view.
    Not a browser — it proves the render path does not throw and the output is right, which
    is otherwise invisible until someone opens the page. */
@@ -107,10 +127,17 @@ function renderAt(hash) {
     },
     location: { hash },
     window: { addEventListener() {}, scrollTo() {} },
-    fetch: (url) =>
-      url === "/api/state"
-        ? Promise.resolve({ ok: false })  // exercise the offline fallback path
-        : Promise.resolve({ ok: true, json: () => Promise.resolve(state) }),
+    fetch: (url) => {
+      // `/api/state` is down on purpose: the ledger and page views must fall back to the
+      // fixture. The draft routes are up, because the queue comes from the store now and the
+      // render path under test is the one a reviewer actually gets.
+      if (url === "/api/state") return Promise.resolve({ ok: false });
+      if (url === "/api/drafts") return Promise.resolve({ ok: true, json: () =>
+        Promise.resolve({ drafts: [{ draft_id: DRAFT_ID, published: false }] }) });
+      if (url.indexOf("/api/drafts/") === 0) return Promise.resolve({ ok: true, json: () =>
+        Promise.resolve(storedDraft()) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(state) });
+    },
   });
 
   new Function(wikitextSrc).call(global);
@@ -189,6 +216,114 @@ function checkDiffs() {
   }
 }
 
+// -- the verify gate ----------------------------------------------------------
+
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/* `#/verify?page=X` is what the wiki's own tab opens (wiki-config/continuity-launcher.js).
+   The assertions are the two things that make it a gate rather than a view: it shows exactly
+   the cards for the page it was opened from, and the text is editable before it is written. */
+async function checkVerify(W) {
+  console.log("\n# verify gate");
+
+  const item = state.queue.find((q) => q.page_slug === "Deadpool_Wolverine");
+  const wgPageName = item.page.replace(/ /g, "_");   // what MediaWiki hands the launcher
+  const expected = state.queue.filter((q) => q.page === item.page).length;
+
+  const one = await renderAt(`#/verify?page=${encodeURIComponent(wgPageName)}&rev=2019481`);
+  const cards = count(one.html, /<article class="card/g);
+  check("scopes to the page the launcher opened it from", cards === expected,
+    `${cards} of ${expected}`);
+  check("names that page", one.html.indexOf(W.escapeHtml(item.page)) !== -1);
+  check("carries the revision it was opened at", /against revision 2019481/.test(one.html));
+
+  const box = new RegExp(`<textarea class="draft" id="draft-${escapeRe(item.edit_id)}"[^>]*>` +
+    escapeRe(W.escapeHtml(item.after)) + "</textarea>");
+  check("the draft is editable and seeded with what the agent wrote", box.test(one.html));
+
+  const none = await renderAt("#/verify?page=Not_A_Seeded_Page");
+  check("an unqueued page says so instead of showing every card",
+    count(none.html, /<article class="card/g) === 0 && /Nothing drafted/.test(none.html));
+
+  const all = await renderAt("#/queue");
+  check("the queue is the same gate, unfiltered",
+    count(all.html, /<textarea class="draft"/g) === state.queue.length,
+    `${count(all.html, /<textarea class="draft"/g)} of ${state.queue.length}`);
+
+  // -- the run rail. Counts are asserted against the state they claim to describe, not
+  //    against a screenshot (`CLAUDE.md` §5).
+  const claims = state.claims.filter((c) => c.page === item.page);
+  const sources = claims.reduce((n, c) => n + c.sources.length, 0);
+  const conflicts = claims.filter((c) => c.conflict_note).length;
+
+  check("the rail shows all eight stages", count(one.html, /<li class="stage /g) === 8,
+    `${count(one.html, /<li class="stage /g)}`);
+  check("everything through Diff is ticked", count(one.html, /✓/g) === 5,
+    `${count(one.html, /✓/g)} ticks`);
+  check("Verify is where the run is standing", /class="stage active"/.test(one.html));
+  check("the rail counts this page's claims", one.html.indexOf(`${claims.length} claims`) !== -1,
+    `${claims.length}`);
+  check("the rail counts the sources behind them",
+    one.html.indexOf(`${sources} sources`) !== -1, `${sources}`);
+  check("the rail counts the conflicts",
+    one.html.indexOf(conflicts ? `${conflicts} conflict` : "all sorted") !== -1);
+
+  // -- two levels: the cards decide what goes, the bar decides whether anything goes.
+  check("publish is shut until every card has a decision", /still to review/.test(one.html));
+  // Accepting persists a verdict now, so "writes nothing" is about the wiki: the card path
+  // may reach `/changes/`, and only the bar may reach `/publish`.
+  check("accepting a card writes nothing to the wiki",
+    /function decide\(([\s\S]*?)\n  \}/.exec(appSrc)[1].indexOf("/publish") === -1);
+  check("the publish button is the only thing that publishes",
+    (appSrc.match(/\/publish"/g) || []).length === 1 &&
+    /function publishAll\(\)[\s\S]*?\/publish"/.test(appSrc));
+  check("a verdict is written back to the store",
+    /function decide\(([\s\S]*?)\n  \}/.exec(appSrc)[1].indexOf("save(") !== -1);
+}
+
+/* The wiki-side half. It is not loaded by the browser here — it is installed onto MediaWiki —
+   so what is checkable is its contract with the popup, and each of these has a failure mode
+   that is silent in a demo. */
+function checkLauncher() {
+  console.log("\n# wiki launcher");
+  const src = fs.readFileSync(path.join(ROOT, "wiki-config/continuity-launcher.js"), "utf8");
+  // Comments stripped: these are assertions about what the code does, and the file explains
+  // several of them in prose that would otherwise satisfy its own check.
+  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  check("no deploy URL is committed", !/https?:\/\//.test(src),
+    "the origin is a deployment identifier and belongs in .env (`AGENTS.md` §2)");
+  check("the origin is substituted at install time", code.indexOf("__CONTINUITY_ORIGIN__") !== -1);
+  check("reads the page and revision MediaWiki exposes",
+    code.indexOf("wgPageName") !== -1 && code.indexOf("wgCurRevisionId") !== -1);
+  check("is a floating button, not skin chrome",
+    code.indexOf("continuity-launch") !== -1 && code.indexOf("appendChild") !== -1 &&
+    code.indexOf("addPortletLink") === -1);
+
+  /* It runs inside a skin we do not own, so a single unprefixed selector would restyle the
+     wiki. Every rule it injects has to name our own button. */
+  const cssText = (code.slice(code.indexOf("mw.util.addCSS("), code.indexOf("var button"))
+    .match(/'([^']*)'/g) || []).map((q) => q.slice(1, -1)).join("");
+  const selectors = [...cssText.matchAll(/([^{}]+)\{/g)]
+    .map((m) => m[1].trim())
+    .filter((sel) => sel && !sel.startsWith("@media"));
+  check("every injected rule is scoped to our own button",
+    selectors.length > 0 && selectors.every((sel) => sel.indexOf("continuity-launch") !== -1),
+    selectors.join(" | "));
+  // `noopener` would sever window.opener and silently kill the reload below.
+  check("the popup keeps its opener",
+    code.indexOf("window.open") !== -1 && !/noopener/.test(code));
+
+  check("the gate reloads the article behind it after a publish",
+    /window\.opener[\s\S]{0,160}location\.reload\(\)/.test(appSrc));
+  check("a hand-edited draft is saved as the text that publishes",
+    /save\(box\.dataset\.edit, \{ text: box\.value \}\)/.test(appSrc));
+  // `AGENTS.md` §2: the publish request decides nothing at all — not the text, not the target.
+  // Everything it writes comes from the stored draft.
+  check("the publish request has no body",
+    /\/publish", \{ method: "POST" \}\)/.test(appSrc));
+}
+
 // -- wiring ------------------------------------------------------------------
 
 function checkWiring() {
@@ -221,8 +356,10 @@ function checkWiring() {
   checkRenderer(W);
   checkAnchors(W);
   await checkViews();
+  await checkVerify(W);
   checkDiffs();
   checkWiring();
+  checkLauncher();
   console.log(failures ? `\n${failures} FAILURE(S)` : "\nall FE checks passed");
   process.exit(failures ? 1 : 0);
 })();

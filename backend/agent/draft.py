@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from ..core.ledger.citations import best_citation
+from ..core.ledger.drafts import Change
 from ..core.ledger.schema import Claim, Source
 from ..core.profile import WikiProfile
 
@@ -175,6 +176,30 @@ class Draft:
     @property
     def rows(self) -> tuple[Row, ...]:
         return diff(self.before, self.after)
+
+    def as_change(self, *, edit_id: str, page_slug: str) -> Change:
+        """This proposal as the record the review draft stores.
+
+        Same fields as `payload()` below and for the same reason — the card a reviewer reads and
+        the row a store holds must not be two shapes that can disagree. What the store adds is
+        the lifecycle: the change arrives `undecided` and unwritten, and the gate moves it.
+        """
+        return Change(
+            edit_id=edit_id,
+            claim_id=self.claim_id,
+            page=self.page,
+            page_slug=page_slug,
+            section_index=self.section_index,
+            section_heading=self.section_heading,
+            before=self.before,
+            after=self.after,
+            summary=self.summary,
+            rationale=self.summary,
+            confidence=self.confidence,
+            citation=self.citation,
+            bucket=self.bucket,
+            flags=self.flags,
+        )
 
     def payload(self, *, edit_id: str, page_slug: str) -> dict[str, Any]:
         """The queue card, in the shape `FE/app.js` already renders.

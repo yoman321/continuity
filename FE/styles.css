@@ -28,6 +28,11 @@
 
 * { box-sizing: border-box; }
 
+/* `.topbar` and `nav.main` set `display: flex`, which outranks the user agent's
+   `[hidden] { display: none }` — so hiding them for the popup gate (app.js `route`) silently
+   did nothing until this rule existed. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--paper);
@@ -255,6 +260,120 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px; }
 .btn:hover { filter: brightness(.97); }
 
 .decided-note { font-size: 13px; color: var(--ink-faint); }
+
+/* -- the verify gate ------------------------------------------------------- */
+/* Opened in a popup beside the article by wiki-config/continuity-launcher.js, so it drops the
+   site chrome and narrows the column — 920px of window, one card at a time. */
+
+.verify-head { margin-bottom: 20px; }
+.verify-head h1 { margin: 2px 0 4px; font-size: 21px; letter-spacing: -.02em; }
+.eyebrow {
+  margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--accent);
+}
+.verify-sub { margin: 0; font-size: 13px; color: var(--ink-faint); }
+
+/* A card whose text the reviewer has changed. The agent's diff above it is now a proposal
+   rather than a description of what will be written, and the card has to say so. */
+.card.edited { border-left: 3px solid var(--violet); }
+
+.verdicts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.chip {
+  font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  padding: 2px 8px; border-radius: 999px;
+  border: 1px solid var(--rule); color: var(--ink-soft); background: var(--paper);
+}
+.chip.bucket { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.chip.shape { font-family: var(--mono); }
+.chip.flag-chip { border-color: var(--danger); color: var(--danger); background: #fdf1ef; }
+
+.draft-label {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  margin: 14px 0 5px; font-size: 12px; font-weight: 600; color: var(--ink-soft);
+}
+.edited-flag { font-weight: 400; color: var(--violet); }
+
+textarea.draft {
+  display: block; width: 100%; resize: vertical;
+  padding: 10px 12px;
+  border: 1px solid var(--rule); border-radius: 8px;
+  background: var(--paper); color: var(--ink);
+  font: 13px/1.65 var(--mono);
+}
+textarea.draft:focus { outline: 2px solid var(--accent); outline-offset: -1px; background: var(--card); }
+
+/* -- the run rail ---------------------------------------------------------- */
+/* The eight stages of summary.md §6 as a stepper. The stagger is a per-node animation-delay
+   set in app.js, so the reveal is CSS and the *state* is data — nothing here animates a run
+   that is not in the payload. */
+
+.rail { display: flex; list-style: none; margin: 0 0 8px; padding: 0; }
+
+.stage {
+  position: relative; flex: 1 1 0; min-width: 84px; padding: 0 3px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  animation: stage-in .34s ease both;
+}
+.stage::before {
+  content: ""; position: absolute; top: 11px; right: 50%; width: 100%; height: 2px;
+  background: var(--rule);
+}
+.stage:first-child::before { display: none; }
+.stage.done::before, .stage.active::before { background: var(--accent); }
+
+.dot {
+  position: relative; z-index: 1;
+  width: 24px; height: 24px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--rule); background: var(--card);
+  color: #fff; font-size: 12px; font-weight: 700; line-height: 1;
+}
+.stage.done .dot { background: var(--accent); border-color: var(--accent); }
+.stage.active .dot { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.stage.active .dot::after {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+}
+
+.stage-name { margin-top: 7px; font-size: 12px; font-weight: 600; }
+.stage-note { font-size: 11px; color: var(--ink-faint); }
+.stage.active .stage-name { color: var(--accent); }
+.stage.pending .stage-name { color: var(--ink-faint); }
+
+@keyframes stage-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .stage { animation: none; } }
+
+.rail-note { margin: 0 0 24px; font-size: 11px; color: var(--ink-faint); text-align: center; }
+
+/* -- the final gate -------------------------------------------------------- */
+/* Accepting a card writes nothing; this bar is the only thing on the page that does. */
+
+.publish-bar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; margin-top: 4px;
+  border: 1px solid var(--rule); border-radius: 10px;
+  background: var(--card); box-shadow: var(--shadow);
+  font-size: 13px;
+}
+.publish-bar span { flex: 1 1 240px; color: var(--ink-soft); }
+.publish-bar strong { color: var(--ink); }
+.publish-bar.waiting { background: var(--paper); box-shadow: none; color: var(--ink-faint); }
+.publish-bar.written { border-color: var(--ok); background: #f2f8f4; }
+
+.btn.publish { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.publish[disabled] { opacity: .45; cursor: not-allowed; }
+.btn.discard { color: var(--danger); }
+.btn.undo { color: var(--ink-soft); }
+
+/* What the publish route actually said. Shown verbatim rather than softened: the route
+   answers 501 today, and a gate that hid that would be claiming a write it did not make. */
+.publish-note {
+  margin: 10px 0 0; padding: 8px 12px;
+  border-radius: 6px; background: #fdf1ef;
+  font-size: 12px; color: var(--danger);
+}
 
 /* -- ledger table ---------------------------------------------------------- */
 

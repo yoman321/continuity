@@ -11,7 +11,8 @@ writes to. So the baseline is deterministic: read the page, split it, store it, 
 model call and no judgement anywhere in the path. Claims are then proposed *against* a baseline
 that already exists, rather than being the only thing the ledger holds.
 
-Two collections, one ledger. `claims` is what the agent tracks and reschedules; `sections` is
+Three collections, one ledger. `claims` is what the agent tracks and reschedules, `drafts` is
+what a run proposed and a reviewer decided (`drafts.py`), and `sections` is
 what the wiki currently says. They are keyed differently and written at different times, which
 is exactly why they are not one table: a re-ingest replaces a page's sections wholesale, while
 a claim outlives every edit made to the section it sits in.

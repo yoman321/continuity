@@ -29,7 +29,7 @@ licence on the page. Share-alike is inherited, not optional.
 
 ## What is MIT
 
-Everything else: `src/`, `tests/`, `scripts/`, and the project documentation. The code that
+Everything else: `backend/`, `tests/`, `scripts/`, and the project documentation. The code that
 reads and rewrites the text is ours; the text is not.
 
 ## Reproducing

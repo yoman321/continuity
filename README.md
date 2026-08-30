@@ -25,12 +25,19 @@ at 2024-08-09.
 > MediaWiki read and write, and the claim ledger, each with a deterministic offline path behind
 > it. A local MediaWiki is up and seeded from the frozen corpus, and the ledger persists to a
 > local JSON file holding the exact documents Firestore will later hold. **Not yet wired up:**
-> the ADK graph that joins those tools, and the Firestore adapter behind the ledger — so the
-> three API routes exist and are guarded but answer 503/501, and the frontend renders a
-> labelled fixture rather than a live agent run. Four stages do run on their own: the baseline
-> ingest fills the ledger with what the monitored pages currently say, Classify sorts a claim
-> against retrieved evidence using real Gemini, Draft writes the edit that follows, and Diff
-> reads that edit for what it did to the ideas already on the page —
+> the ADK graph that joins those tools, and the claim store behind `/api/state` — so that route
+> and `/internal/tick` answer 503/501, and the ledger and page views render a labelled fixture
+> rather than a live agent run. **The review queue is no longer one of them:** drafts live in a
+> document store (local JSON file, or Firestore with `DRAFT_STORE=firestore`), every verdict and
+> hand-edit is written back as it is made, and the run survives a reload. The queue view **is**
+> the Verify gate (`summary.md` §6); it opens from a floating **Continuity** button on the wiki
+> itself, replays the run's eight stages above the cards, and holds every accept until one final
+> publish — which **writes**: the route re-reads each section, substitutes the approved text,
+> records the revision it created, and stamps the draft published.
+> Six of the eight stages run on their own: the baseline ingest fills the ledger with what the
+> monitored pages currently say, Classify sorts a claim against retrieved evidence using real
+> Gemini, Draft writes the edit that follows, Diff reads that edit for what it did to the ideas
+> already on the page, Verify is the gate, and Publish is the write behind its button —
 > `scripts/classify_once.py` runs the classify path end to end, live or replayed from a
 > cassette.
 
@@ -54,7 +61,7 @@ Three views:
 
 | Route | Shows |
 |---|---|
-| `#/queue` | Drafted edits — diff, rationale, citations with authority tiers, confidence, approve/reject |
+| `#/queue` | Drafted edits — diff, rationale, citations with authority tiers, confidence. The Verify gate: approve, edit in place, or reject |
 | `#/ledger` | Every tracked claim — status, volatility wave, confidence, recheck interval, next check |
 | `#/wiki/<slug>` | The seeded wiki page, with each claim's anchor highlighted in place |
 
@@ -95,12 +102,23 @@ Same three views, plus the API the agent will answer on:
 | Route | Now | Eventually |
 |---|---|---|
 | `GET /` | serves `FE/` | unchanged |
-| `GET /api/state` | `503` | ledger + queue from the claim store, in the fixture's exact shape |
-| `POST /api/queue/{edit_id}` | validates, then `501` | approve → `action=edit&section=N` |
+| `GET /api/state` | `503` | ledger + page text from the claim store, in the fixture's exact shape |
+| `GET /api/drafts` | the stored drafts, newest first | unchanged |
+| `GET /api/drafts/{id}` | one draft: its changes, verdicts, hand-edits and flags | unchanged |
+| `POST /api/drafts/{id}/changes/{edit_id}` | records a verdict, the reviewer's text, or both | unchanged |
+| `POST /api/drafts/{id}/publish` | **writes** every accepted change as `action=edit&section=N`, then stamps the draft published | unchanged |
 | `POST /internal/tick` | authenticates, then `501` | hourly Cloud Scheduler run |
 
-The 503 is deliberate: it is what makes the frontend fall back to the generated fixture and
-label itself **fixture** rather than claiming to be live. `/internal/tick` compares
+The 503 is deliberate: it is what makes the frontend fall back to the generated fixture for the
+ledger and page views and label itself **fixture** rather than claiming to be live. The queue is
+the exception — it comes from the draft store, so a verdict is real state even while the ledger
+is not.
+
+**The publish request has no body.** Everything the write is made from — which changes were
+accepted, their text, their pages and their anchors — comes from the stored draft, so the only
+thing a caller can do is publish a review a person already accepted (`AGENTS.md` §2). It needs
+`MEDIAWIKI_API_URL`, `MEDIAWIKI_API_KEY` and the bot credentials below; without all four it
+answers 503 rather than half-writing. `/internal/tick` compares
 `X-Tick-Token` against `TICK_TOKEN` before doing anything, and refuses outright when that is
 unset — the service is public when deployed, so the header is the only thing guarding it.
 
@@ -115,7 +133,24 @@ brew install mariadb php && brew services start mariadb
 ./scripts/setup_wiki.sh                  # ~90s: downloads MediaWiki, installs, makes a bot
 php -S localhost:8080 -t wiki            # serve it
 python3 scripts/seed_wiki.py             # load the 12 pages, then verify every hash
+./scripts/install_launcher.sh            # adds the Continuity button to every article
+python3 scripts/seed_drafts.py           # put the demo's drafted edits in the draft store
 ```
+
+`seed_drafts.py` is what gives the gate something to review until the ADK graph can produce a
+draft of its own. It converts the generated fixture's queue into the document the store holds
+and overwrites it every run, which makes it the demo reset: re-seed the wiki, re-seed the
+draft, and the run starts from undecided cards again. `--show` prints what the store currently
+holds — verdicts, and the revision each change wrote.
+
+`install_launcher.sh` installs `wiki-config/continuity-launcher.js` as `MediaWiki:Common.js`,
+which puts a floating button in the bottom-right corner of every article. Clicking it opens
+the run view in a popup on Continuity's own origin: the eight stages with their counts, then
+the drafted edits as review cards, then one publish button over the accepted set. It is separate from `seed_wiki.py` because the `MediaWiki:` namespace
+needs the `editinterface` right and the seeder's bot does not have it, so the launcher goes in
+through `maintenance/edit.php` as the admin. The origin is substituted at install time from
+`CONTINUITY_ORIGIN` and is never committed. The same URL works from a bookmarklet on a wiki we
+do not control — see `summary.md` §10.
 
 `setup_wiki.sh` writes every credential it generates to `.env` and nothing to the terminal.
 The MediaWiki tree lands in `wiki/`, which is gitignored — it is third-party GPL software and
@@ -134,6 +169,8 @@ pipeline and claims about it would silently attach to the wrong subject.
 ```bash
 python3 scripts/pull_snapshots.py        # re-pull snapshots/ from the live wiki (~24 calls)
 python3 scripts/build_demo_state.py      # rebuild FE/data/demo-state.json from snapshots/
+python3 scripts/seed_drafts.py           # reload the draft store from that fixture
+python3 scripts/seed_drafts.py --show    # what the store holds: verdicts and written revisions
 python3 scripts/ingest_baseline.py       # fill the ledger baseline from snapshots/ (no key)
 python3 scripts/ingest_baseline.py --live  # ...from the running wiki instead
 python3 scripts/classify_once.py         # one claim through classify, replayed (no key)
@@ -156,9 +193,11 @@ Copy `.env.example` to `.env` and fill it in. `.env` is gitignored and must stay
 | `GOOGLE_CLOUD_PROJECT` | Project holding the credits |
 | `GOOGLE_CLOUD_LOCATION` | `global` for model calls — not a region |
 | `MEDIAWIKI_API_URL` | Our own seeded instance. **Never a real wiki** |
-| `MEDIAWIKI_API_KEY` | Generated by `setup_wiki.sh`. The wiki is treated as external even though it is ours, so reads and writes carry it in an `X-API-Key` header and refuse to run without it |
+| `MEDIAWIKI_API_KEY` | Generated by `setup_wiki.sh`. The wiki is treated as external even though it is ours, so reads and writes carry it in an `X-API-Key` header and refuse to **construct** without it — publishing answers `503` if it is unset. **A dummy standing where a real credential goes:** MediaWiki does not validate it, so any random string works locally. Pointing the agent at a wiki that genuinely gates its API is then this value, not a code change (`AGENTS.md` §2) |
 | `MEDIAWIKI_BOT_USER` / `_PASSWORD` | From `Special:BotPasswords` on that instance |
 | `TICK_TOKEN` | Shared secret for `/internal/tick`. Unset ⇒ the tick refuses to run |
+| `DRAFT_STORE` | `file` (default) or `firestore`. Both hold the same documents; the file is `data/drafts.json` |
+| `DRAFT_STORE_PATH` | Optional override for that file. Deployed, Firestore replaces it |
 
 Deployed, the Cloud Run service account supplies Gemini auth through the metadata server; the
 client line is identical either way. Locally it is five commands, and `gcloud init` alone is

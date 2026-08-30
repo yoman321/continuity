@@ -129,6 +129,78 @@ class TestNeverCreatesASection(unittest.TestCase):
         self.assertEqual(written.writer.edits, [])
 
 
+class TestAnchorWrite(unittest.TestCase):
+    """`write_anchor`: the gate's write. The draft names a line; the section around it is
+    whatever the page says at approval time."""
+
+    def test_the_section_is_rebuilt_around_the_replaced_line(self) -> None:
+        written = tool()
+        result = written.write_anchor("Gambit", "Cast", "old cast", "new cast", summary="s")
+        assert isinstance(written.writer, StubWriter)
+        self.assertEqual(result["status"], "written")
+        self.assertEqual(written.writer.edits[0]["text"], "==Cast==\nnew cast\n\n")
+        self.assertEqual(written.writer.edits[0]["section"], 2)
+
+    def test_the_index_is_still_resolved_from_the_heading(self) -> None:
+        after = tool(SHIFTED).write_anchor("Gambit", "Cast", "old cast", "new", summary="s")
+        self.assertEqual(after["section_index"], 3)
+
+    def test_the_base_timestamp_still_guards_the_write(self) -> None:
+        written = tool()
+        written.write_anchor("Gambit", "Cast", "old cast", "new", summary="s")
+        assert isinstance(written.writer, StubWriter)
+        self.assertEqual(written.writer.edits[0]["basetimestamp"], STAMP)
+
+    def test_a_vanished_anchor_writes_nothing(self) -> None:
+        """The draft was built on text that is no longer there. Approving it must not fall
+        back to writing the section, which would be a different edit than the one reviewed."""
+        written = tool()
+        result = written.write_anchor("Gambit", "Cast", "gone", "new", summary="s")
+        assert isinstance(written.writer, StubWriter)
+        self.assertEqual(result["status"], "no_such_anchor")
+        self.assertEqual(result["occurrences"], 0)
+        self.assertEqual(written.writer.edits, [])
+
+    def test_an_ambiguous_anchor_writes_nothing(self) -> None:
+        written = tool("lead\n\n==Cast==\nsame\nsame\n")
+        result = written.write_anchor("Gambit", "Cast", "same", "new", summary="s")
+        assert isinstance(written.writer, StubWriter)
+        self.assertEqual(result["status"], "no_such_anchor")
+        self.assertEqual(result["occurrences"], 2)
+        self.assertEqual(written.writer.edits, [])
+
+    def test_the_same_edit_approved_twice_is_not_written_twice(self) -> None:
+        """The nasty one. A draft that appends to a line leaves the anchor in place, so the
+        second write finds it and appends again — the page ends up with the edit on it twice
+        and nothing in the substitution itself notices."""
+        applied = "lead\n\n==Cast==\nold cast and more\n"
+        written = tool(applied)
+        result = written.write_anchor(
+            "Gambit", "Cast", "old cast", "old cast and more", summary="s"
+        )
+        assert isinstance(written.writer, StubWriter)
+        self.assertEqual(result["status"], "already_applied")
+        self.assertEqual(written.writer.edits, [])
+
+    def test_a_missing_heading_is_reported_before_the_anchor_is_looked_for(self) -> None:
+        result = tool().write_anchor("Gambit", "Reception", "old cast", "new", summary="s")
+        self.assertEqual(result["status"], "no_such_section")
+
+    def test_a_conflict_is_still_a_value(self) -> None:
+        result = tool(raises=WikiError("c", code=CONFLICT_CODE)).write_anchor(
+            "Gambit", "Cast", "old cast", "new", summary="s"
+        )
+        self.assertEqual(result["status"], "conflict")
+        self.assertIn("Re-read", result["error"])
+
+    def test_the_lead_is_addressable_as_the_empty_heading(self) -> None:
+        written = tool()
+        result = written.write_anchor("Gambit", "", "intro text", "new intro", summary="s")
+        assert isinstance(written.writer, StubWriter)
+        self.assertEqual(result["section_index"], 0)
+        self.assertEqual(written.writer.edits[0]["text"], "new intro\n\n")
+
+
 class TestWriteGuard(unittest.TestCase):
     def test_a_read_only_profile_cannot_build_the_tool(self) -> None:
         with self.assertRaises(WikiError):
@@ -140,19 +212,26 @@ class TestToolSurface(unittest.TestCase):
         import inspect
         from typing import get_type_hints
 
-        hints = get_type_hints(WikiWrite.write_section)
-        names = [p for p in inspect.signature(WikiWrite.write_section).parameters if p != "self"]
-        self.assertEqual(names, ["title", "heading", "text", "summary"])
-        for name in names:
-            self.assertIs(hints[name], str)
+        expected = {
+            "write_section": ["title", "heading", "text", "summary"],
+            "write_anchor": ["title", "heading", "anchor", "replacement", "summary"],
+        }
+        for method, names in expected.items():
+            with self.subTest(method=method):
+                hints = get_type_hints(getattr(WikiWrite, method))
+                signature = inspect.signature(getattr(WikiWrite, method)).parameters
+                self.assertEqual([p for p in signature if p != "self"], names)
+                for name in names:
+                    self.assertIs(hints[name], str)
 
     def test_the_signature_offers_no_way_to_pass_an_index(self) -> None:
         """If a caller could pass one, a stale one would eventually be passed."""
         import inspect
 
-        self.assertNotIn(
-            "section", inspect.signature(WikiWrite.write_section).parameters
-        )
+        for method in ("write_section", "write_anchor"):
+            with self.subTest(method=method):
+                signature = inspect.signature(getattr(WikiWrite, method))
+                self.assertNotIn("section", signature.parameters)
 
 
 if __name__ == "__main__":  # pragma: no cover

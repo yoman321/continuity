@@ -380,7 +380,8 @@ class TestDeclining(unittest.TestCase):
         claim_id = tracked(tool)["claim_id"]
         tool.record_outcome(claim_id, "changed")
 
-        # What `/api/queue/{edit_id}` reject does: the old text stands, so it is `unchanged`.
+        # What discarding a change at the gate does: the old text stands, so it is
+        # `unchanged`. There is no `rejected` transition and there must not be one.
         view = tool.record_outcome(claim_id, "unchanged")
 
         self.assertEqual(view["status"], ClaimStatus.VERIFIED.value)

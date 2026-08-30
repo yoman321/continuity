@@ -33,6 +33,15 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   satisfying the track, but the AI-usage clause bans third-party agent frameworks and the
   plain SDK already satisfies it. Gemini never fetches. Exactly one partner track is
   permitted, so no second partner may be used for its AI features.
+- **The publish request decides nothing. It has no body.** Judging requires
+  `--allow-unauthenticated`, so `POST /api/drafts/{id}/publish` is public and there is no
+  session to identify a reviewer by. Everything the write is made from — which changes were
+  accepted, their text, their pages, their anchors and their edit summaries — is read from the
+  stored draft, so the most a stranger who guesses a draft id can do is publish a review a
+  person already accepted. An unknown id is a 404 before anything is read. Never add a
+  parameter to that route: a page, a section or a text on the wire turns a review gate into a
+  public write primitive. The decision route beside it takes a verdict and the reviewer's own
+  text and nothing else, with unknown fields refused rather than ignored.
 - **Never write to any real wiki.** Unsanctioned bot edits get banned, and Wikipedia is
   stricter than Fandom — automated editing needs Bot Approval Group sign-off. All writes go to
   our own seeded MediaWiki instance, whatever wiki the profile points reads at. This is a
@@ -85,6 +94,47 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   build three-way merge, conflict markers or per-row rollback for the demo; do write the
   assumption into the submission description, because a judge editing the wiki mid-run is
   exactly how it gets discovered.
+- **Verify is the human gate and holds no model call — decided Aug 30, 2026, a hackathon
+  simplification.** No stage checks whether a drafted edit contradicts something elsewhere on the
+  page; Verify used to and no longer does. What it is now: the run's HITL pause, where **every
+  section with a diff is a card the reviewer accepts or rejects**, having read it beside the Diff
+  stage's flags and **edited the draft text in place** if they wanted to. Publish is then a
+  button —
+  `POST /api/drafts/{id}/publish` — and remains the only thing that writes to the wiki. Putting a
+  model back into Verify is a design change and not a patch: it reinstates a `Verify → Draft`
+  backward edge, and termination currently rests on the one-hop fan-out rule alone. The accepted
+  cost is written up in `summary.md` §6 — an edit clean at its anchor that contradicts a sentence
+  three sections away ships unless a person sees it — and it belongs in the submission
+  description for the same reason the single-editor assumption does.
+- **The gate reaches the wiki as a tab, not as an embedded panel — decided Aug 30, 2026.**
+  `wiki-config/continuity-launcher.js` is installed onto our own instance as
+  `MediaWiki:Common.js` and does exactly one thing: it puts a floating **Continuity** button in
+  the article's bottom-right corner that opens `#/verify?page=…&rev=…` in a popup window. A
+  corner button rather than skin chrome, because it stands in for the browser extension a real
+  deployment would ship and survives a skin change. The gate itself renders on *our* origin,
+  never inside MediaWiki's DOM, and that is the invariant: it keeps `/api/state` and the draft
+  routes same-origin, so the app keeps the "one origin, no CORS, no second
+  deploy" shape `backend/app.py` is built on (§3), and `FE/styles.css` never has to survive a
+  collision with a skin's stylesheet. Rendering the gate in the page — a browser extension, an
+  injected panel — means adding CORS to the API, and that is a deployment change, not a
+  frontend one. The popup must keep `window.opener`: the gate reloads the article behind it
+  after a publish, which is how the reviewer sees the write land. A bookmarklet firing the same
+  URL is the supported path on a wiki we do not control; no extension exists or is planned.
+- **Accepting a card writes nothing; the publish bar is the only writer — decided Aug 30,
+  2026.** The gate has two levels on purpose. Per-card **Accept / Reject** decides *what* would
+  go and is held in the browser; one **Publish** button at the foot of the run then writes the
+  accepted set, and it only unlocks once every card has a decision — enforced by the route and
+  not only by the button, because a gate that lives in a browser is not a gate. **A rejection is
+  a discard, not a verdict on the claim**: the card drops out of the publishable set, and the
+  claim behind it stays exactly as it was (see `ClaimStatus` below). Verdicts and hand-edits are
+  written to the draft store as they are made, so the run survives a reload; what must never be
+  written is a decision on the *claim*. That last press is the
+  point of no return, and until it happens the reviewer can still discard the whole run — which
+  is what makes a per-card accept safe to give quickly. A card that POSTs on accept is the bug
+  this rules out: it removes the batch review the reviewer was promised. Publishing is one
+  request over the draft, which the server turns into one `action=edit` per accepted change, in
+  order, because MediaWiki has no cross-page transaction — a partial failure is a real outcome,
+  is reported per change, and is never rolled back.
 - **`ClaimStatus` is `verified` or `unresolved`, and nothing else.** It answers one question —
   does a human need to look at this — so a third value is always a different question wearing
   the same field. Where an edit sits in the publish pipeline is the *queue's* state; a rejected
@@ -93,8 +143,17 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   `exhausted` back is a rewrite, not a patch: `exhausted` collapsed into `unchanged` because no
   new data is no change, and a rejected draft is `unchanged` for the same reason — there is no
   `rejected` transition and there should not be one. Reasoning in `summary.md` §6.
-- **The ledger has two collections: `sections` (what the page says) and `claims` (what the
-  agent tracks).** They are written at different times by different things and must not be
+- **A draft is one document, and it owns the whole review.** `ReviewDraft` holds every change a
+  run proposes, the verdict on each, the revision each one wrote, and one `published_at` for the
+  set. One document rather than one per change, because Publish is a single act over the
+  accepted set and "every card decided" is a property of the set. Three consequences that are
+  not negotiable: `written_revid` is stored, so a publish that partially failed retries only
+  what is outstanding rather than rewriting what already landed; `published_at` is stamped only
+  when every accepted change is written *and* at least one was accepted, so a fully discarded
+  run never reads as published; and the diff is never stored, because it is a view of
+  `before`/`after` that a hand-edit invalidates.
+- **The ledger has three collections: `sections` (what the page says), `drafts` (what a run
+  proposed and what the reviewer decided) and `claims` (what the agent tracks).** They are written at different times by different things and must not be
   merged. The baseline is *deterministic* — read the page, split it, store the sections
   verbatim — so step 1 of a run needs no model, no key and no judgement, and a claim is later
   proposed *against* a baseline that already exists. Sections are replaced per page as one set,
@@ -169,8 +228,13 @@ instance that cannot. Nothing else runs.
   continuity                                  <-- the public project URL
     FastAPI, python:3.12-slim
       GET  /                 StaticFiles over FE/        (no build step; ships as-is)
-      GET  /api/state        ledger + queue from Firestore
-      POST /api/queue/{id}   approve/reject -> action=edit&section=N
+      GET  /api/state        ledger + page text from Firestore
+      GET  /api/drafts       the runs waiting at the gate; {id} for one, with its verdicts
+      POST /api/drafts/{id}/changes/{edit_id}
+                             a verdict, the reviewer's own text, or both. Writes no wiki
+      POST /api/drafts/{id}/publish
+                             Publish: the Verify gate's button. No body — the accepted
+                             changes -> action=edit&section=N. The only route that writes
       POST /internal/tick    Cloud Scheduler, hourly, shared-secret header (§2)
     runtime SA: continuity-run@  — aiplatform.user, datastore.user, secretAccessor
 
@@ -183,8 +247,13 @@ instance that cannot. Nothing else runs.
   Cloud Scheduler (1 job)   Artifact Registry (2 images)
 ```
 
-That is the target shape. `backend/app.py` serves `/` for real; the other three are written and
-guarded but have nothing behind them yet, so they answer 503/501 (§4).
+That is the target shape. `backend/app.py` serves `/` and runs the gate for real: the four
+draft routes read and write a document store (`GET /api/drafts`, `GET /api/drafts/{id}`,
+`POST /api/drafts/{id}/changes/{edit_id}`, `POST /api/drafts/{id}/publish`), and publishing
+writes to our own MediaWiki through `WikiWrite`. `DRAFT_STORE` picks the store — the local JSON
+file or Firestore, holding identical documents — so the port is a value in `.env` and not a code
+path. `/api/state` and `/internal/tick` are written and guarded but have nothing behind them
+yet, so they answer 503/501 (§4).
 
 Rules that fall out of this shape:
 
@@ -217,10 +286,13 @@ Rules that fall out of this shape:
 ```text
   backend/                           # the whole Python app: core + perimeter, one package
     __init__.py                      # <-- read first: the pure/perimeter rule. Import-free
-    app.py                           # the four routes; FE/ mounted last
+    app.py                           # the routes: state, drafts, publish, tick; FE/ last
+    firestore.py                     # DraftStore over Firestore; SDK imported in the ctor
     core/                            # ===== the deterministic half. No vendor, no network =====
       ledger/
         schema.py                    # <-- read first: Claim, the record everything else serves
+        drafts.py                    # the review draft: changes, verdicts, published_at,
+                                     #   the document codec and the two local stores
         tiers.py                     # tier *mechanism*; the table itself is per-wiki
         decay.py                     # Wave, and the double/halve/clamp interval logic
         citations.py                 # which source may go in the <ref>; NOT which is best
@@ -232,7 +304,8 @@ Rules that fall out of this shape:
         known.py                     # MCU_FANDOM, WIKIPEDIA_EN, and local_wiki() — ours
       wiki/
         client.py                    # MediaWiki read + write adapters; network in fetch/post
-        sections.py                  # wikitext -> the sections action=edit&section=N addresses
+        sections.py                  # wikitext -> the sections action=edit&section=N addresses,
+                                     #   and the anchor substitution a published edit is
         snapshots.py                 # PageSource, and the offline reader over snapshots/
         diff.py                      # red/green rows for a drafted edit, and shape(); stdlib
                                      # ===== everything else under backend/ is perimeter =====
@@ -245,7 +318,8 @@ Rules that fall out of this shape:
       tools/
         wiki_read.py                 # outline + section reads, live or from snapshots/
         web_search.py                # Parallel; the profile's tier table IS the source policy
-        wiki_write.py                # action=edit by heading; conflict comes back as a value
+        wiki_write.py                # action=edit by heading, whole section or one anchored
+                                     #   line; conflict comes back as a value
         ledger.py                    # claim state; outcomes not schedules, ids from the store
   Dockerfile                         # the runtime image; copies pyproject/backend/FE only
   .gcloudignore                      # what Cloud Build does NOT receive; includes .gitignore
@@ -255,9 +329,15 @@ Rules that fall out of this shape:
   scripts/seed_wiki.py               # loads snapshots/seed/ into it, then verifies the hashes
   wiki-config/                       # the wiki's settings, version controlled
     LocalSettings.overrides.php      # subpages, licence, bot rights — required by the install
+    continuity-launcher.js           # the floating Continuity button; -> MediaWiki:Common.js.
+                                     #   Origin is a placeholder here — never a committed URL.
+                                     #   Every injected CSS rule is prefixed; check.js proves it
+  scripts/install_launcher.sh        # substitutes the origin, pushes it via maintenance/edit.php
   wiki/                              # GITIGNORED: the MediaWiki tree itself, a build artifact
   data/ledger.json                   # GITIGNORED: the local ledger's claims. Run state
   data/baseline.json                 # GITIGNORED: the local ledger's sections. Run state
+  data/drafts.json                   # GITIGNORED: the local ledger's drafts. Run state
+  scripts/seed_drafts.py             # fixture queue -> one reviewable draft; also the demo reset
   scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
   scripts/build_demo_state.py        # snapshots/ + ledger core -> FE/data/demo-state.json
   scripts/ingest_baseline.py         # fills data/baseline.json from snapshots/ or our wiki
@@ -276,6 +356,10 @@ Rules that fall out of this shape:
     current/*.wikitext               # the same pages live — evidence only, never the target
     ATTRIBUTION.md                   # CC BY-SA 3.0 notice; the text here is not MIT
   tests/test_app.py                  # route guards, and the no-vendor-import proof (needs venv)
+  tests/test_draft.py                # the drafted edit: its flags, and what it refuses
+  tests/test_semantic_diff.py        # the Diff stage: what it reads out of an edit
+  tests/test_drafts.py               # the draft lifecycle, and what survives a restart
+  tests/test_firestore.py            # what the adapter puts on the wire, against a fake client
   tests/test_wiki_read.py            # the read tool: outline stays cheap, retry stays alive
   tests/test_web_search.py           # one call per claim, allowlist from the profile, wire body
   tests/test_citations.py            # the footnote filter, on the shapes that caused it
@@ -319,8 +403,11 @@ Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
 - `app.py` defers every vendor import into a handler, so a cold container serves
   `index.html` without paying for the SDKs.
 
-Not yet written: the 8-stage graph and the Firestore adapter — so all three API routes are
-still guarded shells answering 503/501. Built: all four tools — wiki read, Parallel search, wiki
+Not yet written: the 8-stage graph, and the claim/section stores' Firestore adapter — so
+`/api/state` and `/internal/tick` are still guarded shells answering 503/501. The review draft
+*is* stored (`core/ledger/drafts.py`, with a Firestore adapter at `backend/firestore.py`), and
+`scripts/seed_drafts.py` fills it from the fixture until a run can produce one. Built: the gate
+and its routes end to end, and all four tools — wiki read, Parallel search, wiki
 section-write and the ledger — each binding a profile and each with a deterministic path behind
 it, over a claim store that persists. The graph can therefore be assembled and tested with no
 key, no network, no wiki running and no database.
@@ -358,6 +445,9 @@ brew services start mariadb                                  # the wiki's databa
 php -S localhost:8080 -t wiki                                # serve it (leave running)
 python3 scripts/seed_wiki.py --check                         # does it match the profile?
 python3 scripts/seed_wiki.py                                 # load the 12 pages, verify hashes
+./scripts/install_launcher.sh                                # the Continuity button -> Common.js
+python3 scripts/seed_drafts.py                               # the demo's draft -> the store
+python3 scripts/seed_drafts.py --show                        # verdicts, and what each one wrote
 
 python3 scripts/pull_snapshots.py                            # rebuild snapshots/ (~24 calls)
 python3 scripts/pull_snapshots.py --only current             # refresh the live side alone
@@ -479,6 +569,25 @@ first model call, not at deploy, which is the expensive place to find out.
 Symptom → fix. Append when something costs more than ten minutes and the cause was
 non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §12.
 
+- **Every adapter built against `local_wiki()` must be handed the API key.** The profile
+  declares `requires_key`, so `for_profile` raises before any request is made — `seed_wiki.py`
+  had been calling it bare and died on its first line with a message about `.env` rather than
+  about the call → pass `api_key=` at every construction site, including readers.
+- **A fragment-only `Page.navigate` does not reload the page.** Driving the gate over CDP from
+  `#/queue` to `#/verify?…` keeps the same document, so the app kept its in-memory `published`
+  map and reported writes it had not made — against a wiki that had just been re-seeded → send
+  `Page.reload` after navigating, and confirm a write on the wiki's own API rather than from
+  what the page says about it.
+- **The seeder's bot cannot install the launcher.** `MediaWiki:Common.js` needs the
+  `editinterface` right and the BotPassword created by `setup_wiki.sh` carries only
+  `basic,editpage,createeditmovepage`, so an API write there fails as a permissions error long
+  after it looks like a seeding problem → push it with `maintenance/edit.php --user` as the
+  admin account, which is all `scripts/install_launcher.sh` does.
+- **`el.hidden` does nothing to a flex element.** `.topbar` and `nav.main` set
+  `display: flex`, which outranks the user agent's `[hidden] { display: none }` — so the popup
+  gate set `hidden` on both, threw no error, and rendered the full site chrome anyway →
+  `FE/styles.css` now carries `[hidden] { display: none !important; }` near the reset. The
+  failure is invisible in code review and only shows up in a screenshot.
 - **Vertex SDK names are one generation stale.** `vertexai=True` /
   `GOOGLE_GENAI_USE_VERTEXAI` are pre-rebrand and every pre-June-2026 tutorial uses them →
   `enterprise=True` / `GOOGLE_GENAI_USE_ENTERPRISE`, and `location="global"`, not a region.
@@ -538,7 +647,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   backward edge silently never fires → set `ctx.route = "thin"` inside the node body, and give
   the branching edge a routing map: `(classify, {"thin": research, "ok": draft})`.
 - **`NodeInterruptedError` is internal and not exported from `google.adk.workflow`** (only
-  `NodeTimeoutError` is) — its own docstring says "Internal" → drive the publish gate with the
+  `NodeTimeoutError` is) — its own docstring says "Internal" → drive the Verify gate with the
   public `google.adk.tools.request_input` tool and let the runtime raise it, rather than
   importing it from `workflow._errors` and raising it directly.
 - **Setting `timeout=` on a Parallel call bounds nothing — the SDK retries timeouts.**
@@ -657,8 +766,8 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   returns `append` or `modify` from the strings alone, and Draft holds it against the Classify
   bucket: a `new` claim — the page is incomplete, not wrong — whose draft displaced existing
   text is `overreached` and the queue says so. Do not ask the model whether its edit was
-  conservative. Verify only looks for a contradiction the edit *introduced*, so wording an
-  edit silently took away is caught here or nowhere.
+  conservative. Verify holds no model call at all (§2), so wording an edit silently took away is
+  caught by this check and by the Diff stage, or nowhere.
 - **`shape()` is containment, and it fails toward `modify`.** `before in after`, not a token
   or character-subsequence test, and the demo's own fixtures are why: `GAM-APP-01` glues
   `<br>''[[Avengers: Doomsday]]''` onto the end of the infobox value with no space, so a token
@@ -671,6 +780,14 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   A conflict is a choice between readings, and resolving it is what produces something to
   draft (`summary.md` §6). `DRAFTABLE` is the list; an unlisted bucket raises before the model
   is called, so a bad route costs nothing.
+- **Draft returns one candidate, never a list.** The gate is uniform — every section with a diff
+  is a card the reviewer accepts or rejects (§2) — so the decision is *whether* this edit, never
+  *which* of several. A picker would be a second decision surface for the same click, and
+  drafting alternatives would multiply model calls to produce options nobody asked to compare.
+  The one card carrying no diff is an unresolved `conflicting` claim: it reaches the gate as its
+  two readings with their tiers and citations, accepting one is the resolution that makes it
+  draftable on the next pass, and rejecting leaves it `unresolved` for the revisit queue rather
+  than picking a side on the reviewer's behalf.
 - **The Diff stage reads ideas; `shape()` is only its floor.** Text and meaning come apart in
   both directions — an appended `, however this was later denied` keeps every character and
   reverses the assertion, and threading `(2024)` into a value displaces text while dropping
@@ -751,7 +868,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   keep using `status` for the outcome.
 - **A diff is computed and never stored — `core/wiki/diff.py`.** Git holds snapshots and
   computes `git diff` on demand, and the reason applies here with more force: a stored diff is
-  correct only while the page it was taken against stays put, and the publish gate exists
+  correct only while the page it was taken against stays put, and the Verify gate exists
   precisely so that hours pass first. Persist `before` and `after`; render the rows. Line-level
   first, then word-level inside a changed pair, which is what git and MediaWiki's own diff view
   both do. Two rules the tests pin: the rows must rebuild both texts byte for byte — context +
@@ -771,6 +888,24 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   and uses that same read's timestamp as `basetimestamp`. There is deliberately no way to pass
   an index — if there were, a stale one eventually would be. A heading that no longer exists is
   a reason to re-plan and never to create one (§2), so it comes back with the headings that do.
+- **A published edit is substituted into the section, never sent as a section.** A drafted edit
+  names the text it replaces (`before`) and what that becomes (`after`), so `write_anchor`
+  re-reads the section and swaps the one for the other in whatever it says *now*. Sending the
+  drafted section wholesale would revert every other change made to it while the edit sat at the
+  gate — the same silent overwrite `basetimestamp` guards against, one level down and invisible
+  to it. An anchor that is missing or appears twice is refused, and so is one whose replacement
+  is already on the page: a draft that *adds* to a line leaves that line intact, so a second
+  approval would find the anchor again and append the same text twice.
+- **Publish writes the text the reviewer approved, never the agent's proposal.** The Verify
+  gate accepts a hand-edited version (§2), so the edit is saved onto the change as it is made and
+  the write reads *that*. Publishing the model's original `after` instead would silently discard
+  every edit a reviewer made and would look exactly like it worked — the draft is a proposal, and
+  what a person approved is what goes on the wiki. Publish is also the only caller of
+  `WikiWrite`: nothing upstream of the gate touches the wiki, no stage writes without a button
+  press behind it, and a `conflict` comes back as a value for the reviewer to re-draft, never as
+  an exception. The request decides nothing at all (§2); a stale draft, a vanished anchor and an
+  edit already on the page come back as that change's outcome, in the tool's own words, which the
+  gate prints verbatim.
 - **An edit conflict is a return value, not an exception — and under §2's single-editor
   assumption it is a guard, not a flow.** Nothing in the review queue asks a human to resolve
   one; the write is simply refused and the claim re-drafted. It means "re-read and re-draft",
@@ -798,12 +933,15 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   top.** Cloud Run scales to zero, so the first request after an idle period pays for whatever
   the module imports — 5-15s of vendor SDK before `index.html` can be served. Deferring the
   imports keeps the frontend fast on a cold container without paying for a warm one.
-- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 8-stage flow with three
-  backward edges is an ADK 2.0 Workflow Runtime graph; the publish gate is its HITL pause, and
-  because Fan-out follows the gate the run hits that pause twice.
+- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 8-stage flow with **two**
+  backward edges is an ADK 2.0 Workflow Runtime graph; **Verify** is its HITL pause, and because
+  Fan-out follows the gate the run hits that pause twice. The two edges are
+  `Classify → Research` and `Fan-out → Research`; nothing after Draft routes backwards, so the
+  one-hop fan-out rule is the whole termination argument (§2).
 - **The orchestrator routes and holds no opinion.** Every judgement belongs to a specialised
   node with its own system instruction, its own response schema and one question to answer —
-  `classify.py`, `draft.py`, `semantic_diff.py`, and Verify when it lands. Do not put reasoning
+  `classify.py`, `draft.py`, `semantic_diff.py`, and claim proposal when it lands. Verify is not
+  on this list and must not join it: it is a pause, not a judgement (§2). Do not put reasoning
   in the graph itself, and do not let one node answer two questions: a model asked to both run
   the pipeline and evaluate its output has no separate position to evaluate it from. This is
   also why the Diff stage is not a method on Draft.
@@ -863,9 +1001,9 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **Fan-out runs after Publish, and reads the applied revision — never the draft.** Order is
   `… → Verify → Publish → Fan-out → Research`. What implicates other pages is what the wiki now
   says, and the gate is allowed to change that: a rejection means the dependents should never
-  have been researched, and a hand-edit means every dependent drafted from the pre-gate text
-  overstates its premise — which nothing downstream catches, because Verify only reads the page
-  it is editing. Seed the fan-out from the published text, not from the classification.
+  have been researched, and a hand-edit — which is now the whole point of the Verify gate (§2) —
+  means every dependent drafted from the pre-gate text overstates its premise, which nothing
+  downstream catches. Seed the fan-out from the published text, not from the classification.
 - **Fan-out is capped and non-transitive, and that is what terminates the graph.** It expands the
   run's working set, so cap the claims it may add per run and never let a fanned-in claim fan out
   again in the same run. `Fan-out → Research` is a real cycle: the one-hop rule is the only thing
