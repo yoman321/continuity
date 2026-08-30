@@ -238,5 +238,76 @@ class TestTheRecord(unittest.TestCase):
             self.assertEqual(rebuilt, payload[side])
 
 
+class TestAConflictIsDrafted(unittest.TestCase):
+    """A conflicting claim reaches the gate as an edit, not as a special case.
+
+    Decided Aug 30, 2026: anything retrieval carried that the page does not say goes to the
+    reviewer. The card shows the disagreement and the reviewer takes it or discards it — the
+    same two buttons every other card has, which is why a conflict needs no verdict of its own.
+    """
+
+    def verdict(self) -> Verdict:
+        return Verdict(
+            bucket="conflicting",
+            reason="The page names Secret Wars; the source reports Doomsday.",
+            note="One says Secret Wars, the other Doomsday.",
+            source_a="https://deadline.com/a",
+            source_b="https://variety.com/b",
+        )
+
+    def test_the_bucket_is_draftable(self) -> None:
+        self.assertIn("conflicting", DRAFTABLE)
+
+    def test_the_card_carries_both_sides(self) -> None:
+        """Carried onto the card rather than left on the claim: the gate renders one draft, and
+        a reviewer cannot open the ledger behind it."""
+        drafted = Drafter(MCU_FANDOM, Fake({"after": APPENDED, "summary": "s"})).draft(
+            claim(), SECTION, self.verdict()
+        )
+        self.assertEqual(drafted.conflict, self.verdict().note)
+        self.assertEqual(
+            drafted.conflict_sources, ("https://deadline.com/a", "https://variety.com/b")
+        )
+        change = drafted.as_change(edit_id="edit-1", page_slug="Gambit")
+        self.assertEqual(change.conflict, self.verdict().note)
+        self.assertEqual(len(change.conflict_sources), 2)
+
+    def test_the_prompt_states_the_disagreement(self) -> None:
+        """"Show the disagreement" is not an instruction a model can follow from a sentence
+        that summarises it — both urls have to be in the prompt."""
+        prompt = Drafter(MCU_FANDOM, Fake("")).prompt(claim(), SECTION, self.verdict(), None)
+        self.assertIn("DISAGREEMENT", prompt)
+        self.assertIn("https://deadline.com/a", prompt)
+        self.assertIn("https://variety.com/b", prompt)
+
+    def test_one_url_twice_is_one_side(self) -> None:
+        """The schema demands both sides by url, and a model that found one sometimes repeats
+        it. Two identical links would imply two sources agreed to disagree."""
+        one_sided = Verdict(bucket="conflicting", reason="r", note="n",
+                            source_a="https://deadline.com/a", source_b="https://deadline.com/a")
+        drafted = Drafter(MCU_FANDOM, Fake({"after": APPENDED, "summary": "s"})).draft(
+            claim(), SECTION, one_sided
+        )
+        self.assertEqual(drafted.conflict_sources, ("https://deadline.com/a",))
+
+    def test_a_new_claim_carries_no_disagreement(self) -> None:
+        drafted = Drafter(MCU_FANDOM, Fake({"after": APPENDED, "summary": "s"})).draft(
+            claim(), SECTION, Verdict(bucket="new", reason="a film is missing")
+        )
+        self.assertEqual(drafted.conflict, "")
+        self.assertEqual(drafted.conflict_sources, ())
+        self.assertNotIn("DISAGREEMENT", Drafter(MCU_FANDOM, Fake("")).prompt(
+            claim(), SECTION, Verdict(bucket="new", reason="x"), None))
+
+    def test_rewriting_is_not_overreach_when_the_page_may_be_wrong(self) -> None:
+        """`overreached` asks whether an edit took away what it had no business taking. For a
+        `new` claim there was nothing to take; for a conflict there may well have been."""
+        rewritten = Drafter(MCU_FANDOM, Fake({"after": REWRITTEN, "summary": "s"})).draft(
+            claim(), SECTION, self.verdict()
+        )
+        self.assertEqual(rewritten.shape, MODIFY)
+        self.assertFalse(rewritten.overreached)
+
+
 if __name__ == "__main__":
     unittest.main()

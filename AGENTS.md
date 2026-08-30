@@ -106,6 +106,21 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   cost is written up in `summary.md` §6 — an edit clean at its anchor that contradicts a sentence
   three sections away ships unless a person sees it — and it belongs in the submission
   description for the same reason the single-editor assumption does.
+- **The graph runs six stages and stops at Verify — decided Aug 30, 2026.** `agent/graph.py`
+  is one ADK `Workflow`: Audit, Research, Classify, Draft, Diff, Verify. **Publish and Fan-out
+  are not nodes and must not become them.** Publish is a button on a route, and a node that
+  wrote to the wiki would make the gate optional — which is the one thing the whole publish
+  path rests on; Fan-out has nothing to expand until an edit has actually been applied, and
+  that happens after this run has ended. Verify does not *pause* the run either, which an
+  earlier plan had it doing through `request_input`: Cloud Run scales to zero and the tick is
+  hourly, so a coroutine waiting on a reviewer dies at the first idle timeout while a stored
+  `ReviewDraft` survives the container, the reload and the week. Verify's node writes the draft
+  and the invocation finishes — the pause is the store, and the resume is the publish route.
+  One backward edge is in play, `Classify → Research`, and it fires on exactly one signal: a
+  `conflicting` verdict where filtering dropped *every* excerpt, which is retrieval having gone
+  off-subject rather than the world disagreeing with itself. A real conflict routes to a person
+  and never to a retry. It is bounded in the Research node, which is the only thing anywhere
+  that refuses a fourth round — `record_research` spends one without consulting the budget.
 - **The gate reaches the wiki as a tab, not as an embedded panel — decided Aug 30, 2026.**
   `wiki-config/continuity-launcher.js` is installed onto our own instance as
   `MediaWiki:Common.js` and does exactly one thing: it puts a floating **Continuity** button in
@@ -152,8 +167,9 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   when every accepted change is written *and* at least one was accepted, so a fully discarded
   run never reads as published; and the diff is never stored, because it is a view of
   `before`/`after` that a hand-edit invalidates.
-- **The ledger has three collections: `sections` (what the page says), `drafts` (what a run
-  proposed and what the reviewer decided) and `claims` (what the agent tracks).** They are written at different times by different things and must not be
+- **The ledger has four collections: `sections` (what the page says), `claims` (what the agent
+  tracks), `judgements` (why each claim was routed as it was) and `drafts` (what a run proposed
+  and what the reviewer decided).** They are written at different times by different things and must not be
   merged. The baseline is *deterministic* — read the page, split it, store the sections
   verbatim — so step 1 of a run needs no model, no key and no judgement, and a claim is later
   proposed *against* a baseline that already exists. Sections are replaced per page as one set,
@@ -161,7 +177,25 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   everything below renumbers, so merging a fresh read into old rows files one section's text
   under another's index, wrongly and silently. `content_hash` is stored rather than recomputed
   — the one exception to "derived values are never stored" — because Firestore filters on a
-  field it holds and not on one it would have to hash first.
+  field it holds and not on one it would have to hash first. `judgements` is the newest and the
+  only one that is pure history: **one document per classification**, keyed by task, claim and
+  attempt, never read back by any stage, and appended to rather than updated. A claim judged on
+  two runs is two rows, and a claim reclassified *within* one run is two rows as well — what
+  was said, when, and what replaced it *is* the record.
+- **Every document names the task that wrote it — decided Aug 30, 2026.** A *task* is one pass
+  of anything that writes to the ledger: a graph run, a baseline ingest, a seeding script. It
+  mints one id (`core/ledger/documents.task_id_for`) and every document it creates or modifies
+  carries it, across all four collections — so a row answers "where did this come from" without
+  a log, and a run's whole footprint is one query. Three rules keep it honest. The id is minted
+  **once per task, never per write**, at the start, from the same clock the task stamps its
+  timestamps with. The value is **bound, never passed as an argument**: `Ledger` takes it at
+  construction like the profile, because a task is not something a model may name, and every
+  path to the claim store goes through one stamping helper so provenance cannot be remembered
+  on three transitions and forgotten on the fourth. And it carries **milliseconds** — seeding
+  the ledger and then running the graph takes well under a second, and at second resolution the
+  two tasks came back with the same id, which would have had one silently overwriting the
+  other's judgements. Nothing branches on a `task_id`: it is provenance, not state, and a stage
+  that read one would be reading a copy of something `Claim` already holds.
 - **A profile names the pages it monitors (`WikiProfile.pages`).** The agent is not a crawler:
   which pages we maintain is a decision, not something to infer from a category listing. It
   lives on the profile beside `section_vocabulary` because it is per-wiki config, and because
@@ -242,7 +276,8 @@ instance that cannot. Nothing else runs.
     MediaWiki on Cloud SQL (MySQL, shared-core), over the Cloud SQL connector
     --max-instances 1; the service scales to zero, its database does not
 
-  Firestore (ledger)   Cloud SQL (MediaWiki's DB, and nothing else)
+  Firestore (ledger: sections, claims, judgements, drafts)
+  Cloud SQL (MediaWiki's DB, and nothing else)
   Secret Manager (Parallel key, tick token, bot password, wiki API key)
   Cloud Scheduler (1 job)   Artifact Registry (2 images)
 ```
@@ -291,12 +326,15 @@ Rules that fall out of this shape:
     core/                            # ===== the deterministic half. No vendor, no network =====
       ledger/
         schema.py                    # <-- read first: Claim, the record everything else serves
+        judgements.py                # why a claim was routed as it was: one per claim per
+                                     #   task. History; no stage ever reads one back
         drafts.py                    # the review draft: changes, verdicts, published_at,
                                      #   the document codec and the two local stores
         tiers.py                     # tier *mechanism*; the table itself is per-wiki
         decay.py                     # Wave, and the double/halve/clamp interval logic
         citations.py                 # which source may go in the <ref>; NOT which is best
-        documents.py                 # the stored shape; Firestore types only, both stores read it
+        documents.py                 # the stored shape; Firestore types only, both stores read
+                                     #   it. Also `task_id_for`: one id shape for every writer
         store.py                     # ClaimStore, the in-memory store, and the local JSON file
         baseline.py                  # SectionBaseline: what the page says now, per section
       profile/
@@ -310,6 +348,8 @@ Rules that fall out of this shape:
         diff.py                      # red/green rows for a drafted edit, and shape(); stdlib
                                      # ===== everything else under backend/ is perimeter =====
     agent/
+      graph.py                       # <-- read first: the six stages as ADK nodes, the
+                                     #   one backward edge, and where the run stops
       ingest.py                      # step 1 of a run: pages -> sections -> the baseline
       model.py                       # the Gemini perimeter: one call, JSON schema, a cassette
       classify.py                    # the classify stage: the prompt's four measured rules
@@ -337,11 +377,15 @@ Rules that fall out of this shape:
   data/ledger.json                   # GITIGNORED: the local ledger's claims. Run state
   data/baseline.json                 # GITIGNORED: the local ledger's sections. Run state
   data/drafts.json                   # GITIGNORED: the local ledger's drafts. Run state
+  data/judgements.json               # GITIGNORED: why each claim was routed. Run state
   scripts/seed_drafts.py             # fixture queue -> one reviewable draft; also the demo reset
   scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
   scripts/build_demo_state.py        # snapshots/ + ledger core -> FE/data/demo-state.json
   scripts/ingest_baseline.py         # fills data/baseline.json from snapshots/ or our wiki
   scripts/classify_once.py           # one claim through classify; records the cassette
+  scripts/seed_claims.py             # the demo's claims -> the ledger, backdated so they
+                                     #   are due. Stands in for the proposal stage
+  scripts/run_once.py                # one tick by hand: the graph, replayed or live
   FE/
     index.html                       # <-- read first: shell, nav, mount point
     app.js                           # state loading, routing, the three views
@@ -360,6 +404,7 @@ Rules that fall out of this shape:
   tests/test_semantic_diff.py        # the Diff stage: what it reads out of an edit
   tests/test_drafts.py               # the draft lifecycle, and what survives a restart
   tests/test_firestore.py            # what the adapter puts on the wire, against a fake client
+  tests/test_judgements.py           # the record that keeps history, and what makes it history
   tests/test_wiki_read.py            # the read tool: outline stays cheap, retry stays alive
   tests/test_web_search.py           # one call per claim, allowlist from the profile, wire body
   tests/test_citations.py            # the footnote filter, on the shapes that caused it
@@ -369,6 +414,7 @@ Rules that fall out of this shape:
   tests/test_ledger_store.py         # the codec round trip, and the two stores agreeing
   tests/test_ledger_tool.py          # what a node may decide, and what only the core may
   tests/test_ingest.py               # the baseline pass, against the committed corpus
+  tests/test_graph.py                # what a run does to the ledger, and the edge that stops
   tests/test_model.py                # what identifies a judgement, and what a replay refuses
   tests/test_classify.py             # the prompt's four rules, pinned; and what it won't guess
   tests/test_profile.py              # the seam: one title, two wikis; plus the layout rules
@@ -403,14 +449,15 @@ Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
 - `app.py` defers every vendor import into a handler, so a cold container serves
   `index.html` without paying for the SDKs.
 
-Not yet written: the 8-stage graph, and the claim/section stores' Firestore adapter — so
-`/api/state` and `/internal/tick` are still guarded shells answering 503/501. The review draft
-*is* stored (`core/ledger/drafts.py`, with a Firestore adapter at `backend/firestore.py`), and
-`scripts/seed_drafts.py` fills it from the fixture until a run can produce one. Built: the gate
-and its routes end to end, and all four tools — wiki read, Parallel search, wiki
-section-write and the ledger — each binding a profile and each with a deterministic path behind
-it, over a claim store that persists. The graph can therefore be assembled and tested with no
-key, no network, no wiki running and no database.
+Not yet written: the claim-proposal stage, Fan-out, and the claim/section stores' Firestore
+adapter — so `/api/state` and `/internal/tick` are still guarded shells answering 503/501, and
+`scripts/seed_claims.py` stands in for proposal by seeding the fixture's claims into the ledger.
+Built: the six stages that run before the human, assembled as an ADK `Workflow` in
+`agent/graph.py` and driven by `scripts/run_once.py`; the gate and its routes end to end; and
+all four tools — wiki read, Parallel search, wiki section-write and the ledger — each binding a
+profile and each with a deterministic path behind it, over stores that persist. The whole run
+is therefore testable with no key, no network, no wiki running and no database; what it needs
+before it can *say* anything true is a cassette, and a fresh clone records one (§5).
 
 **`FE/data/demo-state.json` is generated, never hand-edited.** `build_demo_state.py` takes
 page text verbatim from `snapshots/` and computes every status, confidence and interval by
@@ -456,6 +503,9 @@ python3 scripts/ingest_baseline.py                           # fill the baseline
 python3 scripts/ingest_baseline.py --live                    # ...from our own MediaWiki instead
 python3 scripts/classify_once.py                             # one claim, replayed, no key
 python3 scripts/classify_once.py --live                      # ...against Gemini, and record it
+python3 scripts/seed_claims.py                               # the demo's claims -> the ledger
+python3 scripts/run_once.py                                  # one tick: replayed, no key
+python3 scripts/run_once.py --live --record                  # ...for real, and record it
 .venv/bin/uvicorn backend.app:app --reload --port 8000       # serve FE *and* the API
 python3 -m http.server 8000 --directory FE                   # serve the FE alone, no backend
 
@@ -468,6 +518,18 @@ for one commit, drifts silently after that, and the drift is only ever noticed b
 ran the suite and did not need the prose. Every entry in the log used to carry a running tally
 and they disagreed with each other by the time anyone checked. Say the property instead — the
 gate passes, the core's tests run bare — and let the command report the number.
+
+**Live runs are sanctioned, and do not need asking for — decided Aug 30, 2026.** This is the
+project-specific half of `CLAUDE.md` §4's "ask first ... spends money": the metered calls above
+— `run_once.py --live`, `classify_once.py --live`, the Parallel and Gemini paths behind them —
+may be run without checking first, because the pipeline is at the stage where the only thing
+left to learn about it comes from calling the real services. What is still asked for is
+anything *outside* that loop: a deploy, a Cloud Scheduler job, a snapshot re-pull against
+Fandom, or a run against a wiki that is not ours. The bounds that make this safe are already in
+the code and are not to be relaxed alongside it — three research rounds per claim, one billable
+search per claim per round, `--limit` on what a run takes, and the $25 budget alert
+(`README.md`). Prefer `--record` on a live run: a run that bills and records is one nobody has
+to bill again.
 
 The four gate commands must pass before claiming done (`CLAUDE.md` §4). The wiki commands are
 not part of the gate: every test runs without it, because the read path has the snapshot corpus
@@ -699,6 +761,22 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **`omit` is not `None` in the Parallel SDK.** The sentinel drops a field from the request
   body; `None` sends an explicit null. On `session_id` that is the difference between letting
   the server generate one and overriding it with nothing → `from parallel import omit`.
+- **`google-genai` rewrites the schema you hand it, in place.** It adds `propertyOrdering` to
+  nested objects while sending, and `GeminiModel.run` passed `dict(request.schema)` — shallow,
+  so the nested dicts were still the stage's module-level `RESPONSE_SCHEMA`. The mutation
+  therefore landed in the constant, a `ModelRequest.key` **changed during its own call**, and
+  `record()` — which runs after — filed every answer under a key no later process could
+  compute. Result: a cassette that looks full and misses on every lookup, reported as "the
+  prompt or the schema changed". Found Aug 30, 2026 by diffing a replayed prompt against its
+  recording and finding them byte-identical → `deepcopy` before the call, pinned by
+  `tests/test_model.py`. Suspect this shape whenever a vendor takes a dict you also keep.
+- **A replay only reproduces from the same ledger state.** `after_date_for` reads the claim's
+  stored sources, so a claim that has already been researched asks a *narrower* search — a
+  different request, and a cassette miss. That is correct behaviour on a second tick and a trap
+  when re-running one: a crashed replay leaves rounds spent behind it, and the next attempt
+  misses on retrieval rather than where it actually failed → re-run `scripts/seed_claims.py`
+  before every replay, and read a discarded-search report as "the ledger moved", not "the
+  cassette is wrong".
 - **A null field is invisible to a Firestore inequality filter.** `Claim.is_due` treats
   `next_check_at is None` as due, so an unseeded claim is due in memory and *absent* from
   `where next_check_at <= now` — a divergence that passes every local test and only appears
@@ -719,6 +797,14 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 
 ## 7. Code conventions
 
+- **A stage is an ordinary method; the node is a wrapper.** Every stage in `agent/graph.py`
+  takes no `Context` and returns a plain dict, and only `build()` imports the SDK — so the
+  pipeline runs, and is tested, on an interpreter with no ADK installed. Same rule as the
+  tools: the logic must not know it is in a graph, or the graph becomes the only way to
+  exercise it. What that costs is that the run's typed intermediates live on the `Run` object
+  rather than in `ctx.state`, which is deliberate — `Draft` is not JSON, and a codec between
+  two halves of one run is somewhere for them to disagree. State carries each stage's summary,
+  which is what the event stream is for; the durable artifact is the stored draft.
 - **Catch narrowly inside ADK tools.** ADK 2.0 catches exceptions to drive automatic retry;
   a broad `except Exception:` masks the failure and permanently disables retry for that step.
   `except BaseException:` also traps `NodeInterruptedError` and breaks the HITL approval gate.
@@ -775,19 +861,50 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   anchor, so a subsequence test calls a rewrite an append. Reflowing scores as `modify` even
   when no word moved — keep it that way. A false alarm costs one careful read; a miss is a
   silent overwrite.
-- **Draft is never called for `still_true`, and `conflicting` reaches it only post-resolution.**
-  A confirmed claim has no edit to show — its citation is refreshed and its interval doubles.
-  A conflict is a choice between readings, and resolving it is what produces something to
-  draft (`summary.md` §6). `DRAFTABLE` is the list; an unlisted bucket raises before the model
-  is called, so a bad route costs nothing.
+- **If retrieval carried something the page does not say, it goes to the reviewer — decided
+  Aug 30, 2026.** `still_true` is the only bucket that produces no card: a confirmed claim has
+  no edit to show, so its citation is refreshed and its interval doubles. Both of the others
+  are drafted. A `conflicting` claim used to be withheld pending a resolution that nothing
+  performed, which meant a disagreement the agent had found reached nobody — it sat in the
+  ledger as `unresolved` and the run reported a claim id. It is now drafted as an edit that
+  makes the disagreement *visible* rather than settling it, and the card carries the note and
+  both urls so the reviewer can see what was contested without opening the ledger. `DRAFTABLE`
+  is the list; an unlisted bucket raises before the model is called, so a bad route costs
+  nothing.
+- **A claim may be reclassified for as long as it is in the classify phase — decided Aug 30,
+  2026.** One run researches every due claim, and the excerpt that contradicts one claim is
+  very often the one a *different* claim's search went and fetched. Classifying each claim
+  against its own batch alone threw that away: the run would reach a verdict with the
+  contradiction sitting in its own memory. So Classify runs **two sweeps** — every claim
+  against what its own search returned, then every claim against what the rest of the run found
+  about its subject, with its previous verdict in the prompt and explicit permission to
+  disagree with itself. Three rules hold it together. **Settling happens once**: the ledger
+  transition reschedules the claim, so a second one would apply the decay ladder twice to a
+  single run's evidence — and settling, not classifying, is what ends the phase for a claim.
+  **Every classification is recorded**, superseded ones included, because a record of the
+  conclusion with no trace of the revision is the half that explains it. And the match that
+  offers a claim someone else's evidence is **deterministic and generous** — a case-insensitive
+  mention of the subject, capped — because the stage already has a filtering step whose whole
+  job is dropping off-subject excerpts, and paying a model call to decide what to show a model
+  is a stage checking itself. The sweep costs one call per claim that actually gained evidence
+  and nothing for the rest.
+- **A conflict card is decided with the same two buttons as any other, and they mean the same
+  thing.** Accept publishes the edit; reject discards it and leaves the claim exactly as it
+  was. This is what keeps the gate uniform and `AGENTS.md` §2 intact — **a card's verdict never
+  writes a decision on the claim**, so accepting a conflict card is not "picking a side" and
+  `ClaimStatus` still needs no third value. The claim stays `unresolved` and comes back on its
+  own schedule whatever the reviewer does with the edit. The draft prompt is told to show a
+  disagreement and never to resolve one; a stage that chose between readings would be making
+  the judgement the whole bucket exists to decline.
 - **Draft returns one candidate, never a list.** The gate is uniform — every section with a diff
   is a card the reviewer accepts or rejects (§2) — so the decision is *whether* this edit, never
   *which* of several. A picker would be a second decision surface for the same click, and
   drafting alternatives would multiply model calls to produce options nobody asked to compare.
-  The one card carrying no diff is an unresolved `conflicting` claim: it reaches the gate as its
-  two readings with their tiers and citations, accepting one is the resolution that makes it
-  draftable on the next pass, and rejecting leaves it `unresolved` for the revisit queue rather
-  than picking a side on the reviewer's behalf.
+  Every card carries a diff, including a `conflicting` one: the edit it proposes is what makes
+  the disagreement visible on the page, and the note and both urls ride beside it. The earlier
+  design — a diff-less card showing two readings, where accepting one resolved the claim — was
+  dropped on Aug 30, 2026, because it needed a verdict that meant something different from
+  every other card's and a write to the claim that §2 forbids.
 - **The Diff stage reads ideas; `shape()` is only its floor.** Text and meaning come apart in
   both directions — an appended `, however this was later denied` keeps every character and
   reverses the assertion, and threading `(2024)` into a value displaces text while dropping

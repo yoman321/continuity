@@ -14,8 +14,15 @@ thing to return.
 **The bucket is an input, not a question.** Classify already tested the excerpts against the
 page and ordered the three buckets to make that judgement reproducible. Asking a second model
 whether the fact conflicts would buy a second opinion nothing can adjudicate, and the decay
-ladder has already been driven off the first one. So this stage is told `new` and writes an
-insert; it is never asked to reconsider.
+ladder has already been driven off the first one. So this stage is *told* `new` or
+`conflicting` and writes accordingly; it is never asked to reconsider which one it is.
+
+**A conflict is drafted, not withheld.** Anything retrieval carried that the page does not say
+reaches the reviewer as a card — a `new` claim as an addition, a `conflicting` one as an edit
+that makes the disagreement visible without settling it. The card carries the note and both
+urls, and the reviewer's two buttons mean what they always mean: take it, or discard it. What
+this stage must never do is pick a side, which is why the prompt is told to show a disagreement
+rather than resolve one.
 
 **It carries a cheap check on its own output, and it is only the floor.** A model told to
 insert a fact can quietly restructure the sentence it was inserting into, so the stage computes
@@ -55,13 +62,15 @@ from .model import ModelError, ModelRequest, ModelSource
 
 #: Buckets this stage will draft for. `still_true` produces no edit at all — the claim's
 #: citation is refreshed and its interval doubles, and there is nothing to show as a diff.
-#: `conflicting` produces a choice between readings rather than an edit, and resolving it is
-#: what yields something to draft (`summary.md` §6), so it arrives here only after a human has
-#: picked a side.
+#: Both of the others do: **if retrieval carried something the page does not say, it goes to
+#: the reviewer** (decided Aug 30, 2026). A `conflicting` claim is drafted as an edit that shows
+#: the disagreement rather than settles it, and the reviewer discards it or takes it — the same
+#: two buttons every other card has, so nothing about a conflict needs its own verdict.
 DRAFTABLE = ("new", "conflicting")
 
 SYSTEM = """\
-You edit one passage of a wiki page to record a fact that the page is missing.
+You edit one passage of a wiki page to record something retrieval found that the page does not
+say — a fact it is missing, or a fact that contradicts what it currently claims.
 
 You are given: the SUBJECT, the CLAIM as the page currently states it, the ANCHOR (the exact
 passage to rewrite), the SECTION it sits in for context, the FINDING that classification
@@ -71,9 +80,17 @@ Return the ANCHOR rewritten. Not the section, not the page — the anchor and no
 
 Rules, and none of them is optional:
 
-1. ADD, DO NOT REWRITE. The page is incomplete, not wrong. Every character of the ANCHOR that
-   is still correct must appear in your answer unchanged and unbroken. If you find yourself
-   rephrasing a clause that was already right, stop and add beside it instead.
+1. ADD, DO NOT REWRITE — WHEN THE FINDING IS `new`. The page is incomplete, not wrong. Every
+   character of the ANCHOR that is still correct must appear in your answer unchanged and
+   unbroken. If you find yourself rephrasing a clause that was already right, stop and add
+   beside it instead.
+
+   WHEN THE FINDING IS `conflicting`, the page may be wrong rather than incomplete: sources
+   contradict what it says, or they contradict each other. Change only the part the
+   disagreement is about and leave every other character of the ANCHOR alone. Where the
+   sources disagree with EACH OTHER, do not choose between them — write the passage so both
+   readings are visible, and let the reviewer settle it. You are never resolving a
+   disagreement; you are showing one.
 
 2. KEEP THE WIKI'S OWN CONVENTION. Look at how the ANCHOR already lists things and extend it
    the same way: a `<br>`-separated infobox value gains another `<br>` entry, a bulleted list
@@ -129,6 +146,8 @@ class Draft:
     citation: str  # the url that becomes the <ref>; "" when nothing citable survived filtering
     bucket: str  # the Classify verdict this was drafted from
     confidence: float  # from the core's tier table, never from the model
+    conflict: str = ""  # what the sources fell out over; empty unless the bucket is conflicting
+    conflict_sources: tuple[str, ...] = ()  # the two urls that disagree
 
     # -- derived -----------------------------------------------------------------
 
@@ -177,12 +196,18 @@ class Draft:
     def rows(self) -> tuple[Row, ...]:
         return diff(self.before, self.after)
 
-    def as_change(self, *, edit_id: str, page_slug: str) -> Change:
+    def as_change(
+        self, *, edit_id: str, page_slug: str, flags: tuple[str, ...] | None = None
+    ) -> Change:
         """This proposal as the record the review draft stores.
 
         Same fields as `payload()` below and for the same reason — the card a reviewer reads and
         the row a store holds must not be two shapes that can disagree. What the store adds is
         the lifecycle: the change arrives `undecided` and unwritten, and the gate moves it.
+
+        `flags` overrides this draft's own, and the Diff stage is why: it reads the same edit
+        for what it did to the *ideas* and raises flags this stage cannot see, so the card
+        carries both readings or it misrepresents one of them (`agent/graph.py`).
         """
         return Change(
             edit_id=edit_id,
@@ -198,7 +223,9 @@ class Draft:
             confidence=self.confidence,
             citation=self.citation,
             bucket=self.bucket,
-            flags=self.flags,
+            conflict=self.conflict,
+            conflict_sources=self.conflict_sources,
+            flags=self.flags if flags is None else flags,
         )
 
     def payload(self, *, edit_id: str, page_slug: str) -> dict[str, Any]:
@@ -223,6 +250,8 @@ class Draft:
             "confidence": self.confidence,
             "citation": self.citation,
             "bucket": self.bucket,
+            "conflict": self.conflict,
+            "conflict_sources": list(self.conflict_sources),
             "shape": self.shape,
             "flags": list(self.flags),
         }
@@ -273,6 +302,19 @@ class Drafter:
             citation=citation.url if citation else "",
             bucket=verdict.bucket,
             confidence=claim.recompute_confidence(),
+            # Carried onto the card so the reviewer sees what the disagreement was without
+            # opening the ledger behind it. Empty for every bucket but `conflicting`.
+            conflict=getattr(verdict, "note", ""),
+            # Deduped: the classify schema requires both sides by url and a model that found
+            # only one sometimes fills the field twice. Showing it twice would imply two
+            # sources agreed to disagree; the note still says what the disagreement is.
+            conflict_sources=tuple(
+                dict.fromkeys(
+                    url for url in (
+                        getattr(verdict, "source_a", ""), getattr(verdict, "source_b", "")
+                    ) if url
+                )
+            ),
         )
 
     def prompt(
@@ -298,8 +340,23 @@ class Drafter:
             f"ANCHOR (rewrite exactly this):\n{claim.wikitext_anchor}\n\n"
             f"SECTION ({claim.section_heading or '(lead)'}) of {claim.page}, for context:\n"
             f"{section_text}\n\n"
+            f"{_disagreement(verdict)}"
             f"SOURCE to cite:\n{source}\n"
         )
+
+
+def _disagreement(verdict: Any) -> str:
+    """The two sides, when there are two. Empty for every bucket but `conflicting`.
+
+    Stated explicitly rather than left inside `reason`, because "show the disagreement" is not
+    an instruction a model can follow from a sentence that summarises it.
+    """
+    note = getattr(verdict, "note", "")
+    a, b = getattr(verdict, "source_a", ""), getattr(verdict, "source_b", "")
+    if not (note or a or b):
+        return ""
+    sides = "\n".join(f"  - {url}" for url in (a, b) if url)
+    return f"DISAGREEMENT: {note}\nThe sources that disagree:\n{sides}\n\n"
 
 
 def parse(answer: str) -> tuple[str, str]:

@@ -212,6 +212,24 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px; }
   font-size: 14px;
 }
 
+/* A conflicting card, above the diff it proposes: what the sources fell out over, and who.
+   Violet is this stylesheet's conflict colour (see the ledger table's own `.conflict`); the
+   left rule matches `.rationale`, because both are the agent explaining itself. */
+.disagreement {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--violet);
+  background: #f4f2fa;
+  border-radius: 0 4px 4px 0;
+}
+
+.disagreement-note { margin: 0; font-size: 13px; color: var(--ink); }
+.disagreement-note strong { color: var(--violet); }
+
+.disagreement-sources { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; }
+.disagreement-sources li { padding: 2px 0; }
+.disagreement-sources a { color: var(--violet); }
+
 .sources { list-style: none; margin: 14px 0 0; padding: 0; }
 
 .sources li {

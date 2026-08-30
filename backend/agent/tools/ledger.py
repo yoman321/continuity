@@ -102,6 +102,10 @@ class Ledger:
     profile: WikiProfile
     store: ClaimStore
     clock: Callable[[], datetime] = field(default=utcnow)
+    #: The task whose writes these are (`core/ledger/documents.task_id_for`). Bound like the
+    #: profile and for the same reason: it is not a parameter a model may choose. A run binds
+    #: its own with `dataclasses.replace`; empty means a write nobody attributed.
+    task_id: str = ""
 
     @classmethod
     def local(
@@ -217,7 +221,7 @@ class Ledger:
             section_index=section_index,
             section_heading=section_heading,
         ).seeded(self.clock())
-        self.store.put(claim)
+        self._store(claim)
         return {**self._view(claim), "result": "tracked"}
 
     def record_research(
@@ -269,7 +273,7 @@ class Ledger:
             }
 
         researched = claim.researched(objective, records)
-        self.store.put(researched)
+        self._store(researched)
         return {**self._view(researched), "result": "recorded"}
 
     def record_outcome(
@@ -323,7 +327,7 @@ class Ledger:
         else:
             resolved = claim.changed(now)
 
-        self.store.put(resolved)
+        self._store(resolved)
         return {**self._view(resolved), "result": "recorded"}
 
     def link_ripple_targets(
@@ -351,7 +355,7 @@ class Ledger:
         merged = dict.fromkeys((*claim.ripple_targets, *target_claim_ids))
         merged.pop(claim_id, None)
         linked = replace(claim, ripple_targets=tuple(merged))
-        self.store.put(linked)
+        self._store(linked)
         return {
             **self._view(linked),
             "result": "linked",
@@ -359,6 +363,15 @@ class Ledger:
         }
 
     # -- shared -------------------------------------------------------------------------
+
+    def _store(self, claim: Claim) -> None:
+        """Write one claim, stamped with the task that wrote it.
+
+        Every path to the store goes through here, so provenance cannot be forgotten on one
+        transition and remembered on the others — which is the only way a `task_id` column is
+        worse than none at all.
+        """
+        self.store.put(replace(claim, task_id=self.task_id))
 
     def _at_anchor(self, page: str, wikitext_anchor: str) -> Claim | None:
         """The claim already tracked at this spot on this page, if there is one.

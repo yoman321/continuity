@@ -151,6 +151,11 @@ class Claim:
     next_check_at: datetime | None = None
     check_interval: timedelta = timedelta(0)
 
+    # The task that last wrote this claim (`documents.task_id_for`). Provenance and nothing
+    # else: no transition reads it, and it is empty on a claim no task has touched. Carried
+    # through every transition by `replace`, so the last writer is what it names.
+    task_id: str = ""
+
     # -- derived -----------------------------------------------------------------
 
     @property

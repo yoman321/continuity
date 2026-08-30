@@ -37,6 +37,30 @@ from .schema import Claim, ClaimKind, ClaimStatus, Contradiction, EntityRef, Sou
 #: is deployed, so there is no v1 data anywhere that matters.
 DOCUMENT_VERSION = 2
 
+#: `task_id` was added Aug 30, 2026 and the version is deliberately *not* bumped: it is a new
+#: optional field, not a change of meaning to an existing one, so a document written before it
+#: existed reads back with `task_id=""` — which is true of it. Bumping would have made every
+#: stored ledger unreadable to say something a default already says.
+
+
+def task_id_for(now: datetime) -> str:
+    """The id of one task, in the one shape every collection records it in.
+
+    A task is one pass of a process that writes to the ledger — a graph run, a baseline
+    ingest, a seeding script. Every document any of them creates or modifies carries the id of
+    the task that did it, which is what makes a document answer "where did this come from"
+    without a log.
+
+    Derived from the clock rather than random, so a test can predict it and a reader can date a
+    document at a glance. **Milliseconds, and they are not decoration:** seeding the ledger and
+    then running the graph takes well under a second, and at second resolution the two tasks
+    came back with the same id — observed Aug 30, 2026, which is how the precision got here.
+    A judgement is keyed by task *and* claim, so a collision is one task silently overwriting
+    another's record of the same claim.
+    """
+    stamp = now.astimezone(timezone.utc)
+    return f"task-{stamp:%Y%m%dT%H%M%S}-{stamp.microsecond // 1000:03d}"
+
 
 def to_document(claim: Claim) -> dict[str, Any]:
     """The claim as one Firestore document. `claim_id` is in the body as well as being the
@@ -68,6 +92,8 @@ def to_document(claim: Claim) -> dict[str, Any]:
         # Firestore has no duration type. Seconds as an integer, because every interval on the
         # ladder is a whole number of hours (`decay.py`) and a float would round-trip noise.
         "check_interval_seconds": int(claim.check_interval.total_seconds()),
+        # Which task last wrote this claim. Provenance, not state: nothing branches on it.
+        "task_id": claim.task_id,
     }
 
 
@@ -102,6 +128,7 @@ def from_document(doc: Mapping[str, Any]) -> Claim:
         last_verified=as_datetime(doc.get("last_verified")),
         next_check_at=as_datetime(doc.get("next_check_at")),
         check_interval=timedelta(seconds=doc.get("check_interval_seconds", 0)),
+        task_id=doc.get("task_id", ""),
     )
 
 

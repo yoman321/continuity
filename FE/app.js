@@ -72,6 +72,13 @@
     return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
+  /* Display only — the publisher a url belongs to. Tier and domain are the backend's to
+     decide (`core/ledger/tiers.py`); this is the same kind of formatting as shortDate, and
+     nothing is asserted against it. */
+  function host(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return url; }
+  }
+
   function interval(hours) {
     if (!hours) return "—";
     if (hours < 48) return hours + "h";
@@ -280,6 +287,7 @@
       "</header>" +
       '<p class="summary">' + esc(item.summary) + "</p>" +
       verdictRow(item) +
+      conflictBlock(item) +
       diffBlock(item) +
       '<label class="draft-label" for="draft-' + esc(item.edit_id) + '">What gets written' +
         (edited
@@ -374,6 +382,21 @@
       chips.push('<span class="chip flag-chip">' + esc(flag) + "</span>");
     });
     return chips.length ? '<div class="verdicts">' + chips.join("") + "</div>" : "";
+  }
+
+  /* A conflicting card shows what the sources fell out over, above the diff it proposes.
+     The edit below it makes the disagreement visible rather than settling it, so the reviewer
+     is deciding whether to put it on the page — not which side is right. Absent on every other
+     card, and on a card whose classification carried no note. */
+  function conflictBlock(item) {
+    if (!item.conflict && !(item.conflict_sources || []).length) { return ""; }
+    var sources = (item.conflict_sources || []).map(function (url) {
+      return '<li><a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' +
+        esc(host(url)) + "</a></li>";
+    }).join("");
+    return '<div class="disagreement"><p class="disagreement-note">' +
+      "<strong>Sources disagree.</strong> " + esc(item.conflict) + "</p>" +
+      (sources ? '<ul class="disagreement-sources">' + sources + "</ul>" : "") + "</div>";
   }
 
   // The rows come from the backend, computed by core/wiki/diff.py — the browser renders them

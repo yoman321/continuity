@@ -28,6 +28,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -115,7 +116,13 @@ class GeminiModel:
             system_instruction=request.system,
             temperature=TEMPERATURE,
             response_mime_type="application/json",
-            response_schema=dict(request.schema),
+            # Deep-copied, and it has to be: the SDK rewrites the schema it is handed *in
+            # place* — it adds `propertyOrdering` to nested objects while sending — so a
+            # shallow `dict()` leaves the caller's nested dicts shared with it. A stage's
+            # `RESPONSE_SCHEMA` is a module constant, so the mutation lands there, the
+            # request's own `key` changes mid-call, and the recording is filed under a key
+            # nothing can compute again. Silent, and fatal to every replay (`AGENTS.md` §6).
+            response_schema=deepcopy(dict(request.schema)),
             http_options=types.HttpOptions(timeout=int(self.timeout * 1000)),
             # We pass no tools — the stages call tools themselves, and a model that could
             # invoke one from inside a judgement would be a second, unlogged control path.

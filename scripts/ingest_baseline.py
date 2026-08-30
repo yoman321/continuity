@@ -22,6 +22,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import URLError
 
@@ -33,6 +34,7 @@ from backend.core.ledger.baseline import (  # noqa: E402
     DEFAULT_BASELINE_PATH,
     JsonFileBaselineStore,
 )
+from backend.core.ledger.documents import task_id_for  # noqa: E402
 from backend.core.profile import WikiProfile, local_wiki  # noqa: E402
 from backend.core.wiki import MediaWikiReader, PageSource, SnapshotPageSource  # noqa: E402
 
@@ -89,12 +91,20 @@ def report(results: tuple[IngestResult, ...], path: Path) -> None:
 
 
 def run(
-    source: PageSource, profile: WikiProfile, store: JsonFileBaselineStore, page: str | None
+    source: PageSource,
+    profile: WikiProfile,
+    store: JsonFileBaselineStore,
+    page: str | None,
+    task_id: str,
 ) -> tuple[IngestResult, ...]:
-    """One page or the whole profile, in the shape `report` prints."""
+    """One page or the whole profile, in the shape `report` prints.
+
+    A baseline pass is a task, so every section it stores names it — the same rule the graph's
+    stages follow (`AGENTS.md` §2).
+    """
     if page:
-        return (ingest_page(source, profile, store, page),)
-    return ingest_all(source, profile, store)
+        return (ingest_page(source, profile, store, page, task_id=task_id),)
+    return ingest_all(source, profile, store, task_id=task_id)
 
 
 def main() -> int:
@@ -108,13 +118,14 @@ def main() -> int:
 
     source, profile, where = build_source(args.live)
     store = JsonFileBaselineStore(REPO_ROOT / args.path)
-    print(f"reading {where}\n")
+    task_id = task_id_for(datetime.now(timezone.utc))
+    print(f"reading {where} as {task_id}\n")
 
     # Transport failures propagate out of the library on purpose — a timeout is worth an ADK
     # retry, and swallowing one would turn an outage into an empty baseline. At a CLI boundary
     # a traceback is just noise, so it becomes a sentence here and nowhere else.
     try:
-        results = run(source, profile, store, args.page)
+        results = run(source, profile, store, args.page, task_id)
     except URLError as exc:
         raise SystemExit(f"cannot reach {where}: {exc.reason}") from exc
 

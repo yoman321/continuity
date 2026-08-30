@@ -29,6 +29,14 @@ They are constants in this module so a change to any of them shows up in a diff:
    with noise. `conflicting` is reserved for a real disagreement, or for filtering emptying the
    batch — which is the honest signal that retrieval went off-target.
 
+**A fifth instruction, and it is not one of the four.** The prompt also tells the stage that
+when it is shown a PREVIOUS CLASSIFICATION it is seeing the claim again with evidence it did
+not have before, and may reach a different bucket. That is what makes the graph's second
+classification sweep possible — a claim judged against its own search results, then against
+whatever the rest of the run found about its subject (`agent/graph.py`). Unlike the four rules
+above it was reasoned rather than measured, and it is called out here so nobody reads it as
+having a benchmark behind it.
+
 The stage is otherwise thin on purpose: build the prompt, call the perimeter, parse the shape
 we declared, and hand back a value. It writes nothing — the caller maps the bucket onto
 `Ledger.record_outcome`, which is where the ladder lives.
@@ -83,6 +91,11 @@ simply does not mention, that is `new`, never `conflicting`.
 
 For `conflicting`, `conflict` is required and must name both sides by url with a one-sentence
 note. For every bucket, `reason` is one sentence a reviewer can read.
+
+If a PREVIOUS CLASSIFICATION is given, you are seeing this claim again with evidence you did
+not have then. You are not bound by it. Reach the bucket the excerpts in front of you now
+support, whether or not it is the one you reached before, and say in `reason` what changed.
+Agreeing with yourself is a finding too; do not change a bucket to look responsive.
 """
 
 #: The shape the answer must satisfy. Declared rather than parsed out of prose: a model that
@@ -141,7 +154,11 @@ class Classifier:
     source: ModelSource
 
     def classify(
-        self, claim: dict[str, Any], section_text: str, search: dict[str, Any]
+        self,
+        claim: dict[str, Any],
+        section_text: str,
+        search: dict[str, Any],
+        previous: Verdict | None = None,
     ) -> Verdict:
         """Sort one claim into a bucket.
 
@@ -150,6 +167,10 @@ class Classifier:
           section_text: the section's current wikitext, from the baseline or a fresh read.
           search: a `WebSearch.search` payload. Must have succeeded — a failed search is
             discarded, never classified (`AGENTS.md` §7).
+          previous: what this stage decided about this claim earlier in the same run, when a
+            second round of retrieval has been done since. The stage is free to reach a
+            different bucket — that is the whole point of researching again — and both
+            judgements are recorded (`core/ledger/judgements.py`).
         """
         if "error" in search:
             raise ModelError(
@@ -157,13 +178,17 @@ class Classifier:
                 "round rather than judging an empty batch."
             )
         request = ModelRequest(
-            system=SYSTEM, prompt=self.prompt(claim, section_text, search),
+            system=SYSTEM, prompt=self.prompt(claim, section_text, search, previous),
             schema=RESPONSE_SCHEMA,
         )
         return parse(self.source.run(request))
 
     def prompt(
-        self, claim: dict[str, Any], section_text: str, search: dict[str, Any]
+        self,
+        claim: dict[str, Any],
+        section_text: str,
+        search: dict[str, Any],
+        previous: Verdict | None = None,
     ) -> str:
         """The filled prompt. Public so a test can assert on it and a run can record it.
 
@@ -185,9 +210,16 @@ class Classifier:
             f"    excerpt: {' '.join(r.get('excerpts', []))}"
             for i, r in enumerate(search.get("results", ()))
         )
+        revisit = (
+            f"PREVIOUS CLASSIFICATION: {previous.bucket} — {previous.reason}\n"
+            "You are seeing this claim again with more evidence. Reclassify if it warrants.\n\n"
+            if previous
+            else ""
+        )
         return (
             f"SUBJECT: {subject}\n"
             f"{kind}\n\n"
+            f"{revisit}"
             f"CLAIM (as the page states it): {claim.get('text', '')}\n\n"
             f"SECTION ({claim.get('section_heading') or '(lead)'}) of {claim.get('page', '')}:\n"
             f"{section_text}\n\n"

@@ -1,4 +1,4 @@
-"""Firestore behind the `DraftStore` protocol — the transport, and nothing else.
+"""Firestore behind the ledger's store protocols — the transport, and nothing else.
 
 The shape a draft is stored in belongs to `core/ledger/drafts.py`, which emits only the value
 types Firestore's document model accepts, so this adapter hands `to_document` straight to
@@ -23,6 +23,10 @@ from __future__ import annotations
 from typing import Any
 
 from .core.ledger.drafts import ReviewDraft, from_document, to_document
+from .core.ledger.judgements import COLLECTION as JUDGEMENTS_COLLECTION
+from .core.ledger.judgements import Judgement
+from .core.ledger.judgements import from_document as judgement_from_document
+from .core.ledger.judgements import to_document as judgement_to_document
 
 #: One collection, keyed by `draft_id`. Named here rather than passed around, so a deployment
 #: cannot end up reading one collection and writing another.
@@ -64,3 +68,51 @@ class FirestoreDraftStore:
 
     def unpublished(self) -> tuple[ReviewDraft, ...]:
         return tuple(d for d in self.all() if not d.published)
+
+
+class FirestoreJudgementStore:
+    """`JudgementStore` over a Firestore collection — why each claim was routed as it was.
+
+    Same shape as the draft store above and for the same reasons: the document comes from the
+    core, the ordering happens in Python rather than as an `order_by` that would need an index
+    the emulator does not enforce, and the SDK is imported in the constructor so no cold start
+    pays for it.
+
+    `for_task` and `for_claim` filter here too. They are the two queries this collection has,
+    both would need their own index, and a run's judgements are a handful of documents — the
+    cost of reading them all is a rounding error against the cost of a missing index that only
+    fails in production (`AGENTS.md` §6).
+
+    STUB: not yet run against a real Firestore or the emulator, exactly like the draft store.
+    """
+
+    def __init__(
+        self,
+        *,
+        project: str | None = None,
+        collection: str = JUDGEMENTS_COLLECTION,
+        client: Any = None,
+    ) -> None:
+        if client is None:
+            # Imported here, not at module level — see the module docstring. The `type: ignore`
+            # the draft store carries covers this import too: mypy resolves `google.cloud` once
+            # per module, so a second one here would be flagged as unused.
+            from google.cloud import firestore
+
+            client = firestore.Client(project=project)
+        self._collection = client.collection(collection)
+
+    def put(self, judgement: Judgement) -> None:
+        self._collection.document(judgement.judgement_id).set(judgement_to_document(judgement))
+
+    def all(self) -> tuple[Judgement, ...]:
+        rows = [judgement_from_document(s.to_dict()) for s in self._collection.stream()]
+        return tuple(
+            sorted(rows, key=lambda j: (-j.decided_at.timestamp(), j.judgement_id))
+        )
+
+    def for_task(self, task_id: str) -> tuple[Judgement, ...]:
+        return tuple(j for j in self.all() if j.task_id == task_id)
+
+    def for_claim(self, claim_id: str) -> tuple[Judgement, ...]:
+        return tuple(j for j in self.all() if j.claim_id == claim_id)

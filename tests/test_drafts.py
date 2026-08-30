@@ -185,6 +185,20 @@ class TestTheStoredShape(unittest.TestCase):
 
         walk(document)
 
+    def test_the_disagreement_round_trips(self) -> None:
+        """A conflicting card is only readable if what the sources fell out over survives the
+        store — the gate renders one draft, not the ledger behind it."""
+        contested = draft(
+            change("edit-a", bucket="conflicting", conflict="One says Doomsday, one Secret Wars",
+                   conflict_sources=("https://deadline.com/a", "https://variety.com/b"))
+        )
+        restored = from_document(to_document(contested)).changes[0]
+        self.assertEqual(restored.conflict, "One says Doomsday, one Secret Wars")
+        self.assertEqual(len(restored.conflict_sources), 2)
+
+    def test_an_ordinary_card_carries_no_disagreement(self) -> None:
+        self.assertEqual(from_document(to_document(draft())).changes[0].conflict, "")
+
     def test_the_diff_is_not_stored(self) -> None:
         """It is a view of `before`/`after`, and a stored view is one a hand-edit invalidates."""
         self.assertNotIn("diff", to_document(draft())["changes"][0])

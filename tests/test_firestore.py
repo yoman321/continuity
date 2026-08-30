@@ -10,11 +10,15 @@ does not run. What this cannot prove is that Firestore accepts the document — 
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.core.ledger.drafts import Change, Decision, ReviewDraft, to_document
-from backend.firestore import COLLECTION, FirestoreDraftStore
+from backend.core.ledger.judgements import COLLECTION as JUDGEMENTS_COLLECTION
+from backend.core.ledger.judgements import Judgement
+from backend.core.ledger.judgements import to_document as judgement_to_document
+from backend.firestore import COLLECTION, FirestoreDraftStore, FirestoreJudgementStore
 
 NOW = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
 
@@ -145,6 +149,59 @@ class TestOrderingIsDoneInPython(unittest.TestCase):
         )
         self.assertEqual([d.draft_id for d in drafts.unpublished()], ["draft-0001"])
         self.assertGreater(collection.streamed, 0)
+
+
+class TestTheJudgementCollection(unittest.TestCase):
+    """The fourth collection, on the same fake client and for the same reason."""
+
+    def store(self) -> tuple[FirestoreJudgementStore, FakeClient]:
+        client = FakeClient()
+        return FirestoreJudgementStore(client=client), client
+
+    def judgement(self, task: str = "task-0001", claim: str = "GAM-APP-01") -> Judgement:
+        return Judgement(
+            task_id=task, claim_id=claim, page="Gambit", bucket="new", outcome="changed",
+            reason="Retrieval carries a film the page does not list.", decided_at=NOW,
+        )
+
+    def test_the_document_stored_is_the_one_the_core_emits(self) -> None:
+        judgements, client = self.store()
+        judgements.put(self.judgement())
+        collection = client.collection(JUDGEMENTS_COLLECTION)
+        self.assertEqual(
+            collection.docs["task-0001--GAM-APP-01--a1"],
+            judgement_to_document(self.judgement()),
+        )
+
+    def test_it_uses_its_own_collection_not_the_drafts_one(self) -> None:
+        judgements, client = self.store()
+        judgements.put(self.judgement())
+        self.assertEqual(list(client.collections), [JUDGEMENTS_COLLECTION])
+        self.assertNotEqual(JUDGEMENTS_COLLECTION, COLLECTION)
+
+    def test_a_reclassification_is_its_own_document(self) -> None:
+        """Same task, same claim, second reading — two rows, or the revision erases what it
+        revised (`core/ledger/judgements.py`)."""
+        judgements, client = self.store()
+        judgements.put(self.judgement())
+        judgements.put(replace(self.judgement(), attempt=2, bucket="conflicting"))
+        self.assertEqual(len(client.collection(JUDGEMENTS_COLLECTION).docs), 2)
+
+    def test_a_claim_judged_by_two_tasks_is_two_documents(self) -> None:
+        judgements, client = self.store()
+        judgements.put(self.judgement())
+        judgements.put(self.judgement(task="task-0002"))
+        self.assertEqual(len(client.collection(JUDGEMENTS_COLLECTION).docs), 2)
+        self.assertEqual(len(judgements.for_claim("GAM-APP-01")), 2)
+
+    def test_filtering_happens_in_python(self) -> None:
+        """`for_task` and `for_claim` would each need their own index, and a missing index
+        fails only in production (`AGENTS.md` §6)."""
+        judgements, client = self.store()
+        judgements.put(self.judgement())
+        judgements.put(self.judgement(task="task-0002", claim="DW-VOID-01"))
+        self.assertEqual([j.claim_id for j in judgements.for_task("task-0002")], ["DW-VOID-01"])
+        self.assertGreater(client.collection(JUDGEMENTS_COLLECTION).streamed, 0)
 
 
 if __name__ == "__main__":  # pragma: no cover

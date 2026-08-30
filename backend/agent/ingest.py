@@ -61,6 +61,7 @@ def ingest_page(
     title: str,
     *,
     now: datetime | None = None,
+    task_id: str = "",
 ) -> IngestResult:
     """Read one page and replace its baseline.
 
@@ -83,6 +84,9 @@ def ingest_page(
             text=section.text,
             revid=revision.revid,
             fetched_at=fetched_at,
+            # The pass that read it. A baseline is written by a task like anything else, so
+            # every section says which one — `documents.task_id_for` (`AGENTS.md` §2).
+            task_id=task_id,
         )
         for section in split_sections(revision.content)
     )
@@ -106,14 +110,16 @@ def ingest_all(
     store: BaselineStore,
     *,
     now: datetime | None = None,
+    task_id: str = "",
 ) -> tuple[IngestResult, ...]:
     """Every page the profile monitors, in the order it lists them.
 
-    One clock for the whole pass, so every section in one baseline carries the same
-    `fetched_at` and "when was this page last read" is one value rather than twelve.
+    One clock for the whole pass, and one task id, so every section in one baseline carries the
+    same `fetched_at` and the same writer — "when was this page last read, and by what" is one
+    answer rather than twelve.
     """
     fetched_at = now or datetime.now(timezone.utc)
     return tuple(
-        ingest_page(source, profile, store, title, now=fetched_at)
+        ingest_page(source, profile, store, title, now=fetched_at, task_id=task_id)
         for title in profile.pages
     )

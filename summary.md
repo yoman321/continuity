@@ -248,6 +248,12 @@ stage's output decides whether the next one runs, and `Fan-out → Research` bec
 how much of the wiki this run touches at all. The run ends at Fan-out; the next tick re-enters
 at Audit.
 
+**Eight stages, but not one process.** As built (Aug 30, 2026) one ADK invocation carries Audit
+through Verify and finishes by storing the draft; Publish is a route a person presses, and
+Fan-out has nothing to expand until that press has applied an edit. So the diagram is a cycle
+through a human, not a single run — which is why Verify is a store rather than a held
+invocation, and why neither of the last two stages is a node in the graph (`AGENTS.md` §2).
+
 ### The classify stage — decided Aug 22, 2026
 
 Parallel returns a batch of excerpts, not an answer. The stage that consumes it is a Gemini
@@ -258,7 +264,7 @@ into exactly three buckets:
 |---|---|---|
 | **Still true** | the page already says this, and retrieval confirms it | the claim, its refreshed citation, and a bumped `last_verified` — no diff |
 | **New** | retrieval carries something the page does not have | a drafted section-level insert with citations |
-| **Conflicting** | page and sources disagree, or sources disagree with each other | both readings side by side, each with its tier and citation, and no auto-resolution |
+| **Conflicting** | page and sources disagree, or sources disagree with each other | a drafted edit that makes the disagreement visible rather than settling it, with the note and both urls on the card. Accepting publishes it; rejecting discards it. Neither picks a side |
 
 **The queue reads like a git review, and that is deliberate.** A drafted edit is shown as a
 diff — removed lines in red, added in green, and inside a line that was edited rather than
@@ -314,7 +320,9 @@ proves the agent did the work — most rounds *should* end here (§7), and a rev
 only ever shows edits hides the majority of what the agent does.
 
 **Conflicts route to the human, not to a retry.** The agent's job ends at stating the
-disagreement with both sources ranked; resolving it is the reviewer's. This replaces the
+disagreement with both sources ranked — and, since Aug 30, 2026, at drafting the edit that puts
+it on the page, so the statement arrives as a card rather than as a claim id in a log.
+Resolving it is still the reviewer's. This replaces the
 earlier framing where the agent marked `unresolved` and waited for the world to break the
 tie — that still happens for anything the reviewer defers, but it is the fallback, not the
 first move.
@@ -495,9 +503,10 @@ and this becomes RAG with a review screen — the exact quiet failure §4 names.
 
 ### The claim ledger (central state)
 
-**Two collections carry the agent's memory, written at different times** — and a third,
-`drafts`, carries the review that follows them (see the decision log entry "The review draft is
-a stored document"). `sections` is the baseline — what each
+**Two collections carry the agent's memory, written at different times** — plus `drafts`, which
+carries the review that follows them (see the decision log entry "The review draft is a stored
+document"), and `judgements`, which carries why each claim was routed as it was. All four name
+the task that wrote them; the entry "Every document names the task that wrote it" has the rules. `sections` is the baseline — what each
 monitored page says right now, recorded verbatim by an ingest pass that reads the wiki, splits
 it and stores it. `claims` is what the agent tracks. The split exists because the two need
 different things: deciding what a page *asserts* is a judgement and needs the model, while
@@ -625,8 +634,9 @@ tick route has to authenticate itself, which is an invariant rather than a nicet
 
 ### Guardrails (double as "bounded autonomy" judging points)
 - Max 3 research rounds per claim. `MAX_RESEARCH_ROUNDS` and `Claim.budget_spent` are in the
-  core, but **nothing refuses a fourth round yet**: `record_research` spends a round without
-  consulting the budget, so the Research node is where the check has to land
+  core and `record_research` still spends a round without consulting them, so the refusal lives
+  in the Research node — the only thing anywhere that declines a fourth round (Aug 30, 2026).
+  It is also what bounds the `Classify → Research` edge, so moving it is a termination change
 - Confidence threshold below which nothing auto-applies — `Claim.auto_appliable`, against
   `tiers.AUTO_APPLY_THRESHOLD`, and never a bypass of the gate below
 - Dry-run by default: nothing reaches the wiki that has not passed the gate
@@ -788,14 +798,16 @@ The one thing local work genuinely cannot prove is whether `continuity-run@`'s t
 sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
 account impersonation closes even that, and it is Phase 2's first item.
 
-As of Aug 30, 2026 the critical path is **(1)** the 8-stage ADK graph, **(2)** recording the
-demo video, **(3)** the deploy weekend. Four of the graph's eight stages now have working
-implementations underneath them — the baseline half of Audit, Classify against real Gemini,
-Draft with the `Draft` record it writes to, and Diff — so what is left of (1) is the wiring,
-claim proposal (now the only stage that still needs a model), and the Verify gate, which since
-Aug 30 needs no model at all and is FE work plus the publish route. The local MediaWiki, which
-held item (2) until Aug 29, is up, seeded and verified, so the agent now has somewhere it is
-allowed to write.
+As of Aug 30, 2026 the critical path is **(1)** recording a run against live retrieval,
+**(2)** recording the demo video, **(3)** the deploy weekend. The wiring is done: six of the
+eight stages run as one ADK graph, Audit through Verify, and what comes out is a stored draft
+the gate reviews and the publish route writes. Two stages are outstanding and neither blocks a
+demo — claim proposal, the last one that needs a model, which `scripts/seed_claims.py` stands
+in for; and Fan-out, which is triggered by a publish rather than reached from Audit. Item (1)
+is now the real one: the run replays from cassettes that a fresh clone does not have, so it has
+to be run live once and recorded before it says anything true. The local MediaWiki, which held
+item (2) until Aug 29, is up, seeded and verified, so the agent has somewhere it is allowed to
+write.
 Both vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written,
 so what is left is the agent itself. Nothing here is blocked on an unknown API.
 
@@ -1764,6 +1776,202 @@ is pasting a URL into a form.
       one call over a stored draft. The same entries answered "what happens to a rejection":
       nothing, by design. It is a discard, and the claim behind it is untouched.
 
+- [x] **The stages are joined: six of the eight run as one ADK graph** — built Aug 30, 2026.
+      Until this the pipeline was a set of parts nobody called in order. `Drafter` and
+      `Reviewer` had tests and no caller; the drafted edits at the gate came from a fixture.
+      `backend/agent/graph.py` is now one `Workflow` — Audit, Research, Classify, Draft, Diff,
+      Verify — and `scripts/run_once.py` drives it. What comes out is a `ReviewDraft` in the
+      store: the same document `seed_drafts.py` was faking, produced by a run.
+
+      **The run ends at Verify; it does not pause inside it.** The plan this item replaces had
+      Verify holding the run open through ADK's `request_input`. The draft store made that the
+      wrong shape rather than merely a harder one: Cloud Run scales to zero and the tick is
+      hourly, so a coroutine waiting on a reviewer dies at the first idle timeout, while a
+      stored draft survives the container, the reload and the week. The pause a human needs is
+      the *store*, not a held invocation — and the resume is already built, as
+      `POST /api/drafts/{id}/publish`. So the ADK graph carries the part of the run that is
+      machine work, and the part that waits on a person is state. Publish and Fan-out are
+      therefore not nodes and must not become ones; that is now an invariant (`AGENTS.md` §2).
+
+      **The backward edge got the trigger it never had.** §6 has drawn `Classify → Research`
+      since Aug 22 without saying what fires it, and the sufficiency criterion below is still
+      *if time permits*. The narrow rule that needed no new core code: the classify stage
+      already reports which excerpts it dropped as off-subject, so a `conflicting` verdict with
+      **no** survivors is retrieval having gone off-target rather than the world disagreeing
+      with itself — and that, and only that, retries. A real conflict routes to a person, which
+      is what the bucket is for. It closes the guardrail §6 flagged as unenforced, too: the
+      Research node refuses a claim whose budget is spent, because `record_research` spends a
+      round without consulting it. A claim that exhausts three rounds with nothing to judge
+      settles `unchanged` — no new data is no change — which also clears the spent rounds, so
+      the next tick can research it again rather than finding it permanently stuck.
+
+      **What a run asks is deterministic, and it has to be.** Queries, objective and date
+      filter are computed from the claim by pure functions, because the search cassette replays
+      on the request: a query built from a set or a clock would miss its own recording on the
+      second run. The subject leads every query for the reason rule 3 of the classify prompt
+      exists — retrieval cannot tell a variant from its prime — and the retry adds the base
+      title only when there is a variant to disambiguate. For a prime subject the retry
+      broadens the *objective* and drops the date filter instead, because padding a query with
+      words the claim does not contain would be inventing retrieval signal.
+
+      **Two things it needs that it does not produce.** Claims, and a cassette. The stage that
+      proposes claims is still unbuilt, so `scripts/seed_claims.py` seeds the six from
+      `seed-plan.md` §4 into the ledger, backdated so they are due — a labelled stub, but only
+      for the claims themselves: the anchors are checked against the stored baseline and the
+      schedule comes from `decay.py`. And both cassettes are gitignored, so a fresh clone
+      replays nothing: the first run is `--live --record`. A replayed run with no recording
+      reports every round *discarded* and writes nothing, which is the honest outcome — an
+      infrastructure gap must never be recorded as a finding about the world.
+
+- [x] **The first live runs of the graph, and what they found** — Aug 30, 2026, six claims end
+      to end against real Parallel retrieval and real Gemini. The pipeline works: six searches,
+      six judgements, tiers and confidence computed by the core, conflicts stated with both
+      sides, ~62s wall clock. The replayed run then reproduced it **identically** in 0.7s with
+      no network, which is the deterministic fallback proven rather than asserted.
+
+      **It took a real bug with it.** `google-genai` rewrites the response schema in place, and
+      the perimeter was passing a shallow copy — so a stage's `RESPONSE_SCHEMA` constant got
+      mutated mid-call, every `ModelRequest.key` moved *during its own call*, and every answer
+      was recorded under a key nothing could look up again. The cassette looked full and missed
+      on everything. `deepcopy` in `GeminiModel.run`, pinned by a test; the scar is in
+      `AGENTS.md` §6. Worth noting how it presented: as "the prompt changed", which is the one
+      diagnosis the cassette's own error message suggests and the one that was wrong.
+
+      **The run drafted nothing, and that is a finding about the fixture rather than the
+      graph.** Two causes, both now visible in one cassette:
+
+      *The demo's headline claim is phrased closed-world.* `GAM-APP-01` reads "Gambit's **only**
+      film appearance is Deadpool & Wolverine" and came back `still_true` — the model reads the
+      sentence literally, agrees with it, and never surfaces Doomsday. The same subject phrased
+      "Gambit appears in Deadpool & Wolverine" came back `new`, citing the Doomsday casting,
+      against the same evidence. That is the Aug 22 measurement repeating itself: the fix went
+      into the classify prompt and into `AGENTS.md` §7's phrasing rule, and never into the
+      fixture's own claim text. One-line fix per claim, but it changes what the video says, so
+      it is listed below rather than applied.
+
+      *Three of the six ask questions the web cannot answer.* `DW-VOID-01` and `DW-HT-01` are
+      `link` claims — "what does `[[Void]]` resolve to on this wiki today" — and retrieval
+      dropped 7 of 8 excerpts as off-subject before landing `conflicting`. Their objective is a
+      *wiki* question, and Research only knows how to ask the web. Either they are verified by
+      a wiki read rather than a search, or `ClaimKind.LINK` routes somewhere else entirely.
+      Nothing about this was visible offline: with fakes, every claim classifies fine.
+
+      **Also observed:** `DW-HT-01` classified `conflicting` on one run and `still_true` on the
+      next, at `temperature=0`. Determinism is not guaranteed by temperature alone — already
+      the stated reason `RecordedModel` exists, now with a case behind it.
+
+- [x] **Every document names the task that wrote it, and classify now stores its reasoning** —
+      built Aug 30, 2026. Two changes with one motive: a run's output was legible only while
+      the run was happening. The ledger recorded that a claim became `changed`; the *sentence*
+      explaining why lived in the model cassette, which is gitignored and regenerated, so the
+      one artefact that justified an edit was the one nobody could read afterwards. And no
+      document said which run had written it, so "what did last night's tick actually do" had
+      no answer short of a diff.
+
+      **A fourth collection: `judgements`.** One document per claim per task — the bucket, the
+      sentence behind it, what retrieval was asked, which urls were dropped as off-subject, and
+      the conflict when there is one. Keyed by task *and* claim so a claim judged on two runs
+      is two rows: the history is the point, and keying by claim alone would have each run
+      erase the last one's reasoning. It stores `bucket` **and** `outcome` even though one
+      usually implies the other, because they are two different statements — what the model
+      said, and what the ledger did about it — and they diverge in exactly one place: a
+      research budget exhausted with nothing left to judge settles `unchanged` whatever the
+      bucket said. A record that kept only one of those could not show the run overruling the
+      model, which is the most interesting thing it ever does.
+
+      **It is a record and nothing reads it back.** No stage branches on a stored judgement;
+      the run's decisions come from `Claim`. A stage that consulted this would be consulting a
+      copy of state the ledger already holds, and the two would drift.
+
+      **`task_id` on all four collections.** A task is one pass of anything that writes — a
+      graph run, a baseline ingest, a seeding script — and it mints one id at the start that
+      every document it touches carries. The id is bound to the `Ledger` at construction rather
+      than passed per call, for the same reason the profile is: a task is not something a model
+      may name. Every write goes through one stamping helper, so it cannot be remembered on
+      three transitions and forgotten on the fourth.
+
+      **The clock needed milliseconds, and finding that out took one run.** Seeding the ledger
+      and immediately running the graph both landed in the same second, and the two tasks came
+      back with the same id — which would have had the run's judgements overwrite the seeder's
+      provenance on the same claims. Second resolution reads better and is wrong; the id now
+      carries milliseconds. The draft id is derived from the task id rather than built from the
+      clock a second time, so a draft whose id disagreed with its own `task_id` is not
+      expressible.
+
+      Rules in `AGENTS.md` §2. No document version was bumped: `task_id` is a new optional
+      field rather than a change of meaning, so a ledger written before it reads back with an
+      empty one — which is true of it. Bumping would have made every stored ledger unreadable
+      to say something a default already says.
+
+- [x] **Anything retrieval found that the page does not say now reaches the reviewer** —
+      decided and built Aug 30, 2026, and it is what turned the first run that produced cards.
+      Until this, only a `new` claim was drafted. A `conflicting` one was withheld pending a
+      "resolution" that nothing in the system performed: it went into the ledger as
+      `unresolved`, the run printed a claim id, and the disagreement the agent had actually
+      found reached nobody. Three of the six demo claims classify `conflicting` against live
+      retrieval, so the gate was empty for the most common outcome the pipeline has.
+
+      **The new rule is one sentence: `still_true` produces no card, everything else does.**
+      A confirmed claim has nothing to show. A `new` one is drafted as an addition and a
+      `conflicting` one as an edit that makes the disagreement *visible* — the card carries the
+      note and both urls, and the draft prompt is explicitly told to show a disagreement and
+      never to settle one.
+
+      **It also dissolved a contradiction that had been sitting in the spec.** The old design
+      had conflicts reach the gate as a diff-less card of two readings, where accepting one
+      "resolved" the claim — which required a verdict meaning something different from every
+      other card's *and* a write to the claim that `AGENTS.md` §2 forbids, since a card's
+      verdict must never decide anything about a claim. Under the new rule both buttons mean
+      what they always meant: accept publishes this edit, reject discards it, and the claim
+      stays `unresolved` and comes back on its own schedule either way. No new verdict, no
+      third `ClaimStatus`, no new card shape.
+
+      **What the first run with it produced, live:** three cards from six claims. One is a
+      good edit — the Cast entry gains "reports conflict on whether he will appear", appended,
+      nothing removed. One is flagged `uncited` because no source survived the citability
+      filter, which is exactly the flag doing its job on a claim retrieval could not support.
+      And one is bad in an instructive way: `GAM-APP-01` came back `conflicting` this time
+      rather than `still_true`, and the drafted edit reads `''[[Deadpool & Wolverine]]'' or
+      ''[[X-Men Origins: Wolverine]]''` — an "or" in an infobox field, produced because the
+      claim is phrased closed-world and an *earlier* appearance reads as a contradiction of
+      "only". The reviewer discards that one, which is the system working; the phrasing fix
+      below is what stops it being drafted at all. Note also that this claim classified
+      differently on two runs at `temperature=0` — the second time the same prompt has done
+      that (`RecordedModel` exists for exactly this reason).
+
+- [x] **Classify became two sweeps, and a claim can now change its mind mid-run** — built
+      Aug 30, 2026. One run researches every due claim, and each claim was being judged against
+      its own search results and nothing else. That is a real loss and the live runs showed it
+      exactly: `DW-CAMEO-01`'s search returned "Channing Tatum teases Gambit in *Avengers:
+      Doomsday*", which bears directly on `GAM-APP-01` — and `GAM-APP-01` never saw it. The run
+      held the contradiction in memory and classified around it.
+
+      **So Classify now runs twice.** First every claim against its own batch, then every claim
+      against whatever the rest of the run turned up about its subject, with its previous
+      verdict in the prompt and explicit permission to disagree with itself. The match is a
+      case-insensitive mention of the subject, capped at ten extra results — deterministic,
+      free, and deliberately generous, because the stage's first step is a filter whose whole
+      job is dropping off-subject excerpts. Paying a model call to decide what to show a model
+      would be the stage checking itself.
+
+      **The first live run with it reclassified one of six, and it removed a card rather than
+      adding one.** `DW-VOID-01` went `conflicting` → `still_true` once it saw eighteen results
+      instead of eight, which is right: it was never a real disagreement, it was a claim whose
+      own retrieval had gone thin. The junk `uncited` card it had been producing is gone. Five
+      of six claims gained cross-claim evidence; the run went from 106s to 149s and from six
+      model calls to eleven, which is the whole cost of the feature.
+
+      **Two rules make it safe.** Settling happens once — the ledger transition reschedules the
+      claim, so a second one would apply the decay ladder twice to a single run's evidence, and
+      settling rather than classifying is what ends the phase for a claim. And every
+      classification is recorded: the judgement store keys on task, claim *and* attempt, so a
+      revision and the reading it replaced are two rows. A conclusion with no trace of the
+      revision is the half that explains it.
+
+      Found while wiring it: the budget-override branch was recording its judgement against a
+      **leaked loop variable** — the last claim of the previous sweep rather than its own. It
+      had been correct only by accident of iteration order.
+
 ### Phase 1 — local; nothing in the cloud has to exist
 
 Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
@@ -1783,19 +1991,44 @@ gets cut to protect it.
       database at all; the Firestore adapter lands behind the same protocol without a node
       noticing
 
-- [ ] Build the 8-stage ADK graph — nodes, the two backward edges, and **Verify** as the HITL
-      pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
-      `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
-      assigning `ctx.route`, and the Verify gate goes through `google.adk.tools.request_input`
-      — all three traps are in `AGENTS.md` §6. Fan-out is the last node, not a middle one, and its
-      backward edge to Research means the run pauses at the gate twice; the node must refuse to
-      fan out a claim that was already fanned in, which is what terminates the cycle. The
-      reschedule rule needs no core change: `decay.next_interval(..., changed=True)` already
-      exists, so the node just calls it for every claim it named. The Draft and Diff nodes are
-      written (`agent/draft.py`, `agent/semantic_diff.py`) and sit between Classify and Verify;
-      wiring them needs a home for the `Draft` and its `Review`, since nothing persists either
-      yet and the gate is where hours pass. Verify itself is no longer a model node (Aug 30) —
-      it resumes the paused run with whatever text the reviewer approved
+- [ ] Build the 8-stage ADK graph. **Six of the eight landed Aug 30, 2026** — Audit through
+      Verify, in `backend/agent/graph.py`, with the `Classify → Research` edge and the budget
+      check that bounds it; the decision-log entry above records what was decided and why. Two
+      pieces of this item remain, and neither is a node in the graph as built:
+
+      **Fan-out**, the eighth stage, which runs after an edit has actually been applied and so
+      is triggered by the publish route rather than reached from Audit. It carries the second
+      backward edge to Research, and the node must refuse to fan out a claim that was already
+      fanned in, which is what terminates the cycle. The reschedule rule needs no core change:
+      `decay.next_interval(..., changed=True)` already exists, so the node calls it for every
+      claim it named. Where it lives is the open question — a second small `Workflow` behind the
+      publish route is the obvious shape, since the run that drafted the edit has ended.
+
+      **Claim proposal**, which is what fills the ledger Audit reads. `scripts/seed_claims.py`
+      stands in for it today. It is the last stage that still needs a model, and it needs the
+      audit tool it already has (`track_claim`), a baseline that already exists, and a prompt
+      that has never been written.
+
+      The Verify-as-`request_input` plan recorded here is superseded: the run ends at Verify and
+      the stored draft is the pause (`AGENTS.md` §2).
+
+- [x] **Closed-world claims are not a defect to phrase away** — decided Aug 30, 2026, and it
+      cancels the item this replaces. `GAM-APP-01` says "Gambit's *only* film appearance is
+      Deadpool & Wolverine", and the live runs kept classifying it `conflicting` on the strength
+      of *X-Men Origins: Wolverine* (2009). The earlier reading was that this is a phrasing bug
+      to fix in the fixture. It is not: the claim really is contradicted, `conflicting` really
+      is the bucket for that, and the card that comes out really does put the contradiction in
+      front of a reviewer. The rule stays in `AGENTS.md` §7 as advice for whoever writes claims
+      — an open-world claim generates fewer false alarms — but a closed-world one landing in
+      `conflicting` is the pipeline working, not failing, and nothing is rewritten to avoid it.
+- [ ] **Decide how a `link` claim is verified.** `DW-VOID-01` and `DW-HT-01` ask what a wikilink
+      resolves to on the wiki *today* — a question the web cannot answer, so retrieval drops
+      almost everything as off-subject and they land `conflicting`, which reads as a source
+      disagreement and is not one. The evidence for a link claim is a wiki read (`WikiRead`,
+      already built), not a Parallel search. Cheapest honest fix: Research routes on
+      `ClaimKind.LINK` and resolves the title through the read tool instead of searching.
+      That also removes two false conflicts from the demo's queue. Neither is a code change to
+      the graph's shape — it is which tool the Research node reaches for.
 - [x] Build the ledger store, **locally first** — Aug 29, 2026. `core/ledger/documents.py` owns
       the stored shape and `core/ledger/store.py` the `ClaimStore` protocol plus two
       implementations: `InMemoryClaimStore` (the deterministic path, so the graph runs with no
@@ -1850,11 +2083,12 @@ gets cut to protect it.
 - [ ] *If time permits* — **an explicit retrieval-sufficiency criterion.** Gives the "retry: thin
       retrieval" edge a trigger anyone can implement: N sources at or above the claim's tier floor,
       and for a moving claim at least one published after its `as_of`. Fails → broaden the objective
-      and retry, bounded by `research_rounds` — whose ceiling exists in the core
-      (`MAX_RESEARCH_ROUNDS`, `Claim.budget_spent`) but is enforced nowhere, since
-      `record_research` spends a round without checking it. This is the natural place to close
-      that. Deterministic, so it belongs in the pure core beside the tier table. Satisfies §4's
-      requirement 5, which nothing currently does
+      and retry, bounded by `research_rounds`. The ceiling is enforced as of Aug 30, 2026 — the
+      Research node refuses a claim whose budget is spent — and the edge has a *narrow* trigger:
+      a `conflicting` verdict where filtering dropped every excerpt. What is still missing is
+      this criterion, which would fire on a batch that came back thin rather than only on one
+      that came back off-subject. Deterministic, so it belongs in the pure core beside the tier
+      table. Satisfies §4's requirement 5, which nothing currently does
 - [ ] *If time permits* — **split *still true* into confirmed vs unchallenged.** A qualifier inside
       the bucket, not a fourth bucket, so the review split stays three-way. Confirmed = retrieval
       corroborated it; unchallenged = retrieval found nothing against it. Treating them alike is how
@@ -1952,9 +2186,10 @@ thing rather than against a design: Parallel search has made a live call, Gemini
 claim through `agent/classify.py`, and the wiki adapters read and write a real MediaWiki that is
 up and seeded. The deterministic core, the seed corpus, the frontend, the service shell and a
 persisting ledger are real, and the baseline pass fills that ledger with no key and no model call.
-**What remains is the graph that joins them** — eight stages, two backward edges and a human
-gate — plus claim proposal, now the only stage that still needs a model, and the Verify gate
-with the publish route behind it, which need none. Then the video, then the deploy.
+**The graph that joins them now exists** — six stages, one backward edge, and a human gate that
+is a stored draft rather than a held invocation. What remains of it is claim proposal, the only
+stage that still needs a model, and Fan-out, which a publish triggers. Then a live recorded run,
+then the video, then the deploy.
 
 That is a narrower risk than it was a week ago, and a different kind. Nothing left depends on
 an unknown API or an unproven vendor; every external surface has been called and measured, and

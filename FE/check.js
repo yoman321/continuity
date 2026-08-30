@@ -316,6 +316,14 @@ function checkLauncher() {
 
   check("the gate reloads the article behind it after a publish",
     /window\.opener[\s\S]{0,160}location\.reload\(\)/.test(appSrc));
+  // A conflicting claim reaches the gate as a card like any other; what makes it readable is
+  // that the disagreement is on screen above the diff, with both sides linked. Rendering the
+  // card without it would ask the reviewer to take an edit on trust.
+  check("a conflicting card shows what the sources fell out over",
+    /conflictBlock\(item\)/.test(appSrc) &&
+    /item\.conflict_sources/.test(appSrc) &&
+    appSrc.indexOf("conflictBlock(item) +\n      diffBlock(item)") !== -1);
+
   check("a hand-edited draft is saved as the text that publishes",
     /save\(box\.dataset\.edit, \{ text: box\.value \}\)/.test(appSrc));
   // `AGENTS.md` §2: the publish request decides nothing at all — not the text, not the target.

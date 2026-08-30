@@ -15,10 +15,12 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 
 from backend.agent.model import (
     MODEL,
     TEMPERATURE,
+    GeminiModel,
     ModelError,
     ModelRequest,
     ModelSource,
@@ -100,6 +102,59 @@ class TestSettings(unittest.TestCase):
         # The decay ladder and the review queue are filmed; a stage that reclassifies on a
         # second run is not demonstrable.
         self.assertEqual(TEMPERATURE, 0.0)
+
+
+class TestTheCallLeavesTheRequestAlone(unittest.TestCase):
+    """The bug that made every recording unreplayable, pinned.
+
+    `google-genai` rewrites the schema it is handed *in place* while sending — it adds
+    `propertyOrdering` to nested objects. A stage's `RESPONSE_SCHEMA` is a module constant and
+    a shallow `dict()` shares its nested dicts, so the mutation landed in the constant, the
+    request's own `key` changed mid-call, and `record()` filed the answer under a key no later
+    process could compute. Every replay missed, and the miss looked like a stale prompt.
+
+    Verified against the live API on Aug 30, 2026 and reproduced here with a fake client that
+    mutates the same way, so the fix is held without a credential or a call.
+    """
+
+    def call(self) -> tuple[dict[str, Any], str]:
+        try:
+            from unittest.mock import patch
+        except ImportError as exc:  # pragma: no cover - stdlib
+            raise unittest.SkipTest(str(exc)) from exc
+        try:
+            from google import genai  # noqa: F401  - presence check only
+        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
+            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+
+        schema: dict[str, Any] = {
+            "type": "object",
+            "properties": {"conflict": {"type": "object", "properties": {"note": {}}}},
+        }
+        request = ModelRequest(system="s", prompt="p", schema=schema)
+        before = request.key
+
+        class Models:
+            @staticmethod
+            def generate_content(*, model: str, contents: str, config: Any) -> Any:
+                # What the SDK does to the dict it was given.
+                config.response_schema["properties"]["conflict"]["propertyOrdering"] = ["note"]
+                return type("R", (), {"text": '{"ok": true}'})()
+
+        client = type("C", (), {"models": Models()})()
+        with patch("google.genai.Client", return_value=client):
+            GeminiModel().run(request)
+        return schema, before
+
+    def test_the_schema_the_caller_holds_is_unchanged(self) -> None:
+        schema, _ = self.call()
+        self.assertNotIn("propertyOrdering", schema["properties"]["conflict"])
+
+    def test_a_request_keys_the_same_after_it_has_been_run(self) -> None:
+        """The property that actually matters: `record()` runs after the call, so a key that
+        moved during it writes an entry nothing can ever look up."""
+        schema, before = self.call()
+        self.assertEqual(ModelRequest(system="s", prompt="p", schema=schema).key, before)
 
 
 if __name__ == "__main__":

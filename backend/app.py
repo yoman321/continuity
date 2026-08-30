@@ -165,6 +165,8 @@ def change_payload(change: Change) -> dict[str, Any]:
         "confidence": change.confidence,
         "citation": change.citation,
         "bucket": change.bucket,
+        "conflict": change.conflict,
+        "conflict_sources": list(change.conflict_sources),
         "flags": list(change.flags),
         "decision": change.decision.value,
         "written_revid": change.written_revid,

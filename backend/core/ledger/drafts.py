@@ -90,6 +90,12 @@ class Change:
     confidence: float
     citation: str = ""
     bucket: str = ""
+    # The disagreement behind a `conflicting` card, in the reviewer's words rather than the
+    # claim's: what the sources fell out over, and the two urls that did. Empty on every other
+    # card. Carried here rather than looked up from the claim because a card must be readable
+    # on its own — the gate renders one draft, not the ledger behind it.
+    conflict: str = ""
+    conflict_sources: tuple[str, ...] = ()
     flags: tuple[str, ...] = ()
     decision: Decision = Decision.UNDECIDED
     written_revid: int | None = None
@@ -117,6 +123,10 @@ class ReviewDraft:
     created_at: datetime
     changes: tuple[Change, ...]
     published_at: datetime | None = None
+    # The run that proposed these changes (`documents.task_id_for`), so a card at the gate can
+    # be traced back to the judgements behind it. Empty for a draft no run produced — the
+    # fixture `scripts/seed_drafts.py` loads is the only one.
+    task_id: str = ""
 
     # -- reading ------------------------------------------------------------------
 
@@ -209,6 +219,7 @@ def to_document(draft: ReviewDraft) -> dict[str, Any]:
         "version": DRAFT_DOCUMENT_VERSION,
         "draft_id": draft.draft_id,
         "wiki": draft.wiki,
+        "task_id": draft.task_id,
         "created_at": draft.created_at,
         "published_at": draft.published_at,
         "changes": [
@@ -226,6 +237,8 @@ def to_document(draft: ReviewDraft) -> dict[str, Any]:
                 "confidence": c.confidence,
                 "citation": c.citation,
                 "bucket": c.bucket,
+                "conflict": c.conflict,
+                "conflict_sources": list(c.conflict_sources),
                 "flags": list(c.flags),
                 "decision": c.decision.value,
                 "written_revid": c.written_revid,
@@ -246,6 +259,7 @@ def from_document(document: Mapping[str, Any]) -> ReviewDraft:
     return ReviewDraft(
         draft_id=str(document["draft_id"]),
         wiki=str(document["wiki"]),
+        task_id=str(document.get("task_id", "")),
         created_at=_timestamp(document["created_at"]),
         published_at=(
             _timestamp(document["published_at"]) if document.get("published_at") else None
@@ -265,6 +279,8 @@ def from_document(document: Mapping[str, Any]) -> ReviewDraft:
                 confidence=float(c["confidence"]),
                 citation=str(c.get("citation", "")),
                 bucket=str(c.get("bucket", "")),
+                conflict=str(c.get("conflict", "")),
+                conflict_sources=tuple(str(u) for u in c.get("conflict_sources", ())),
                 flags=tuple(str(f) for f in c.get("flags", ())),
                 decision=Decision(c.get("decision", Decision.UNDECIDED.value)),
                 written_revid=(

@@ -146,14 +146,15 @@ external asset of any kind.
   many more are waiting elsewhere. That is deliberate — publishing half a reviewed run is what
   the gate exists to prevent — but it means the popup opened from one article can be held up by
   a card on another.
-- **The queue shows the diff but not the verdicts on it.** This is the same gap as above seen
-  from the rendering side. `Draft.payload()` carries `bucket`,
-  `shape` and `flags`, and `Review.payload()` carries the idea-level `verdict` and its
-  per-assertion changes (`summary.md` §6). The queue renders none of them, so a card flagged
-  `overreached`, `uncited` or `hidden_by_text` currently looks exactly like a clean one — which
-  defeats the point of computing the flag. `hidden_by_text` matters most: the diff renders green
-  and the edit reversed what the passage asserted, so the rendering a reviewer trusts is the one
-  actively misleading them.
+- **The card shows the verdicts, and one thing it deliberately does not flag.** `bucket`,
+  `shape` and every flag render as chips above the diff, and a `conflicting` card carries the
+  disagreement itself — the note and both sources — in a callout above it, so a reviewer
+  deciding whether to take the edit can see what was contested without opening the ledger.
+  What is *not* flagged is a plain destructive edit on a conflicting claim: `overreached` fires
+  only for a `new` claim, because a conflicting one's page may legitimately be wrong, so an
+  edit that replaces text arrives with no warning beyond the red rows in the diff. That is a
+  decision rather than a gap — the diff is the warning, and the reviewer rejects what makes no
+  sense (Aug 30, 2026).
 - **The diff is two-way, and there is no merge UI.** The project assumes a single editor while
   the agent runs (`AGENTS.md` §2), so the page at publish time is the revision the draft was
   taken against and a text conflict cannot arise. There are no conflict markers and no

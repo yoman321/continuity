@@ -11,9 +11,10 @@ writes to. So the baseline is deterministic: read the page, split it, store it, 
 model call and no judgement anywhere in the path. Claims are then proposed *against* a baseline
 that already exists, rather than being the only thing the ledger holds.
 
-Three collections, one ledger. `claims` is what the agent tracks and reschedules, `drafts` is
-what a run proposed and a reviewer decided (`drafts.py`), and `sections` is
-what the wiki currently says. They are keyed differently and written at different times, which
+Four collections, one ledger. `claims` is what the agent tracks and reschedules, `judgements`
+is why each claim was routed that way (`judgements.py`), `drafts` is what a run proposed and a
+reviewer decided (`drafts.py`), and `sections` is what the wiki currently says.
+They are keyed differently and written at different times, which
 is exactly why they are not one table: a re-ingest replaces a page's sections wholesale, while
 a claim outlives every edit made to the section it sits in.
 
@@ -60,6 +61,7 @@ class SectionBaseline:
     text: str
     revid: int  # the revision this came from — a later write's `basetimestamp` partner
     fetched_at: datetime
+    task_id: str = ""  # the ingest pass that read it (`documents.task_id_for`)
 
     @property
     def key(self) -> str:
@@ -91,6 +93,7 @@ def to_document(baseline: SectionBaseline) -> dict[str, Any]:
         "content_hash": baseline.content_hash,
         "revid": baseline.revid,
         "fetched_at": baseline.fetched_at,
+        "task_id": baseline.task_id,
     }
 
 
@@ -110,6 +113,7 @@ def from_document(doc: Mapping[str, Any]) -> SectionBaseline:
         text=doc["text"],
         revid=doc["revid"],
         fetched_at=fetched_at,
+        task_id=doc.get("task_id", ""),
     )
 
 
