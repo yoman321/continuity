@@ -43,6 +43,12 @@ _WORDS = re.compile(r"\S+|\s+")
 #: similar for no reason, and a floor that never fires is not a floor.
 SIMILARITY_FLOOR = 0.3
 
+#: What an edit did to the text that was already on the page. Which of the two it was is
+#: arithmetic over the strings, so it is computed here rather than asked of a model: a stage
+#: that reports its own edit as harmless is the one report you cannot use as a check.
+APPEND = "append"
+MODIFY = "modify"
+
 
 @dataclass(frozen=True, slots=True)
 class Segment:
@@ -95,6 +101,40 @@ def counts(rows: tuple[Row, ...]) -> tuple[int, int]:
         sum(1 for r in rows if r.kind == "removed"),
         sum(1 for r in rows if r.kind == "added"),
     )
+
+
+def shape(before: str, after: str) -> str:
+    """Whether an edit added to the existing text or displaced part of it.
+
+    `APPEND` when `before` survives in `after` **whole and unbroken** — the page gained
+    something and lost nothing. `MODIFY` when any of it was dropped, reordered or split
+    apart, which is the edit a reviewer has to read against the sources rather than merely
+    approve.
+
+    Containment, not a token comparison, and the demo's own fixtures are why. The infobox
+    append on `GAM-APP-01` glues `<br>''[[Avengers: Doomsday]]''` straight onto the end of
+    `|movie = ''[[Deadpool & Wolverine]]''` with no space between, so the last *token* changes
+    and every word- or line-level test reports a rewrite of something that lost nothing. A
+    character-subsequence test has the opposite fault: it threads the old characters through
+    the new string, so retargeting `[[Void]]` to `[[Void (film)|Void]]` — characters inserted
+    *inside* the anchor — reads as an append. Containment separates them, and the anchor is
+    already defined as an exact substring of the page (`Claim.wikitext_anchor`), so demanding
+    it survive exactly asks for nothing the ledger does not already promise.
+
+    It fails toward `MODIFY`: re-indenting or reflowing scores as a rewrite even when no word
+    moved. That is the safe direction — the check exists to catch an edit that displaced text
+    it was not asked to touch, so a false alarm costs a reviewer one careful read and a missed
+    one costs a silent overwrite.
+
+    **Two limits worth stating.** It reads text, not meaning: a draft that appends `, however
+    this was later denied` keeps every character, returns `APPEND`, and has reversed what the
+    passage asserted. That reading is the Diff stage's (`agent/semantic_diff.py`), which uses
+    this as its deterministic fallback rather than its answer. And it sees `before` against
+    `after` and nothing else, so two *sources* disagreeing while the page is silent is invisible
+    to it — that conflict is Classify's to find (`summary.md` §6). This checks a draft against
+    its bucket; it neither produces the bucket nor clears the edit.
+    """
+    return APPEND if before in after else MODIFY
 
 
 def to_payload(rows: tuple[Row, ...]) -> list[dict[str, object]]:

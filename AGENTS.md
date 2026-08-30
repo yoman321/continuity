@@ -234,12 +234,14 @@ Rules that fall out of this shape:
         client.py                    # MediaWiki read + write adapters; network in fetch/post
         sections.py                  # wikitext -> the sections action=edit&section=N addresses
         snapshots.py                 # PageSource, and the offline reader over snapshots/
-        diff.py                      # red/green rows for a drafted edit; stdlib difflib only
+        diff.py                      # red/green rows for a drafted edit, and shape(); stdlib
                                      # ===== everything else under backend/ is perimeter =====
     agent/
       ingest.py                      # step 1 of a run: pages -> sections -> the baseline
       model.py                       # the Gemini perimeter: one call, JSON schema, a cassette
       classify.py                    # the classify stage: the prompt's four measured rules
+      draft.py                       # the draft stage: rewrites the anchor, checks its shape
+      semantic_diff.py               # the diff stage: what the edit did to the *ideas*
       tools/
         wiki_read.py                 # outline + section reads, live or from snapshots/
         web_search.py                # Parallel; the profile's tier table IS the source policy
@@ -317,7 +319,7 @@ Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
 - `app.py` defers every vendor import into a handler, so a cold container serves
   `index.html` without paying for the SDKs.
 
-Not yet written: the 7-stage graph and the Firestore adapter — so all three API routes are
+Not yet written: the 8-stage graph and the Firestore adapter — so all three API routes are
 still guarded shells answering 503/501. Built: all four tools — wiki read, Parallel search, wiki
 section-write and the ledger — each binding a profile and each with a deterministic path behind
 it, over a claim store that persists. The graph can therefore be assembled and tested with no
@@ -645,6 +647,47 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   `marvel.com` corroborates without being the footnote. The default required term is
   `entity_ref.base`; the Draft stage should pass the wording it actually wrote, which on the
   measured batch narrows five citable sources to two.
+- **Draft rewrites the anchor, never the section.** `Claim.wikitext_anchor` is an exact
+  substring of the page so an edit can stay surgical, and every consumer is built for that
+  size: `diff.py` elides no context because its inputs are one infobox line or one sentence.
+  The section goes in the prompt as *context* and is never what comes back — a stage that
+  returns a whole section hands the reviewer a diff they cannot read and a write that touches
+  text nobody proposed changing.
+- **A stage never reports on its own output; the core computes the check.** `diff.shape()`
+  returns `append` or `modify` from the strings alone, and Draft holds it against the Classify
+  bucket: a `new` claim — the page is incomplete, not wrong — whose draft displaced existing
+  text is `overreached` and the queue says so. Do not ask the model whether its edit was
+  conservative. Verify only looks for a contradiction the edit *introduced*, so wording an
+  edit silently took away is caught here or nowhere.
+- **`shape()` is containment, and it fails toward `modify`.** `before in after`, not a token
+  or character-subsequence test, and the demo's own fixtures are why: `GAM-APP-01` glues
+  `<br>''[[Avengers: Doomsday]]''` onto the end of the infobox value with no space, so a token
+  test calls a pure append a rewrite; retargeting `[[Void]]` inserts characters *inside* the
+  anchor, so a subsequence test calls a rewrite an append. Reflowing scores as `modify` even
+  when no word moved — keep it that way. A false alarm costs one careful read; a miss is a
+  silent overwrite.
+- **Draft is never called for `still_true`, and `conflicting` reaches it only post-resolution.**
+  A confirmed claim has no edit to show — its citation is refreshed and its interval doubles.
+  A conflict is a choice between readings, and resolving it is what produces something to
+  draft (`summary.md` §6). `DRAFTABLE` is the list; an unlisted bucket raises before the model
+  is called, so a bad route costs nothing.
+- **The Diff stage reads ideas; `shape()` is only its floor.** Text and meaning come apart in
+  both directions — an appended `, however this was later denied` keeps every character and
+  reverses the assertion, and threading `(2024)` into a value displaces text while dropping
+  nothing. So `semantic_diff.Reviewer` reports per-assertion `kept` / `added` / `dropped` /
+  `reversed`, and any drop or reversal is `DESTRUCTIVE`. Never treat a clean `shape()` as
+  clearance; `Review.hidden_by_text` — textually `append`, semantically destructive — is the
+  case the whole stage exists for.
+- **Do not give the Diff stage the motive.** Its prompt carries `before` and `after` and
+  nothing else: no sources, no objective, no bucket. A reader handed the reason for the edit
+  explains it rather than examines it. The bucket is applied afterwards, in the deterministic
+  core, when the verdict is held against it.
+- **The Diff stage degrades, it does not fail.** A `ModelError` from the source falls back to
+  the textual shape with `text_only` set, so a run with a dead credential still gates edits
+  (`CLAUDE.md` §3). Displaced text that nothing read comes back `DESTRUCTIVE`, never clean — the
+  honest reading of "no one looked" is not "nothing happened". A *malformed answer* is not
+  unavailability: that means schema and model disagree, and it must raise rather than degrade
+  silently forever.
 - **Tier is attached where the results arrive, from the profile's table, and the vendor is
   never asked.** Parallel returns no authority or confidence field, which is what makes this
   safe: there is no vendor number for a model to anchor on. The same URL is tier 1 to the MCU
@@ -755,9 +798,15 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   top.** Cloud Run scales to zero, so the first request after an idle period pays for whatever
   the module imports — 5-15s of vendor SDK before `index.html` can be served. Deferring the
   imports keeps the frontend fast on a cold container without paying for a warm one.
-- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 7-stage flow with three
+- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 8-stage flow with three
   backward edges is an ADK 2.0 Workflow Runtime graph; the publish gate is its HITL pause, and
   because Fan-out follows the gate the run hits that pause twice.
+- **The orchestrator routes and holds no opinion.** Every judgement belongs to a specialised
+  node with its own system instruction, its own response schema and one question to answer —
+  `classify.py`, `draft.py`, `semantic_diff.py`, and Verify when it lands. Do not put reasoning
+  in the graph itself, and do not let one node answer two questions: a model asked to both run
+  the pipeline and evaluate its output has no separate position to evaluate it from. This is
+  also why the Diff stage is not a method on Draft.
 - **Ledger claims are positive assertions, never closed-world ones.** Store "Gambit appears in
   *Deadpool & Wolverine*", never "Gambit's appearances are limited to *Deadpool & Wolverine*".
   A claim that asserts an absence is contradicted by every new fact, so a correctly-working

@@ -209,15 +209,15 @@ the integration must be present in your code."*
 
 ## 6. Architecture
 
-### Control flow (7 stages, 3 backward edges)
+### Control flow (8 stages, 3 backward edges)
 
 ```
-Audit ──→ Research ──→ Classify ──→ Draft ──→ Verify ──→ Publish ──→ Fan-out
-          ▲  ▲            │           ▲         │                       │
-          │  └────────────┘           └─────────┘                       │
-          │    thin retrieval           introduced conflict             │
-          └─────────────────────────────────────────────────────────────┘
-              one hop, capped, and only for an edit a human approved
+Audit ──→ Research ──→ Classify ──→ Draft ──→ Diff ──→ Verify ──→ Publish ──→ Fan-out
+          ▲  ▲            │           ▲                  │                       │
+          │  └────────────┘           └──────────────────┘                       │
+          │    thin retrieval           introduced conflict                      │
+          └──────────────────────────────────────────────────────────────────────┘
+               one hop, capped, and only for an edit a human approved
 ```
 
 | Stage | What it does |
@@ -226,6 +226,7 @@ Audit ──→ Research ──→ Classify ──→ Draft ──→ Verify ─
 | **Research** | one batched Parallel search per claim set, against the objective the ledger holds |
 | **Classify** | Gemini reads the excerpts against the page and sorts each claim: still true / new / conflicting |
 | **Draft** | a section-level edit, rendered as a diff, with citations and a confidence score |
+| **Diff** | reads the edit for what it did to the *ideas* already on the page — kept, added, dropped or reversed |
 | **Verify** | re-read the drafted section for a contradiction the edit itself introduced |
 | **Publish** | the human gate — approve, hand-edit or reject. The only stage that writes to the wiki |
 | **Fan-out** | takes the edit that was *actually applied* and expands it into the claims it implicates on other pages |
@@ -235,6 +236,11 @@ Audit ──→ Research ──→ Classify ──→ Draft ──→ Verify ─
 call and no judgement — so it is a pre-pass rather than a stage, and everything above runs
 against a baseline that already exists. Keeping it separate is what stops Audit doing double
 duty; the reasoning is under the claim ledger below.
+
+Diff adds no backward edge. What it finds goes to the reviewer as a flag on the card, not back
+to Draft for another attempt: a second automatic-retry edge would double the termination surface
+the one-hop rule already has to carry, and an overreach is exactly the kind of thing a person
+should see rather than have quietly re-attempted.
 
 The three backward edges are where the agentic behaviour lives — the first two because a
 stage's output decides whether the next one runs, and Fan-out because it decides how much of
@@ -314,6 +320,104 @@ first move.
 **The reviewer edits, not just approves.** Approve/reject alone forces a bad choice when a
 draft is 90% right, and rejecting throws away correct research along with the bad sentence.
 The gate accepts a hand-edited version of the draft as a third outcome.
+
+### The draft stage — decided Aug 29, 2026
+
+Classify says *what* is true; this is the stage that decides what the page should say instead.
+It rewrites one anchor — the exact substring the ledger already holds — and returns the
+replacement, one sentence for the reviewer, and the source that becomes the footnote. The
+section it sits in goes into the prompt as context and never comes back as the answer: the
+anchor is what the ledger tracks, what the diff was sized for, and what a reviewer can read
+without scrolling.
+
+**The diff is the check, not the input — and working out which took an argument.** The
+intuition is that Draft should compare the old text against the researched text and decide
+from the comparison whether this is an addition or a contradiction. It cannot: retrieval
+returns prose excerpts from the web, not a candidate revision of the wikitext, so there is no
+second version to diff until something has written one. What *is* true is the other half of
+that intuition, and it turned out to be the more useful half. Once a draft exists, comparing
+it against what the page said is exactly how to catch a draft that overreached — and that
+comparison is a stage of its own, described next.
+
+What Draft carries is the cheap half of it. Whether the edit displaced any *text* is a fact
+about two strings, computed in the deterministic core, and it is held against the bucket:
+a claim sorted `new` means the page is incomplete rather than wrong, so a draft for it had
+nothing to take away. This costs nothing, runs with no key, and is never wrong about text. It
+is a floor, not the answer — the reading that matters happens in the Diff stage.
+
+**Two of our own fixtures decided how that floor is computed**, pulling in opposite directions.
+`GAM-APP-01` appends a second film by gluing `<br>''[[Avengers: Doomsday]]''` onto the end of
+`|movie = ''[[Deadpool & Wolverine]]''` with no space between — a pure append that changes the
+last token, so any word- or line-level test reports a rewrite of something that lost nothing.
+`DW-VOID-01` retargets `[[Void]]` by inserting characters *inside* the anchor — a real rewrite
+that a character-subsequence test threads straight through and calls an append. What separates
+them is whether the old text survives whole and unbroken, so the test is containment. It errs
+toward flagging: reindenting scores as a rewrite even when no word moved, which costs a
+reviewer one careful read, where the opposite error costs a silent overwrite.
+
+**The stage never revisits the bucket.** Classify already tested the excerpts against the page
+and ordered the three buckets to make that judgement reproducible; asking a second model
+whether the fact conflicts buys an opinion nothing can adjudicate, and the decay ladder has
+already been driven off the first one. Draft is told `new` and writes an insert.
+
+Confidence is not asked for and not accepted. It comes from the tier table over the distinct
+domains backing the claim, like every other number on screen — a model-assigned score would
+sit in the same field as a measured one and read identically.
+
+### The diff stage — decided Aug 29, 2026
+
+The textual shape answers whether the characters survived. That is not the question a reviewer
+is asking, and the two come apart in both directions.
+
+Take a draft that appends `, however Marvel later confirmed the character was cut` to the
+sentence it was extending. Every original character is intact. Containment holds, the shape is
+a clean `append`, the diff renders green, and the assertion the page used to make is gone.
+Nothing was deleted and the meaning was still overturned — so no string comparison can find it,
+because there is nothing for a string comparison to look at. The mirror case is just as real:
+threading `(2024)` into the middle of an infobox value fails containment and scores as a
+rewrite, while not one idea was dropped.
+
+So the edit has to be read, not measured, and **reading is what an agent is for**. This stage
+takes `before` and `after` and reports, assertion by assertion, what the edit did to each one:
+kept, added, dropped, or *reversed*. `reversed` is the value it exists for — the assertion is
+still sitting there on the page and the page now denies it. Any drop or reversal makes the edit
+`destructive`, which held against a `new` classification is the same overreach guard as the
+textual one, catching the cases the textual one structurally cannot.
+
+**It is a specialised node, not something the orchestrator does.** Two separations are
+deliberate. It is not part of Draft, because a stage that writes an edit and then rules on
+whether the edit was conservative is reporting on itself, and that report is the one thing it
+cannot be used to check. And it is not the orchestrator's own reasoning: the graph routes,
+holds no opinion, and delegates every judgement to a node with one prompt, one schema and one
+question. A model asked to both run the pipeline and evaluate its output has no separate
+position to evaluate it from.
+
+**It is deliberately not told why the edit was made.** No sources, no research objective, no
+classification bucket — only the two texts. A reader handed the motive explains the edit; a
+reader handed only the before and after examines it. The bucket comes back in afterwards, in
+the deterministic core, when the verdict is held against it.
+
+**And it is not Verify.** Verify reads the drafted section against the rest of the page, for a
+contradiction the edit introduced *elsewhere*; this reads `before` against `after` of the same
+anchor, for what the edit did to what was already there. Verify cannot catch the appended
+negation above, because afterwards the page reads as perfectly coherent prose — it is coherent,
+and it is wrong.
+
+**What it does when it finds one:** flags the card, and the run continues to the gate. It gets
+no backward edge. Draft already has one automatic retry path, from Verify, and a second would
+double the termination surface that the one-hop fan-out rule already has to carry; more to the
+point an overreach is precisely the thing a person should see rather than have quietly
+re-attempted on their behalf.
+
+**The fallback is the floor it sits on** (`CLAUDE.md` §3). With no model — expired credential,
+no quota, no network — the stage degrades to the textual shape and marks the card `text_only`,
+so a degraded run still gates edits, more coarsely and never silently. A displaced-text edit
+that nothing read is reported as destructive rather than as clean: the honest reading of "no
+one looked" is not "nothing happened".
+
+Its rules are reasoned rather than measured, which is the difference between this stage and
+Classify — the classify prompt's four rules each came from a benchmark. The harness that
+produces those numbers is the open item in Phase 1, and it now has a second stage to cover.
 
 ### The fan-out stage — decided Aug 22, 2026; moved after Publish Aug 29, 2026
 
@@ -523,6 +627,11 @@ tick route has to authenticate itself, which is an invariant rather than a nicet
 - Dry-run by default: nothing reaches the wiki that has not passed the gate
 - Human approval gate before publish — and since fan-out follows it (§6), the gate also decides
   whether the run widens at all
+- **An edit may not take away what it was not asked to take away.** A claim classified `new`
+  means the page is incomplete, not wrong, so a draft for it has nothing to remove. Two readings
+  enforce that: `diff.shape()` on the text, free and deterministic, and the Diff stage on the
+  ideas — which is the one that catches an appended clause reversing the sentence it extended.
+  Either verdict flags the card; neither blocks it, because which stage was wrong takes a person
 
 ### Error recovery to build *and* demo
 - Parallel returns nothing useful → broaden the semantic objective, retry
@@ -672,12 +781,13 @@ The one thing local work genuinely cannot prove is whether `continuity-run@`'s t
 sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
 account impersonation closes even that, and it is Phase 2's first item.
 
-As of Aug 29, 2026 the critical path is **(1)** the 7-stage ADK graph, **(2)** recording the
-demo video, **(3)** the deploy weekend. Two of the graph's seven stages now have working
-implementations underneath them — the baseline half of Audit, and Classify against real Gemini
-— so what is left of (1) is the wiring, the two stages that still need a model (claim proposal
-and Draft), and the `Draft` record they write to. The local MediaWiki, which held item (2) until
-Aug 29, is up, seeded and verified, so the agent now has somewhere it is allowed to write.
+As of Aug 29, 2026 the critical path is **(1)** the 8-stage ADK graph, **(2)** recording the
+demo video, **(3)** the deploy weekend. Four of the graph's eight stages now have working
+implementations underneath them — the baseline half of Audit, Classify against real Gemini,
+Draft with the `Draft` record it writes to, and Diff — so what is left of (1) is the wiring and
+the two stages that still need a model, claim proposal and Verify. The local MediaWiki, which
+held item (2) until Aug 29, is up, seeded and verified, so the agent now has somewhere it is
+allowed to write.
 Both vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written,
 so what is left is the agent itself. Nothing here is blocked on an unknown API.
 
@@ -974,7 +1084,9 @@ is pasting a URL into a form.
       The rule is two steps. `supporting()` keeps only sources whose excerpt contains every
       required term, then ranks what survives by tier — which on the real batch moves the
       footnote from `marvel.com` to `deadline.com` and, if the Draft stage passes the full
-      wording it wrote, narrows five citable sources to two. `best_citation()` returns `None`
+      wording it wrote, narrows five citable sources to two — which it does not yet: Draft
+      picks its footnote with the claim's own terms before the model writes anything, so the
+      second narrowing is available and unclaimed. `best_citation()` returns `None`
       when nothing states the claim rather than falling back to the best source, and
       `uncited()` is a state the reviewer sees; that is the same instinct as declining to
       resolve a conflict, applied to citation. Deliberately string comparison and not a model
@@ -1081,7 +1193,7 @@ is pasting a URL into a form.
       `(next_check_at, claim_id)` because Firestore's implicit `order_by` tiebreak is the
       document id, so a limited query pages the same way in both. The file store *inherits* the
       in-memory one rather than reimplementing it, so `due` and `all` cannot drift from the
-      semantics the graph is tested against. What this buys immediately: the 7-stage graph can
+      semantics the graph is tested against. What this buys immediately: the 8-stage graph can
       be written and run end to end with no database, no emulator, no cloud project and no
       network — the same argument that put `SnapshotPageSource` behind the wiki reads. Rejected:
       SQLite, which contradicts the schema-flexibility rule above for no gain a JSON document
@@ -1350,6 +1462,69 @@ is pasting a URL into a form.
       does change is the video: beat 2 (§9) now shows the approval as the visible cause of the
       cascade, which is a better shot than the one it replaces.
 
+- [x] **Build the draft stage, and let the diff check it** — Aug 29, 2026. `agent/draft.py`,
+      `diff.shape()`, and the `Draft` record that had no home. The stage rewrites the anchor
+      rather than the section, takes the Classify bucket as an input rather than re-asking the
+      question, and refuses `still_true` before the model is called.
+
+      **The question that shaped it was whether Draft could decide append-versus-conflict by
+      diffing.** Not as an input — retrieval returns web prose, not a candidate revision, so
+      there is nothing to diff until something has written one. But as a *check* on the draft,
+      yes, and better than a model could: once `after` exists, whether it added to the page or
+      displaced part of it is arithmetic over two strings, and it can be held against the
+      bucket. `new` means incomplete rather than wrong, so a `new` draft that removed text is
+      `overreached` and the queue flags it. That failure had no other catcher — Verify looks
+      for a contradiction the edit *introduced*, not for wording it took away.
+
+      **Containment, because our own fixtures rule out the alternatives.** `GAM-APP-01` appends
+      with no whitespace and breaks every token-level test; `DW-VOID-01` inserts inside the
+      anchor and defeats character-subsequence. Both are pinned in `tests/test_diff.py`. The
+      test errs toward `modify` — reindenting reads as a rewrite — because a false alarm costs
+      a read and a miss costs a silent overwrite.
+
+      **What it deliberately does not do:** it never revisits the bucket. The diff sees the
+      draft against the page and nothing else, so sources disagreeing while the page is silent
+      is invisible to it — half of what `conflicting` means, and Classify's measured precedence
+      order is what finds it. Two other gaps stay open: the citation is chosen from the claim's
+      terms before the model writes, so `citations.py`'s second narrowing is unclaimed; and
+      nothing persists a `Draft` yet, so a drafted edit lives for one process. Both land with
+      the graph.
+
+- [x] **Add the diff stage — an agent, not the arithmetic** — Aug 29, 2026.
+      `agent/semantic_diff.py`. The graph goes to eight stages: `… → Draft → Diff → Verify → …`,
+      no new backward edge.
+
+      **`diff.shape()` answers the wrong question, and correcting that was the point.** It
+      reports whether the *characters* survived. A draft that appends `, however Marvel later
+      confirmed the character was cut` keeps every one of them — containment holds, the shape
+      is a clean `append`, the diff renders green — and the assertion the page made is gone.
+      Nothing was deleted and the meaning was still overturned, so there is nothing for a
+      string comparison to look at. It fails the other way too: threading `(2024)` into an
+      infobox value scores as a rewrite while dropping no idea at all. Text and meaning come
+      apart in both directions, so the edit has to be *read*.
+
+      The stage reports per assertion — `kept`, `added`, `dropped`, `reversed` — and any drop
+      or reversal is `DESTRUCTIVE`. `Review.hidden_by_text` names the case that justifies the
+      whole stage: textually an append, semantically destructive, which is the one a reviewer
+      trusting the green diff approves.
+
+      **Specialised, and separated twice.** Not a method on Draft, because a stage that writes
+      an edit and then rules on whether it was conservative is reporting on itself. And not the
+      orchestrator's own reasoning — the graph routes and holds no opinion; every judgement is a
+      node with one prompt, one schema and one question (`AGENTS.md` §7). It is also not told
+      *why* the edit was made: no sources, no objective, no bucket, because a reader handed the
+      motive explains the edit instead of examining it. The bucket is applied afterwards, in the
+      core, when the verdict is held against it.
+
+      **The arithmetic stays as the floor.** `shape()` is not replaced — it is the deterministic
+      fallback (`CLAUDE.md` §3), so a run with a dead credential still gates edits, coarsely and
+      flagged `text_only`. Displaced text that nothing read comes back destructive rather than
+      clean.
+
+      **Not measured.** Classify's four rules each came from a benchmark; these are reasoned.
+      The harness rebuild in Phase 1 now has a second stage to cover, and the appended-negation
+      case is the one to score first.
+
 ### Phase 1 — local; nothing in the cloud has to exist
 
 Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
@@ -1369,7 +1544,7 @@ gets cut to protect it.
       database at all; the Firestore adapter lands behind the same protocol without a node
       noticing
 
-- [ ] Build the 7-stage ADK graph — nodes, the three backward edges, and the publish gate as the
+- [ ] Build the 8-stage ADK graph — nodes, the three backward edges, and the publish gate as the
       HITL pause (§6, `AGENTS.md` §7). The API shape is now verified rather than assumed:
       `Workflow(edges=[(START, n1), (n1, n2), (n2, {"route": n1, ...})])`, nodes route by
       assigning `ctx.route`, and the publish gate goes through `google.adk.tools.request_input`
@@ -1377,7 +1552,10 @@ gets cut to protect it.
       backward edge to Research means the run pauses at the gate twice; the node must refuse to
       fan out a claim that was already fanned in, which is what terminates the cycle. The
       reschedule rule needs no core change: `decay.next_interval(..., changed=True)` already
-      exists, so the node just calls it for every claim it named
+      exists, so the node just calls it for every claim it named. The Draft and Diff nodes are
+      written (`agent/draft.py`, `agent/semantic_diff.py`) and sit between Classify and Verify;
+      wiring them needs a home for the `Draft` and its `Review`, since nothing persists either
+      yet and the gate is where hours pass
 - [x] Build the ledger store, **locally first** — Aug 29, 2026. `core/ledger/documents.py` owns
       the stored shape and `core/ledger/store.py` the `ClaimStore` protocol plus two
       implementations: `InMemoryClaimStore` (the deterministic path, so the graph runs with no
@@ -1396,8 +1574,10 @@ gets cut to protect it.
       *still true* view that shows confirmations rather than hiding them, a side-by-side conflict
       view, and an editable draft. Since fan-out runs after the gate (§6), an approval also *adds*
       cards, so the queue has to handle growing and not only shrinking. `build_demo_state.py` has
-      to emit the bucket per claim. This is rework of a passing component, so re-run
-      `node FE/check.js`
+      to emit the bucket per claim. `Draft.payload()` already carries `bucket`, `shape` and
+      `flags`, and the queue renders none of them — an `overreached` or `uncited` card must not
+      look like a clean one, which is the whole point of computing the flag. This is rework of a
+      passing component, so re-run `node FE/check.js`
 - [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
       depends on it. Not a decision, a check: if the week is quiet, widen the research
       objective or close on a different beat
@@ -1434,6 +1614,12 @@ gets cut to protect it.
       rule is *present* in the prompt, which catches deleting one and cannot catch weakening
       one: a reworded prompt could drop the precision case back to 0/3 and every test would
       still pass. Nothing else in the repo protects a measured result this specific.
+
+      **It has to cover the diff stage too**, whose rules are reasoned rather than measured
+      (§6). The first case to score is the appended negation — `after` keeps every character of
+      `before` and adds a clause that takes the assertion back — because that is the one the
+      textual floor structurally cannot catch, so a weakened prompt there costs the guard
+      entirely and no existing test would notice.
 
       **Shape it as cases, not as prose.** One case is a claim, a section, a search payload and
       the bucket it must land in — the same four inputs `Classifier.classify` already takes, so
@@ -1512,9 +1698,9 @@ thing rather than against a design: Parallel search has made a live call, Gemini
 claim through `agent/classify.py`, and the wiki adapters read and write a real MediaWiki that is
 up and seeded. The deterministic core, the seed corpus, the frontend, the service shell and a
 persisting ledger are real, and the baseline pass fills that ledger with no key and no model call.
-**What remains is the graph that joins them** — seven stages, three backward edges and a human
-gate — plus the two stages that still need a model (claim proposal and Draft) and the `Draft`
-record they write to, then the video, then the deploy.
+**What remains is the graph that joins them** — eight stages, three backward edges and a human
+gate — plus the two stages that still need a model, claim proposal and Verify, then the video,
+then the deploy.
 
 That is a narrower risk than it was a week ago, and a different kind. Nothing left depends on
 an unknown API or an unproven vendor; every external surface has been called and measured, and
@@ -1651,7 +1837,7 @@ place. Raw script: `bench_classify.py` (scratchpad, not committed).
 *nodes* (`BaseAgent` now subclasses `BaseNode`). `NodeInterruptedError` exists to pause a
 workflow for human-in-the-loop input.
 
-This is what makes §6 buildable as designed rather than a diagram: the 7-stage flow with three
+This is what makes §6 buildable as designed rather than a diagram: the 8-stage flow with three
 backward edges maps onto a workflow graph, and the publish approval gate onto HITL — twice per
 run, since fan-out follows it. Nothing
 about the product changed — see `AGENTS.md` §7 for the construction rule.

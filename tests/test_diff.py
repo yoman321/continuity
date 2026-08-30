@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import unittest
 
-from backend.core.wiki import counts, diff, to_payload
+from backend.core.wiki import APPEND, MODIFY, counts, diff, shape, to_payload
 from backend.core.wiki.diff import SIMILARITY_FLOOR
 
 ANCHOR = "|movie = ''[[Deadpool & Wolverine]]''"
@@ -136,6 +136,54 @@ class TestPayload(unittest.TestCase):
             self.assertEqual(
                 row.text, "".join(s["text"] for s in out["segments"])  # type: ignore[attr-defined]
             )
+
+
+class TestShape(unittest.TestCase):
+    """`append` vs `modify`: whether the text already on the page survived.
+
+    The two cases that decided the implementation are both real fixtures from
+    `scripts/build_demo_state.py`, and they pull in opposite directions — which is why neither
+    a token test nor a character-subsequence test was good enough.
+    """
+
+    def test_the_infobox_append_is_an_append(self) -> None:
+        """`GAM-APP-01`: the new film is glued onto the old value with no space between, so
+        the last token changes. Nothing was taken away, and the shape has to say so."""
+        self.assertEqual(shape(ANCHOR, EDITED), APPEND)
+
+    def test_a_link_retarget_is_a_modify(self) -> None:
+        """`DW-VOID-01`: characters inserted *inside* the anchor. A character-subsequence test
+        threads the old text through this and calls it an append; containment does not."""
+        before = "sent to the [[Void]], where Wolverine"
+        after = "sent to the [[Void (Deadpool & Wolverine)|Void]], where Wolverine"
+        self.assertEqual(shape(before, after), MODIFY)
+
+    def test_a_replaced_value_is_a_modify(self) -> None:
+        self.assertEqual(shape("|released = May 26, 2026", "|released = July 25, 2026"), MODIFY)
+
+    def test_a_new_list_item_is_an_append(self) -> None:
+        self.assertEqual(shape("* Alpha\n* Beta", "* Alpha\n* Beta\n* Gamma"), APPEND)
+
+    def test_an_extended_inline_list_is_an_append(self) -> None:
+        self.assertEqual(shape("|starring = A, B", "|starring = A, B, C"), APPEND)
+
+    def test_an_unchanged_anchor_is_an_append(self) -> None:
+        """Vacuously true — nothing was displaced. `Draft.is_empty` is what separates a
+        no-op from a real append; the shape alone does not pretend to."""
+        self.assertEqual(shape(ANCHOR, ANCHOR), APPEND)
+
+    def test_reindenting_fails_toward_modify(self) -> None:
+        """The documented false alarm. A reviewer reads one extra diff; the alternative is
+        missing an edit that displaced text it was not asked to touch."""
+        self.assertEqual(shape("* Alpha\n* Beta", "*Alpha\n*Beta\n* Gamma"), MODIFY)
+
+    def test_shape_agrees_with_the_rows_it_is_not_computed_from(self) -> None:
+        """Independent derivations of the same fact. `shape` reads the strings and `counts`
+        reads the rows, so a pure append must show no removed lines either way."""
+        self.assertEqual(shape(ANCHOR, EDITED), APPEND)
+        removed, added = counts(diff("* Alpha", "* Alpha\n* Beta"))
+        self.assertEqual((removed, added), (0, 1))
+        self.assertEqual(shape("* Alpha", "* Alpha\n* Beta"), APPEND)
 
 
 if __name__ == "__main__":

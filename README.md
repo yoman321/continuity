@@ -27,10 +27,12 @@ at 2024-08-09.
 > local JSON file holding the exact documents Firestore will later hold. **Not yet wired up:**
 > the ADK graph that joins those tools, and the Firestore adapter behind the ledger — so the
 > three API routes exist and are guarded but answer 503/501, and the frontend renders a
-> labelled fixture rather than a live agent run. Two stages do run on their own: the baseline
-> ingest fills the ledger with what the monitored pages currently say, and Classify sorts a
-> claim against retrieved evidence using real Gemini — `scripts/classify_once.py` runs that
-> path end to end, live or replayed from a cassette.
+> labelled fixture rather than a live agent run. Four stages do run on their own: the baseline
+> ingest fills the ledger with what the monitored pages currently say, Classify sorts a claim
+> against retrieved evidence using real Gemini, Draft writes the edit that follows, and Diff
+> reads that edit for what it did to the ideas already on the page —
+> `scripts/classify_once.py` runs the classify path end to end, live or replayed from a
+> cassette.
 
 ---
 
@@ -267,6 +269,8 @@ backend/core/ledger/     claims + the page baseline, tiers, decay, the local sto
 backend/agent/ingest.py  step 1 of a run: read the monitored pages, store their sections
 backend/agent/model.py   the Gemini perimeter: one call, a declared schema, a cassette
 backend/agent/classify.py  the classify stage — still true / new / conflicting
+backend/agent/draft.py   the draft stage — rewrites one anchor, with its citation
+backend/agent/semantic_diff.py  the diff stage — what the edit did to the ideas
 backend/core/profile/    per-wiki config: title grammar, tier table, sections, licence
 backend/core/wiki/       MediaWiki read adapter, section splitting, snapshots, edit diffs
 Dockerfile               python:3.12-slim; copies pyproject.toml, backend/ and FE/

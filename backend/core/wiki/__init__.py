@@ -12,13 +12,25 @@ from .client import (
     parse_timestamp,
     slug_for,
 )
-from .diff import SIMILARITY_FLOOR, Row, Segment, counts, diff, to_payload
+from .diff import (
+    APPEND,
+    MODIFY,
+    SIMILARITY_FLOOR,
+    Row,
+    Segment,
+    counts,
+    diff,
+    shape,
+    to_payload,
+)
 from .sections import Section, find_section, split_sections, subtree, top_level
 from .snapshots import MANIFEST, PageSource, SnapshotPageSource
 
 __all__ = [
     "API_KEY_HEADER",
+    "APPEND",
     "MANIFEST",
+    "MODIFY",
     "SIMILARITY_FLOOR",
     "MediaWikiReader",
     "MediaWikiWriter",
@@ -36,6 +48,7 @@ __all__ = [
     "format_timestamp",
     "parse_revision",
     "parse_timestamp",
+    "shape",
     "slug_for",
     "split_sections",
     "subtree",

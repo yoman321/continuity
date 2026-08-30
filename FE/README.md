@@ -99,6 +99,13 @@ external asset of any kind.
   turns an approval into `action=edit&section=N` is not built yet. Once it is, an approval will
   also *add* cards: fan-out runs after the gate (`summary.md` §6), so approving an edit is what
   queues the claims it implicates on other pages.
+- **The queue shows the diff but not the verdicts on it.** `Draft.payload()` carries `bucket`,
+  `shape` and `flags`, and `Review.payload()` carries the idea-level `verdict` and its
+  per-assertion changes (`summary.md` §6). The queue renders none of them, so a card flagged
+  `overreached`, `uncited` or `hidden_by_text` currently looks exactly like a clean one — which
+  defeats the point of computing the flag. `hidden_by_text` matters most: the diff renders green
+  and the edit reversed what the passage asserted, so the rendering a reviewer trusts is the one
+  actively misleading them.
 - **The diff is two-way, and there is no merge UI.** The project assumes a single editor while
   the agent runs (`AGENTS.md` §2), so the page at publish time is the revision the draft was
   taken against and a text conflict cannot arise. There are no conflict markers and no
