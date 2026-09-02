@@ -210,7 +210,8 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   when every accepted change is written *and* at least one was accepted, so a fully discarded
   run never reads as published; and the diff is never stored, because it is a view of
   `before`/`after` that a hand-edit invalidates.
-- **The ledger has four collections: `sections` (what the page says), `claims` (what the agent
+- **The ledger has five collections: `pages` (which pages the agent has run on, and how often),
+  `sections` (what the page says), `claims` (what the agent
   tracks), `judgements` (why each claim was routed as it was) and `drafts` (what a run proposed
   and what the reviewer decided).** They are written at different times by different things and must not be
   merged. The baseline is *deterministic* — read the page, split it, store the sections
@@ -224,14 +225,19 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   only one that is pure history: **one document per classification**, keyed by task, claim and
   attempt, never read back by any stage, and appended to rather than updated. A claim judged on
   two runs is two rows, and a claim reclassified *within* one run is two rows as well — what
-  was said, when, and what replaced it *is* the record.
+  was said, when, and what replaced it *is* the record. `pages` is the smallest and holds no
+  wikitext at all — what a page *says* is `sections`, and a second copy here would be a second
+  copy able to disagree.
 - **Every document names the task that wrote it — decided Aug 30, 2026.** A *task* is one pass
   of anything that writes to the ledger: a graph run, a baseline ingest, a seeding script. It
-  mints one id (`core/ledger/documents.task_id_for`) and every document it creates or modifies
-  carries it, across all four collections — so a row answers "where did this come from" without
-  a log, and a run's whole footprint is one query. Three rules keep it honest. The id is minted
-  **once per task, never per write**, at the start, from the same clock the task stamps its
-  timestamps with. The value is **bound, never passed as an argument**: `Ledger` takes it at
+  mints one id and every document it creates or modifies
+  carries it, across all five collections — so a row answers "where did this come from" without
+  a log, and a run's whole footprint is one query. **The id has two shapes and one meaning:** a
+  run started from the article is `run-Gambit-0003`, numbered from the page's own record
+  (`core/ledger/pages.py`), and anything else is `task-20260902T144501-812` off the clock
+  (`core/ledger/documents.task_id_for`). Three rules keep it honest. The id is minted
+  **once per task, never per write**, before the task does anything, from the same clock the
+  task stamps its timestamps with. The value is **bound, never passed as an argument**: `Ledger` takes it at
   construction like the profile, because a task is not something a model may name, and every
   path to the claim store goes through one stamping helper so provenance cannot be remembered
   on three transitions and forgotten on the fourth. And it carries **milliseconds** — seeding
@@ -252,8 +258,9 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   preference. A newly proposed claim is also pulled **due immediately**, because `seeded()`
   schedules as though the claim had just been confirmed and nobody has ever asked the world
   about this one.
-- **A run started from the button is sealed to its own id — decided Sept 1, 2026.** It mints a
-  task id before Audit, proposes its own claims under it, and reads through a
+- **A run started from the button is sealed to its own id — decided Sept 1, 2026.** It takes
+  its id from the page's record before the worker thread starts, proposes its own claims under
+  it, and reads through a
   `MongoClaimStore(scope=task_id)` that filters every query on it. So pressing the button twice
   gives two independent runs over the same page, and nothing an earlier run concluded can reach
   a later one. **This reverses what the ledger was for and the cost is not small:** the decay
@@ -266,6 +273,36 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   out `claim-0001` would have one overwrite the other; and `/api/state` reads unscoped, because
   the ledger view is *about* the whole ledger. The scheduled tick, when it exists, should run
   unscoped — it is the thing the ladder was built for.
+- **A run is numbered per page, from a document the page owns — decided Sept 2, 2026.** The
+  first run on a page creates its record in `pages`; every run takes the next number from it,
+  and that number *is* the run's id — `run-Gambit-0003`. One string, not three: it is what
+  `/api/runs` returns and the popup polls, the `task_id` stamped on every claim and judgement
+  the run wrote, the scope the claim store is sealed to, and the name of its draft
+  (`draft-Gambit-0003`). Before this a run carried a uuid in the process and a clock-derived
+  `task_id` in the database, and neither said which page it was about. Four rules. The counter
+  is **per page** — a run on Rogue is not #4 because Gambit had three. It counts **attempts,
+  not successes**, so a run that died in Research still spent its number; two runs both calling
+  themselves #3 is the provenance bug the id exists to prevent. It is allocated by a **single
+  atomic `$inc`**, because a read-then-write counter hands the same number to a reader who
+  double-clicks. And the id is **derived from the counter, never stored** — like `slug`, and
+  for the same reason `documents.py` stores no derivation: a stored copy is a second answer,
+  and writing it back would be a second round trip that can fail on its own.
+- **A run names the page it runs on, and the page must already have a baseline.** `/api/runs`
+  refuses an empty page with 422 and an un-ingested one with 404, before it opens a record or
+  spends a number. There is no whole-corpus run behind the button: claims are proposed against
+  a baseline, so a run on a page nothing has read would propose nothing and draft nothing while
+  still creating a `pages` document for a page that does not exist here.
+- **The frontend's checks run over the whole corpus, not the fixture — Sept 2, 2026.** The
+  article view renders `FE/data/wiki-db.json`; `demo-state.json` carries a display sample. A
+  renderer assertion written against the sample is an assertion about 12 sections out of 284,
+  which is how a fifth of the corpus came to leak markup at the reader with the checks green
+  (`AGENTS.md` §6). `checkCorpusRender` in `FE/check.js` is the one that matters: it asserts on
+  the reader's *text* with tags stripped, because markup inside an attribute is fine and markup
+  in the prose is the bug. The renderer's supported subset is closed and small — `<br>` and
+  `<small>` survive, `<ref>`, `<gallery>`, `<nowiki>`, comments and every other tag are
+  removed, templates are dropped except `{{Quote}}` and `{{WPS}}`, and `{| … |}` tables render
+  as real tables. Anything outside that set must be *removed*, never passed through: escaping
+  it means the reader sees the tag.
 - **A profile names the pages it monitors (`WikiProfile.pages`).** The agent is not a crawler:
   which pages we maintain is a decision, not something to infer from a category listing. It
   lives on the profile beside `section_vocabulary` because it is per-wiki config, and because
@@ -388,9 +425,9 @@ Rules that fall out of this shape:
 ```text
   backend/                           # the whole Python app: core + perimeter, one package
     __init__.py                      # <-- read first: the pure/perimeter rule. Import-free
-    app.py                           # the routes: state, drafts, publish, tick; FE/ last
+    app.py                           # the routes: state, runs, drafts, publish, tick; FE/ last
     firestore.py                     # DraftStore over Firestore; SDK imported in the ctor
-    mongo.py                         # the ledger's four collections over MongoDB;
+    mongo.py                         # the ledger's five collections over MongoDB;
                                      #   driver imported in connect(), never at top
     core/                            # ===== the deterministic half. No vendor, no network =====
       ledger/
@@ -406,6 +443,8 @@ Rules that fall out of this shape:
                                      #   it. Also `task_id_for`: one id shape for every writer
         store.py                     # ClaimStore, and the in-memory reference store
         baseline.py                  # SectionBaseline: what the page says now, per section
+        pages.py                     # PageRecord: one per page ever run on, and the counter
+                                     #   that names its runs — `run-Gambit-0003`
       profile/
         schema.py                    # <-- read first: WikiProfile, everything per-wiki
         known.py                     # MCU_FANDOM, WIKIPEDIA_EN, and local_wiki() — ours
@@ -453,7 +492,8 @@ Rules that fall out of this shape:
     index.html                       # <-- read first: shell, nav, mount point
     app.js                           # state loading, routing, the three views
     wiki-api.js                      # <-- THE WIKI: action-API shapes over in-memory tables
-    wikitext.js                      # deliberately partial wikitext -> HTML renderer
+    wikitext.js                      # deliberately partial wikitext -> HTML renderer:
+                                     #   links, lists, quotes, infobox, {| tables |}
     styles.css                       # all styling; no framework, no external assets
     check.js                         # FE verification — counts, not eyeballing
     data/demo-state.json             # generated fallback state; never hand-edit
@@ -477,6 +517,7 @@ Rules that fall out of this shape:
   tests/test_wiki_write_tool.py      # heading re-resolution, and the outcomes that aren't raised
   tests/test_ledger.py               # stdlib unittest; no deps, runs today
   tests/test_ledger_store.py         # the codec round trip, and the two stores agreeing
+  tests/test_pages.py                # the page record, and two runs never taking one number
   tests/mongo_support.py             # a throwaway database per test; skips if mongod is down
   tests/test_ledger_tool.py          # what a node may decide, and what only the core may
   tests/test_ingest.py               # the baseline pass, against the committed corpus
@@ -706,6 +747,20 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   measured runs), so any "was this published after `as_of`" test silently passes claims it
   never actually checked → filter server-side with `source_policy.after_date`, which the API
   applies before ranking, rather than post-filtering on a field that is often `None`.
+- **A `replace` that runs after `escapeHtml` must match the escaped form.** `renderInline`
+  carried `out.replace(/<small>/gi, …)` and `out.replace(/<br\s*\/?>/gi, …)` for months and
+  neither ever fired: `escapeHtml` runs first, so the text held `&lt;small&gt;` by the time
+  they were reached, and both tags went to the reader as literal angle brackets — 394 and 52
+  of them → match `&lt;small&gt;` / `&lt;br&gt;`. The bug is invisible in review because the
+  line *looks* like it handles the tag, and invisible in the checks because the fixture's
+  sample sections happened to carry neither.
+- **A check that walks `demo-state.json` is not checking the corpus.** `checkRenderer` reads
+  the fixture, which carries a display sample of a few sections, so it passed green while 56
+  of the 284 sections the browser actually renders leaked markup at the reader — `<gallery>`,
+  `<nowiki>` and six wiki tables printed as raw `{|` syntax, none of them in the sample →
+  `checkCorpusRender` walks `FE/data/wiki-db.json`, which is what the article view reads. Any
+  new renderer assertion goes there, not in `checkRenderer`. The same gap hid unstyled classes:
+  the class-vs-stylesheet check scanned `app.js` and `index.html` but never `wikitext.js`.
 - **`.gcloudignore` replaces `.gitignore` for uploads rather than adding to it** — the moment
   the file exists it is the sole list, so a copied-out secret pattern is one that will drift
   → open it with `#!include:.gitignore`, which splices `.gitignore`'s entries in at that point

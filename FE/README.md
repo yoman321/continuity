@@ -96,7 +96,12 @@ one queue card per drafted edit, every element `app.js` looks up present in `ind
 every class used actually styled, and no external requests. The diff rows get their own check:
 concatenating the context and removed rows must reproduce `before` exactly and the context and
 added rows `after`, because a diff that cannot round-trip its own input is not something a
-reviewer can approve on. The gate gets its own: `#/verify` shows exactly the cards for the page
+reviewer can approve on. **The renderer is checked twice, and the second one is the one that
+matters:** once over `demo-state.json`, which carries a display sample, and once over every
+section of `data/wiki-db.json` — the article view's actual source. The corpus pass asserts on
+the reader's text with tags stripped, and it exists because the sample pass was green while a
+fifth of the real corpus printed `<small>`, `<br>`, `<gallery>` and raw table syntax at the
+reader. The gate gets its own: `#/verify` shows exactly the cards for the page
 it was opened from and no others, its textarea is seeded with the agent's text character for
 character, and the launcher keeps the contract the popup depends on — no committed origin, no
 `noopener` on the `window.open` that would silently sever the reload, and every CSS rule it
@@ -138,13 +143,19 @@ external asset of any kind.
 
 - **Templates are not expanded.** There is no template store, and a half-expanded template
   reads worse than none. Infobox values are flattened to their parameters; everything else is
-  dropped. `{{Quote}}` survives because it is content.
+  dropped. `{{Quote}}` and `{{WPS}}` survive because they are content rather than layout.
+- **HTML is a closed set of two.** `<br>` and `<small>` are kept; `<ref>`, `<gallery>`,
+  `<nowiki>`, comments and everything else are removed before rendering rather than escaped,
+  because an escaped tag is one the reader sees. `{| … |}` tables do render — six exist in the
+  corpus doing three different jobs (data, two-column layout, collapsible lists) and a cell
+  may hold a list, so cells re-enter the block renderer.
 - **Page display is a convenience, not a product.** MediaWiki renders its own pages and its
   own `?diff=` views. Once the seeded instance is up, link through to it rather than growing
   this renderer.
-- **Publishing writes, and the failures are shown rather than swallowed.** One request
-  publishes the draft; the server writes each accepted change into the section as the page reads
-  *now*, and answers with an outcome per change. Anything that is not `written` — the page
+- **Publishing writes, and the failures are shown rather than swallowed.** The wiki is
+  `wiki-api.js` and lives here, so *the gate* performs each `action=edit` itself against the
+  section as the page reads **now**, and reports an outcome per change to the server, which
+  records it. Anything that is not `written` — the page
   moved, the drafted line is gone, the edit is already there — is named in the bar in the route's
   own words, because a gate that hid that would be claiming a write it did not make. Pressing it
   again writes only what is still outstanding. What is still missing is the *other* direction:

@@ -254,8 +254,14 @@ def draft_id_for(task_id: str) -> str:
     Derived from the task id rather than from the clock a second time: the two would be the
     same string built twice, and a draft whose id disagreed with its own `task_id` is exactly
     the provenance bug the field exists to prevent.
+
+    Both prefixes are stripped because a task id has two shapes and one meaning. A run started
+    from the article is `run-Gambit-0003`, numbered from the page's record
+    (`core/ledger/pages.py`); a script pass is `task-20260902T144501-812`, off the clock
+    (`documents.task_id_for`). Either way the draft is `draft-` plus what identifies the run,
+    rather than `draft-run-…`.
     """
-    return f"draft-{task_id.removeprefix('task-')}"
+    return f"draft-{task_id.removeprefix('task-').removeprefix('run-')}"
 
 
 def flags_for(draft: Draft, review: Review | None) -> tuple[str, ...]:
@@ -281,8 +287,11 @@ class Run:
 
     stages: Stages
     started_at: datetime = field(default_factory=utcnow)
-    #: Minted at Audit and stamped on every document this run writes — claims, judgements and
-    #: the draft alike. Held here rather than on `Stages` because the task *is* the run.
+    #: Stamped on every document this run writes — claims, judgements and the draft alike.
+    #: Held here rather than on `Stages` because the task *is* the run. Passed in by whoever
+    #: started the run when they have already named it — `/api/runs` allocates a page-scoped
+    #: `run-Gambit-0003` before the thread starts, because the response carries it — and minted
+    #: from the clock at Audit when nobody did.
     task_id: str = ""
     rounds: int = 0
     claims: dict[str, dict[str, Any]] = field(default_factory=dict)

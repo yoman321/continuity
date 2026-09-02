@@ -206,8 +206,16 @@
     out = out.replace(/'''''((?:[^'\n]|'(?!''''))+?)'''''/g, "<strong><em>$1</em></strong>");
     out = out.replace(/'''((?:[^'\n]|'(?!''))+?)'''/g, "<strong>$1</strong>");
     out = out.replace(/''((?:[^'\n]|'(?!'))+?)''/g, "<em>$1</em>");
-    out = out.replace(/<br\s*\/?>/gi, "<br>");
-    out = out.replace(/<small>/gi, '<span class="small">').replace(/<\/small>/gi, "</span>");
+    /* The wiki's own inline HTML, restored *after* escaping rather than before.
+       These two matched the raw `<small>` and `<br>` for months and never fired: escapeHtml
+       runs first, so by the time they were reached the text held `&lt;small&gt;`. The tags
+       therefore reached the reader as literal angle brackets — 394 `<small>` and 52 `<br>`
+       across the corpus, found by rendering all 284 sections rather than the fixture's
+       sample. Matching the escaped form is what makes them the only two tags that survive;
+       everything else stays escaped, which is the whole point of escaping first. */
+    out = out.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
+    out = out.replace(/&lt;small&gt;/gi, '<span class="small">')
+             .replace(/&lt;\/small&gt;/gi, "</span>");
 
     return out;
   }
@@ -216,6 +224,20 @@
     var href = base + encodeURIComponent(target.trim().replace(/ /g, "_"));
     return '<a class="wl" href="' + href + '" target="_blank" rel="noopener noreferrer">' +
       label + "</a>";
+  }
+
+  /* Block HTML, dropped before anything else looks at the text.
+   *
+   * `<gallery>` lists image filenames one per line and we have no images to show, so the
+   * whole element goes — printing the filenames is worse than printing nothing. `<nowiki>`
+   * loses its tags and keeps its contents, which escapeHtml then renders literally, which is
+   * what the tag asked for in the first place. Both span lines, so neither can be handled in
+   * renderInline the way `<br>` and `<small>` are.
+   */
+  function stripBlockHtml(text) {
+    return text
+      .replace(/<gallery[^>]*>[\s\S]*?<\/gallery>/gi, "")
+      .replace(/<\/?nowiki>/gi, "");
   }
 
   /* Replace templates before the line pass, since they span lines and would otherwise be
@@ -249,9 +271,94 @@
     return out + text.slice(cursor);
   }
 
+  /* Where a `{|` table ends: the index of its `|}`, brace-counted so a nested table closes
+   * its own. `lines.length` when the wikitext never closes it, which renders the rest of the
+   * section as a table rather than dropping it. */
+  function tableEnd(lines, start) {
+    var depth = 0;
+    for (var i = start; i < lines.length; i++) {
+      var t = lines[i].trim();
+      if (t.indexOf("{|") === 0) depth++;
+      else if (t.indexOf("|}") === 0) { depth--; if (depth === 0) return i; }
+    }
+    return lines.length;
+  }
+
+  /* `attrs | content` -> `content`. A cell may carry HTML attributes before a single pipe
+   * (`| style="text-align:center;" |`), and they are not text. The `=` is what marks them,
+   * and the bracket guard is what keeps `[[Target|Label]]` and `{{T|p}}` out of it — those
+   * carry a pipe with no attributes in front of it. */
+  function cellText(raw) {
+    var at = raw.indexOf("|");
+    if (at === -1) return raw;
+    var head = raw.slice(0, at);
+    return /=/.test(head) && !/\[\[|\{\{/.test(head) ? raw.slice(at + 1) : raw;
+  }
+
+  /* One `{| ... |}` as a real table.
+   *
+   * Six in the corpus and three different jobs: two are data (the film's soundtrack, the
+   * TVA's roster), two are two-column *layout* holding bullet lists, and two wrap a
+   * collapsible list of appearances. All three read acceptably as a table, and none of them
+   * read at all before this existed — the raw table syntax, its `|-` row breaks and its
+   * `! scope` header cells went straight to the reader as text.
+   *
+   * Cells are rendered as blocks when they contain block markup and inline otherwise, which
+   * is what lets a layout table's bullet list work without wrapping "Deceased" in its own
+   * paragraph. `depth` bounds the recursion a nested table would otherwise open.
+   */
+  function renderTable(lines, options, depth) {
+    var rows = [];
+    var row = null;
+    var cell = null;
+
+    function closeCell() { if (cell) { row.push(cell); cell = null; } }
+    function closeRow() { closeCell(); if (row && row.length) rows.push(row); row = null; }
+    function openCell(header, raw) {
+      closeCell();
+      if (!row) row = [];
+      cell = { header: header, text: cellText(raw) };
+    }
+
+    lines.forEach(function (line) {
+      var t = line.trim();
+      if (t.indexOf("|+") === 0) return;                    // caption
+      if (t.indexOf("|-") === 0) { closeRow(); row = []; return; }
+      if (t[0] === "!" || t[0] === "|") {
+        var header = t[0] === "!";
+        t.slice(1).split(header ? "!!" : "||").forEach(function (raw) {
+          openCell(header, raw);
+        });
+        return;
+      }
+      if (cell) cell.text += "\n" + line;                   // continuation of the open cell
+    });
+    closeRow();
+    if (!rows.length) return "";
+
+    var body = rows.map(function (cells) {
+      return "<tr>" + cells.map(function (c) {
+        var tag = c.header ? "th" : "td";
+        var text = c.text.trim();
+        var inner = /(^|\n)\s*[*#]|\n\s*\n/.test(text) && depth < 2
+          ? renderBlocks(text, options, depth + 1)
+          : renderInline(text.replace(/\n+/g, " "), options);
+        return "<" + tag + ">" + inner + "</" + tag + ">";
+      }).join("") + "</tr>";
+    }).join("");
+    return '<div class="wt-wrap"><table class="wt">' + body + "</table></div>";
+  }
+
   function renderWikitext(text, opts) {
     var options = opts || {};
-    var body = stripTemplates(text);
+    return renderBlocks(stripTemplates(stripBlockHtml(text)), options, 0)
+      .split(MARK_OPEN).join('<mark class="claim-hit">')
+      .split(MARK_CLOSE).join("</mark>");
+  }
+
+  /* The line pass. Split out of renderWikitext so a table cell can hold a list: a cell is
+   * wikitext in its own right, and re-entering here is what renders it as one. */
+  function renderBlocks(body, options, depth) {
     var lines = body.split("\n");
     var html = [];
     var paragraph = [];
@@ -266,14 +373,25 @@
       while (listStack.length > toDepth) html.push(listStack.pop() === "#" ? "</ol>" : "</ul>");
     }
 
-    lines.forEach(function (line) {
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+
+      if (line.trim().indexOf("{|") === 0) {
+        flushParagraph();
+        closeLists(0);
+        var end = tableEnd(lines, i);
+        html.push(renderTable(lines.slice(i + 1, end), options, depth));
+        i = end;
+        continue;
+      }
+
       var heading = /^(={2,6})[ \t]*(.+?)[ \t]*\1[ \t]*$/.exec(line);
       if (heading) {
         flushParagraph();
         closeLists(0);
         var level = Math.min(heading[1].length, 6);
         html.push("<h" + level + ">" + renderInline(heading[2], options) + "</h" + level + ">");
-        return;
+        continue;
       }
 
       if (line.indexOf("\u0003") === 0) {
@@ -283,7 +401,7 @@
         html.push('<blockquote><p>' + renderInline(parts[0], options) + "</p>" +
           (parts[1] ? "<cite>" + renderInline(parts[1], options) + "</cite>" : "") +
           "</blockquote>");
-        return;
+        continue;
       }
 
       var item = /^([*#]+)\s?(.*)$/.exec(line);
@@ -299,20 +417,17 @@
           listStack.push(kind);
         }
         html.push("<li>" + renderInline(item[2], options) + "</li>");
-        return;
+        continue;
       }
 
       closeLists(0);
-      if (!line.trim()) { flushParagraph(); return; }
+      if (!line.trim()) { flushParagraph(); continue; }
       paragraph.push(line.trim());
-    });
+    }
 
     flushParagraph();
     closeLists(0);
-
-    return html.join("\n")
-      .split(MARK_OPEN).join('<mark class="claim-hit">')
-      .split(MARK_CLOSE).join("</mark>");
+    return html.join("\n");
   }
 
   /* Wrap a claim's anchor in sentinels the renderer converts to <mark> at the end. Done on

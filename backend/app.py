@@ -361,20 +361,34 @@ def get_state() -> dict[str, Any]:
 class StartRun(BaseModel):
     """What a reader may decide when pressing the button on an article.
 
-    Deliberately two fields. `page` scopes the run to the article they were reading; `live`
-    is opt-in because a live run spends a Parallel search per due claim and several model
-    calls, and a button that bills by default is one a page-refresh loop can drain.
+    Deliberately two fields. `page` is the article they were reading and is required: a run is
+    named for its page and its number on that page (`core/ledger/pages.py`), so a run with no
+    page has no id and nothing to propose against. `live` is opt-in because a live run spends a
+    Parallel search per due claim and several model calls, and a button that bills by default
+    is one a page-refresh loop can drain.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    page: str = ""
+    page: str
     live: bool = False
 
 
 @app.post("/api/runs")
 def start_run(body: StartRun) -> dict[str, Any]:
-    """Start a run and hand back its id, so the popup can watch it.
+    """Start a run on one page and hand back its id, so the popup can watch it.
+
+    **The page is opened before the thread is.** The first run on a page creates that page's
+    record; every run after it takes the next number from that record, and the number *is* the
+    run's id — `run-Gambit-0003` (`core/ledger/pages.py`). The same string is the `task_id`
+    stamped on every claim the run proposes, the scope the ledger is sealed to, and the name of
+    the draft it ends with, so a stored claim says which run on which page made it without a
+    join. It is allocated here rather than in the worker because the response carries it: the
+    popup begins polling before the run has done anything.
+
+    **A page the agent has never read is refused rather than run on.** Claims are proposed
+    against a baseline, so a run on a page with no sections would propose nothing, draft
+    nothing, and still burn a run number and a page record on a page that does not exist here.
 
     **One at a time.** A second request while a run is in flight gets the run already going
     rather than starting another — a cost guard, for the same reason `/internal/tick`
@@ -391,6 +405,32 @@ def start_run(body: StartRun) -> dict[str, Any]:
     if existing is not None:
         return {**existing.payload(), "already_running": True}
 
+    page = body.page.strip()
+    if not page:
+        raise HTTPException(status_code=422, detail="A run names the page it runs on.")
+
+    try:
+        from .mongo import MongoBaselineStore, MongoPageStore
+
+        # One client for the whole run: every store below is handed this database rather than
+        # opening its own, so a run costs one connection instead of four.
+        pages = MongoPageStore()
+        baseline = MongoBaselineStore(pages.db)
+    except RuntimeError as exc:
+        # `connect()` pings eagerly, so this is "mongod is not running" and nothing subtler.
+        # 503 rather than 500: the same answer `/api/state` gives to the same cause.
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    if not baseline.for_page(page):
+        raise HTTPException(
+            status_code=404,
+            detail=f"No baseline for {page!r}. Run scripts/ingest_baseline.py first.",
+        )
+
+    started = now()
+    record = pages.open_run(page, now=started)
+    task_id = record.last_run_id
+
     def work(handle: Any) -> None:
         # Imported inside the worker, never at module scope: these drag in the vendor SDKs and
         # a cold container must serve `index.html` without paying for them (`AGENTS.md` §7).
@@ -402,9 +442,8 @@ def start_run(body: StartRun) -> dict[str, Any]:
         from .agent.semantic_diff import Reviewer
         from .agent.tools import Ledger, WebSearch
         from .agent.tools.web_search import RecordedSearch
-        from .core.ledger.documents import task_id_for
         from .core.profile import local_wiki
-        from .mongo import MongoBaselineStore, MongoClaimStore, MongoJudgementStore
+        from .mongo import MongoClaimStore, MongoJudgementStore
 
         profile = local_wiki(os.environ.get("MEDIAWIKI_API_URL") or "http://localhost/api.php")
         cassette = REPO_ROOT / DEFAULT_CASSETTE
@@ -418,35 +457,31 @@ def start_run(body: StartRun) -> dict[str, Any]:
             source = RecordedSearch(searches)
             model = RecordedModel(cassette)
 
-        # The run's id is minted here rather than at Audit, because everything below has to
-        # agree on it: the claims are proposed *into* this run and the store is sealed to it,
-        # so a run never sees what an earlier one concluded (`AGENTS.md` §2). Pressing the
-        # button twice gives two independent runs over the same page.
-        started = now()
-        task_id = task_id_for(started)
-        claims = MongoClaimStore(scope=task_id)
-        baseline = MongoBaselineStore()
+        # `task_id` is the run's id, allocated from the page's record before this thread
+        # started. Everything below agrees on it: the claims are proposed *into* this run and
+        # the store is sealed to it, so a run never sees what an earlier one concluded
+        # (`AGENTS.md` §2). Pressing the button twice gives run 3 and run 4 of the same page,
+        # independent of each other.
+        claims = MongoClaimStore(baseline.db, scope=task_id)
 
         # -- propose: this run's own claims, from the page the reader was on ----------------
         proposer = Proposer(profile, model)
-        pages = [handle.page] if handle.page else list(baseline.pages())
         proposed = 0
-        for page in pages:
-            for section in (s for s in baseline.for_page(page) if worth_reading(s)):
-                # Ask before spending: past the page cap every answer is discarded, and a burst
-                # of wasted calls is exactly what a rate limit punishes.
-                if room_left(claims, page) <= 0:
-                    break
-                try:
-                    found = proposer.propose(page, section)
-                except ModelError as exc:
-                    handle.notes.append(f"propose {page} §{section.section_index}: {exc}")
-                    continue
-                kept, _ = store_proposals(
-                    found, page=page, section_text=section.text, profile=profile,
-                    store=claims, now=started, task_id=task_id,
-                )
-                proposed += len(kept)
+        for section in (s for s in baseline.for_page(page) if worth_reading(s)):
+            # Ask before spending: past the page cap every answer is discarded, and a burst
+            # of wasted calls is exactly what a rate limit punishes.
+            if room_left(claims, page) <= 0:
+                break
+            try:
+                found = proposer.propose(page, section)
+            except ModelError as exc:
+                handle.notes.append(f"propose {page} §{section.section_index}: {exc}")
+                continue
+            kept, _ = store_proposals(
+                found, page=page, section_text=section.text, profile=profile,
+                store=claims, now=started, task_id=task_id,
+            )
+            proposed += len(kept)
         handle.proposed = proposed
 
         run = Run(
@@ -459,7 +494,7 @@ def start_run(body: StartRun) -> dict[str, Any]:
                 drafter=Drafter(profile, model),
                 reviewer=Reviewer(profile, model),
                 drafts=draft_store(),
-                judgements=MongoJudgementStore(),
+                judgements=MongoJudgementStore(baseline.db),
             ),
             task_id=task_id,
         )
@@ -478,7 +513,10 @@ def start_run(body: StartRun) -> dict[str, Any]:
             "skipped": list(report.skipped),
         }
 
-    handle = RUNS.start(body.page, live=body.live, work=work)
+    handle = RUNS.start(
+        page, live=body.live, work=work,
+        run_id=task_id, ordinal=record.runs, started_at=started,
+    )
     return {**handle.payload(), "already_running": False}
 
 

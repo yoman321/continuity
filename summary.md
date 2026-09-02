@@ -508,7 +508,9 @@ and this becomes RAG with a review screen — the exact quiet failure §4 names.
 
 **Two collections carry the agent's memory, written at different times** — plus `drafts`, which
 carries the review that follows them (see the decision log entry "The review draft is a stored
-document"), and `judgements`, which carries why each claim was routed as it was. All four name
+document"), `judgements`, which carries why each claim was routed as it was, and `pages`, one
+record per page the agent has ever run on, holding the counter that names that page's runs (see
+"Runs are numbered per page"). All five name
 the task that wrote them; the entry "Every document names the task that wrote it" has the rules. `sections` is the baseline — what each
 monitored page says right now, recorded verbatim by an ingest pass that reads the wiki, splits
 it and stores it. `claims` is what the agent tracks. The split exists because the two need
@@ -2203,6 +2205,54 @@ is pasting a URL into a form.
 
       Measured after the change: two consecutive presses over the same page both report
       `proposed=12 due=12 researched=12`, where the second used to report nothing due.
+
+- [x] **Runs are numbered per page, from a document the page owns** — decided Sept 2, 2026, at
+      your call. A page the agent has never run on gets a record in a new `pages` collection the
+      first time somebody runs on it; every run takes the next number from that record, and the
+      number *is* the run's id — `run-Gambit-0003` is the third run on Gambit.
+
+      **What it fixes** is that a run had two ids and neither said what it was about: a uuid
+      held by the process that started it, and a clock-derived `task_id` in the database. Two
+      strings for one thing means every question about provenance is a join, and the id you can
+      see in the URL is not the id stored on the claims. Now it is one string, and it reads:
+      `/api/runs/run-Gambit-0003` is the run, `task_id=run-Gambit-0003` is every claim and
+      judgement it wrote, `draft-Gambit-0003` is what it produced. The rules that keep the
+      counter honest — per page, counts attempts rather than successes, one atomic increment,
+      id derived rather than stored — are in `AGENTS.md` §2 with the reasoning for each.
+
+      **Why the page gets a document at all**, rather than the run id being a page slug plus a
+      timestamp: a counter has to live somewhere, and the thing it counts is a property of the
+      page rather than of any run. Having the record also answers questions no ledger scan
+      answers cheaply — which pages has this agent ever worked on, since when, and how often —
+      and it does it without holding any page *content*, which stays in `sections` where a
+      second copy cannot disagree with the first.
+
+      **The cost is that the button no longer runs over everything.** `POST /api/runs` refuses
+      a request with no page (422) and one whose page has no baseline (404), because a run
+      needs a page to be named for and a baseline to propose against. Nothing used the
+      whole-corpus path — the article's button always names its page — and a run over every
+      monitored page is exactly the unbounded spend the single-flight guard exists to bound.
+      The scheduled tick, when it is wired, is the thing that should sweep every page, and it
+      should do it unscoped against the real ledger rather than as one giant sealed run.
+
+- [x] **The renderer was checked against a sample, so a fifth of the corpus was broken** —
+      found and fixed Sept 2, 2026. 56 of the 284 sections the article view renders were
+      printing markup at the reader: 394 `<small>`, 52 `<br>`, 18 `<gallery>`, 6 `<nowiki>`
+      and six wiki tables dumped as raw `{|` syntax.
+
+      **Two causes, and both are the same mistake in different places.** The `<small>` and
+      `<br>` handlers ran *after* `escapeHtml`, so they matched a form of the text that no
+      longer existed and silently did nothing. And `FE/check.js` walked `demo-state.json` —
+      a display sample of a few sections — while claiming to verify the renderer, so it stayed
+      green throughout. A check that reads different bytes than the product reads is not a
+      check; the rule and the scars are in `AGENTS.md` §2 and §6.
+
+      Tables now render as tables rather than being dropped or dumped. The six in the corpus
+      do three different jobs — data (the soundtrack, the TVA roster), two-column layout
+      holding bullet lists, and a collapsible appearances list — so cells re-enter the block
+      renderer, which is what lets a cell hold a list.
+
+      Measured after the change: 0 of 284 sections leak, 0 unbalanced tag pairs.
 
 ### Phase 1 — local; nothing in the cloud has to exist
 

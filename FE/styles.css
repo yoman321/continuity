@@ -478,6 +478,20 @@ table.ledger tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
 
 .article blockquote cite { display: block; margin-top: 6px; font-size: 13px; font-style: normal; }
 
+/* Wiki tables. The wrapper scrolls rather than the page: the soundtrack table is five
+   columns of song titles and would otherwise push the whole article sideways. */
+.article .wt-wrap { overflow-x: auto; margin: 0 0 14px; }
+.article .wt { border-collapse: collapse; width: 100%; font-size: 14px; }
+.article .wt th, .article .wt td {
+  border: 1px solid var(--rule-soft);
+  padding: 7px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.article .wt th { background: var(--rule-soft); font-weight: 600; }
+.article .wt td > p:last-child, .article .wt td > ul:last-child { margin-bottom: 0; }
+.article .wt ul, .article .wt ol { margin: 0; padding-left: 18px; }
+
 .article .small { font-size: .85em; color: var(--ink-soft); }
 .article a.wl { text-decoration: none; }
 .article a.wl:hover { text-decoration: underline; }

@@ -329,6 +329,11 @@ class TestWhatARunAsks(unittest.TestCase):
         self.assertEqual(edit_id_for("GAM-APP-01"), "edit-gam-app-01")
         self.assertEqual(draft_id_for("task-20260830T120000-000"), "draft-20260830T120000-000")
 
+    def test_a_page_run_names_its_draft_for_the_run_not_for_run_(self) -> None:
+        # A run started from the article is `run-<page>-<n>` (`core/ledger/pages.py`), so the
+        # draft is `draft-Gambit-0003` rather than `draft-run-Gambit-0003`.
+        self.assertEqual(draft_id_for("run-Gambit-0003"), "draft-Gambit-0003")
+
     def test_two_tasks_in_the_same_second_are_two_tasks(self) -> None:
         """Seeding the ledger and then running the graph takes well under a second, and at
         second resolution the two came back with the same id — which would have one task

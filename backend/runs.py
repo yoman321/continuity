@@ -19,16 +19,19 @@ second run while one is in flight bounds what a page-load loop or an impatient r
 spend. Deployed on a public URL this needs the same shared-secret treatment the tick has —
 that is written up rather than done here, because the demo runs on localhost.
 
-**The registry is process-local and dies with the container.** A run is ephemeral by design:
-what has to survive it is the `ReviewDraft` in Mongo, which is exactly what Verify writes and
-what the gate re-opens. A run whose process died is a run whose draft either exists or does
-not, and neither answer needs a registry to hold it.
+**The registry is process-local and dies with the container, but the id is not.** A run is
+ephemeral by design: what has to survive it is the `ReviewDraft` in Mongo, which is exactly
+what Verify writes and what the gate re-opens. A run whose process died is a run whose draft
+either exists or does not, and neither answer needs a registry to hold it. What *is* durable
+is the run's identity — `run-Gambit-0003`, allocated from the page's own record before the
+thread starts (`core/ledger/pages.py`) — so the id in this handle, the `task_id` on every
+claim the run proposed and the draft it ends with are one string. This module no longer mints
+anything: the caller passes the id in, because only the caller knows the page.
 """
 
 from __future__ import annotations
 
 import threading
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
@@ -45,6 +48,9 @@ class RunHandle:
 
     run_id: str
     page: str
+    #: This run's number on its page — 3 for `run-Gambit-0003`. Counts attempts rather than
+    #: successes, so a failed run still spent one (`core/ledger/pages.py`).
+    ordinal: int
     live: bool
     started_at: datetime
     #: The `Run` object itself, so `visited` can be read while it works. `None` until the
@@ -77,6 +83,7 @@ class RunHandle:
         return {
             "run_id": self.run_id,
             "page": self.page,
+            "ordinal": self.ordinal,
             "live": self.live,
             "started_at": self.started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "stages": list(STAGES),
@@ -109,18 +116,32 @@ class Registry:
         with self._lock:
             return self._runs.get(run_id)
 
-    def start(self, page: str, *, live: bool, work: Any) -> RunHandle:
+    def start(
+        self,
+        page: str,
+        *,
+        live: bool,
+        work: Any,
+        run_id: str,
+        ordinal: int,
+        started_at: datetime | None = None,
+    ) -> RunHandle:
         """Begin a run in a worker thread and hand back its handle immediately.
 
         `work` is a callable taking the handle — the caller supplies it so this module never
         imports the graph, the stores or a vendor SDK, which is what keeps it importable at
-        module scope in `app.py` (`AGENTS.md` §7).
+        module scope in `app.py` (`AGENTS.md` §7). `run_id` and `ordinal` come from the page's
+        record for the same reason: reaching the page store from here would be that import.
+
+        `started_at` is the caller's clock rather than this one's, because the page record was
+        stamped with it a moment ago and two clocks for one run is two answers to when it began.
         """
         handle = RunHandle(
-            run_id=f"run-{uuid.uuid4().hex[:12]}",
+            run_id=run_id,
             page=page,
+            ordinal=ordinal,
             live=live,
-            started_at=datetime.now(timezone.utc),
+            started_at=started_at or datetime.now(timezone.utc),
         )
         with self._lock:
             self._runs[handle.run_id] = handle

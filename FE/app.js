@@ -239,6 +239,14 @@
 
   function startRun(page, live) {
     if (liveRun && !liveRun.finished) return;
+    /* A run is named for its page and its number on that page, so the server refuses one with
+       no page. Said here rather than sent and 422'd, because the reader can act on this. */
+    if (!page) {
+      liveRun = { stages_done: [], finished: true,
+                  error: "a run needs a page — open an article and press the button in its corner" };
+      route();
+      return;
+    }
     liveRun = { stages_done: [], current: "audit", finished: false, error: "", starting: true };
     route();
     fetch("/api/runs", {
@@ -323,16 +331,24 @@
     });
   }
 
+  /* "Run #3" — this run's number on this page, which is also the tail of its id
+     (`run-Gambit-0003`). The number comes back with the POST, so it is absent for the moment
+     between the button and the server's answer. */
+  function runLabel() {
+    return liveRun && liveRun.ordinal ? "Run #" + liveRun.ordinal : "The run";
+  }
+
   function railNote() {
     if (liveRun) {
-      if (liveRun.error) return '<p class="rail-note err">The run stopped: ' + esc(liveRun.error) + "</p>";
+      if (liveRun.error) return '<p class="rail-note err">' + esc(runLabel()) + " stopped: " + esc(liveRun.error) + "</p>";
       if (liveRun.starting) return '<p class="rail-note">Starting…</p>';
       if (!liveRun.finished) {
-        return '<p class="rail-note">Running ' + esc(liveRun.current || "") + "… " +
+        return '<p class="rail-note">' + esc(runLabel()) + " is running " +
+          esc(liveRun.current || "") + "… " +
           (liveRun.live ? "live — this one bills." : "replayed from recordings.") + "</p>";
       }
       var r = liveRun.report || {};
-      return '<p class="rail-note">Run finished — ' + (r.due || 0) + " claim(s) audited, " +
+      return '<p class="rail-note">' + esc(runLabel()) + " finished — " + (r.due || 0) + " claim(s) audited, " +
         (r.researched || 0) + " searched over " + (r.rounds || 0) + " round(s), " +
         (r.drafted || 0) + " edit(s) drafted." +
         ((r.unjudged && r.unjudged.length)

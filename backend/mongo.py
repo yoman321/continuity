@@ -1,7 +1,7 @@
 """The ledger over MongoDB — a real document store, running locally.
 
 This replaces the JSON file stores that stood in for a database until Sept 1, 2026. It is a
-*perimeter* module: the four collections it serves are defined by protocols in
+*perimeter* module: the five collections it serves are defined by protocols in
 `backend.core.ledger`, and every document it reads or writes goes through the codecs that were
 written for Firestore (`to_document` / `from_document`). Those emit only value types both
 Firestore and MongoDB accept — `str`, `int`, `float`, `bool`, `None`, `datetime`, `list`,
@@ -47,8 +47,12 @@ from .core.ledger.drafts import to_document as draft_to_document
 from .core.ledger.judgements import Judgement
 from .core.ledger.judgements import from_document as judgement_from_document
 from .core.ledger.judgements import to_document as judgement_to_document
+from .core.ledger.pages import PageRecord
+from .core.ledger.pages import from_document as page_from_document
+from .core.ledger.pages import to_document as page_to_document
 from .core.ledger.schema import Claim
 from .core.ledger.store import require_scheduled
+from .core.wiki.client import slug_for
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from pymongo.collection import Collection
@@ -57,6 +61,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 DEFAULT_URI = "mongodb://127.0.0.1:27017"
 DEFAULT_DB = "continuity"
 
+PAGES = "pages"
 CLAIMS = "claims"
 SECTIONS = "sections"
 JUDGEMENTS = "judgements"
@@ -187,6 +192,55 @@ class MongoClaimStore:
             if raw.isdigit():
                 highest = max(highest, int(raw))
         return f"claim-{highest + 1:04d}"
+
+
+class MongoPageStore:
+    """`PageStore` over one collection, keyed by slug. This is where a run gets its number.
+
+    `open_run` is a single `find_one_and_update`: `$inc` allocates the ordinal server-side and
+    `$setOnInsert` writes the record the first time anyone runs on the page, so two presses
+    that arrive together take two different numbers rather than both reading 2 and both
+    writing 3. That atomicity is the reason the *counter* is stored and the run id is not —
+    the id is derived from the counter, so there is nothing left to write back afterwards and
+    no second round trip that could fail on its own (`core/ledger/pages.py`).
+
+    No index and no `create_index`: every query here is by `_id`.
+    """
+
+    def __init__(self, db: Database[dict[str, Any]] | None = None) -> None:
+        self.db = db if db is not None else connect()
+        self.col: Collection[dict[str, Any]] = self.db[PAGES]
+
+    def get(self, page: str) -> PageRecord | None:
+        doc = self.col.find_one({"_id": slug_for(page)})
+        return page_from_document(_restore(doc)) if doc else None
+
+    def open_run(self, page: str, *, now: datetime) -> PageRecord:
+        from pymongo import ReturnDocument
+
+        # The created half of the document comes from the codec rather than being spelled out
+        # here, so a field added to `to_document` is a field a new page gets. The two the
+        # operators below own are dropped, because MongoDB refuses an update naming one field
+        # in two operators.
+        seed = page_to_document(PageRecord(page=page, created_at=now))
+        seed.pop("runs")
+        seed.pop("last_run_at")
+        doc = self.col.find_one_and_update(
+            {"_id": slug_for(page)},
+            {"$inc": {"runs": 1}, "$set": {"last_run_at": now}, "$setOnInsert": seed},
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+        # `upsert=True` with `ReturnDocument.AFTER` always answers with a document: there is no
+        # path where the record was neither found nor created. Asserted rather than branched,
+        # because a `None` here would be the driver breaking its own contract, and inventing a
+        # record to return would hand a second run the number the first one took.
+        assert doc is not None
+        return page_from_document(_restore(doc))
+
+    def all(self) -> tuple[PageRecord, ...]:
+        cursor = self.col.find().sort([("_id", 1)])
+        return tuple(page_from_document(_restore(doc)) for doc in cursor)
 
 
 class MongoBaselineStore:

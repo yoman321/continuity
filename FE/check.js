@@ -64,6 +64,60 @@ function checkRenderer(W) {
   }
 }
 
+/* The renderer against the whole corpus, not the fixture's sample.
+ *
+ * `checkRenderer` above walks `demo-state.json`, which carries a display sample of a few
+ * sections — so for months it passed while 56 of the 284 sections the browser actually
+ * renders leaked markup at the reader: 394 `<small>`, 52 `<br>`, 18 `<gallery>`, 6
+ * `<nowiki>` and six wiki tables printed as raw table syntax. This walks
+ * `wiki-db.json`, which is what the article view reads, so a section nobody wrote a fixture
+ * for is still checked.
+ *
+ * The assertion is on the reader's text — tags stripped — because that is where the failure
+ * showed. Markup inside an attribute is fine; markup in the prose is the bug.
+ */
+function checkCorpusRender(W) {
+  console.log("\n# renderer over the whole corpus");
+  const textById = {};
+  wikiDb.tables.text.forEach((r) => { textById[r.old_id] = r.old_text; });
+  const revById = {};
+  wikiDb.tables.revision.forEach((r) => { revById[r.rev_id] = r; });
+
+  const LEAKS = [
+    ["wikitext", WIKITEXT],
+    ["an HTML tag", /&lt;\/?[a-zA-Z]/],
+    ["table syntax", /\{\||^\|-|^\|\}|^!\s*scope/m],
+  ];
+  let sections = 0;
+  const dirty = [];
+  let unbalanced = 0;
+  for (const page of wikiDb.tables.page) {
+    const full = textById[revById[page.page_latest].rev_text_id];
+    const parts = full.split(/^(={2,6})[ \t]*(.+?)[ \t]*\1[ \t]*$/gm);
+    const chunks = [parts[0]];
+    for (let i = 1; i < parts.length; i += 3) {
+      chunks.push(parts[i] + parts[i + 1] + parts[i] + "\n" + (parts[i + 2] || ""));
+    }
+    chunks.forEach((text, index) => {
+      sections++;
+      const html = W.render(text, { articleBase: "https://example.org/wiki/" });
+      const plain = html.replace(/<[^>]*>/g, "");
+      for (const [what, re] of LEAKS) {
+        if (re.test(plain)) dirty.push(`${page.page_title}#${index} (${what})`);
+      }
+      for (const tag of ["ul", "ol", "li", "p", "blockquote", "table", "tr", "td", "th"]) {
+        const open = count(html, new RegExp("<" + tag + "[ >]", "g"));
+        const close = count(html, new RegExp("</" + tag + ">", "g"));
+        if (open !== close) unbalanced++;
+      }
+    });
+  }
+  check(`every section renders clean`, dirty.length === 0,
+    `${dirty.length} of ${sections} leak — ${dirty.slice(0, 6).join(", ")}`);
+  check(`every section has balanced tags`, unbalanced === 0, `${unbalanced} mismatched`);
+  check(`the corpus is bigger than the fixture`, sections > 200, `${sections} sections`);
+}
+
 function checkAnchors(W) {
   console.log("\n# claim anchors");
   for (const claim of state.claims) {
@@ -346,8 +400,10 @@ function checkWiring() {
   check("every element app.js looks up exists in index.html", missing.length === 0,
     missing.join(", "));
 
+  // `wikitextSrc` is in this list because it was not: the renderer emits `class="small"`,
+  // `wl`, `ext` and `claim-hit`, and none of them were ever checked against the stylesheet.
   const classes = new Set();
-  for (const source of [appSrc, html]) {
+  for (const source of [appSrc, wikitextSrc, html]) {
     for (const m of source.matchAll(/class="([a-z][a-z0-9 _-]*)"/g)) {
       m[1].split(/\s+/).filter(Boolean).forEach((c) => classes.add(c));
     }
@@ -363,6 +419,7 @@ function checkWiring() {
 (async () => {
   const W = loadWikitext();
   checkRenderer(W);
+  checkCorpusRender(W);
   checkAnchors(W);
   await checkViews();
   await checkVerify(W);

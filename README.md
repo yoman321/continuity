@@ -31,9 +31,11 @@ at 2024-08-09.
 > **Draft** writes the edit that follows, **Diff** reads that edit for what it did to the ideas
 > already on the page, and **Verify** stores it as cards. Publish is the button behind the gate.
 >
-> Everything a run decides is real state in MongoDB — claims, judgements, sections, drafts — and
-> every document names the task that wrote it, so a run's whole footprint is one query. The wiki
-> it edits is *not*: it lives in the browser and resets on reload.
+> Everything a run decides is real state in MongoDB — pages, claims, judgements, sections,
+> drafts — and every document names the run that wrote it, so a run's whole footprint is one
+> query. Runs are numbered per page: the first run on a page creates its record, and the third
+> is `run-Gambit-0003`. The wiki it edits is *not* real state: it lives in the browser and
+> resets on reload.
 >
 > **Not built:** Fan-out (an approved edit should add cards for the pages it implicates) and
 > `/internal/tick`, so nothing runs on a schedule. Retrieval and model calls replay from
@@ -108,11 +110,20 @@ Same three views, plus the API the agent will answer on:
 |---|---|---|
 | `GET /` | serves `FE/` | unchanged |
 | `GET /api/state` | the ledger from Mongo — claims, pages, profiles. 503 when the store is unreachable or empty | unchanged |
+| `POST /api/runs` | starts a run on one page and returns its id — `run-Gambit-0003`. 422 with no page, 404 with no baseline for it, and the run already in flight if there is one | unchanged |
+| `GET /api/runs/{id}` | how far that run has got: stages done, current stage, notes, report | unchanged |
 | `GET /api/drafts` | the stored drafts, newest first | unchanged |
 | `GET /api/drafts/{id}` | one draft: its changes, verdicts, hand-edits and flags | unchanged |
 | `POST /api/drafts/{id}/changes/{edit_id}` | records a verdict, the reviewer's text, or both | unchanged |
 | `POST /api/drafts/{id}/publish` | records the outcome of each write the gate performed, then stamps the draft published | unchanged |
 | `POST /internal/tick` | authenticates, then `501` | hourly Cloud Scheduler run |
+
+**A run is named for its page and its number on that page.** The first run on a page creates
+that page's record in Mongo; every run after it takes the next number, and the number is the
+id — so `run-Gambit-0003` is the third run on Gambit, and the same string is the `task_id` on
+every claim it proposed and the name of the draft it produced (`draft-Gambit-0003`). One at a
+time: a second press while a run is in flight gets the run already going, because a route that
+starts billable work is a credit leak if anything can call it in a loop.
 
 `/api/state` answers from the store or it fails: a 503 is what makes the frontend fall back to
 the generated fixture and label itself **fixture** rather than claiming to be live. It never
@@ -307,12 +318,13 @@ the shared-secret header is the only thing between a guessed path and unbounded 
 ```text
 backend/app.py           the routes: state, runs, drafts, publish; FE/ mounted last
 backend/runs.py          runs started from the button, and their progress
-backend/mongo.py         the ledger's four collections over MongoDB
+backend/mongo.py         the ledger's five collections over MongoDB
 backend/agent/graph.py   the six stages in order, and the one backward edge as a loop
 backend/agent/propose.py the propose stage — page -> claims, anchors verified
 backend/agent/tools/     what the stages call; each binds a profile, none imports an SDK
 fixtures/                gitignored: recorded search + model cassettes, third-party text
-backend/core/ledger/     claims, judgements, drafts, the page baseline, tiers, decay — no deps
+backend/core/ledger/     claims, judgements, drafts, page records, the page baseline,
+                         tiers, decay — no deps
 backend/agent/ingest.py  the baseline pass: read the monitored pages, store their sections
 backend/agent/model.py   the Gemini perimeter: one call, a declared schema, a cassette
 backend/agent/classify.py  the classify stage — still true / new / conflicting
