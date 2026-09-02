@@ -7,10 +7,12 @@ the container scaled to zero. A store that emptied itself between runs would lea
 restarting at its wave seed, and the decay ladder — the headline behaviour — would never
 climb.
 
-**Local first, Firestore after** (`summary.md` §10). `JsonFileClaimStore` is the local
-database: one file holding the exact documents Firestore will hold, written through
-`documents.py` so the port swaps the transport and nothing else. Two things make the local
-store behave like the remote one rather than merely stand in for it:
+**A real store, always** (`summary.md` §10). The JSON file store was removed on Sept 1, 2026:
+persistence is `backend/mongo.py` against a running MongoDB, holding the exact documents
+Firestore will hold, written through `documents.py` so the port swaps the transport and
+nothing else. `InMemoryClaimStore` below is the protocol's reference implementation and what
+the tests use — it is a test double, not a path a demo may fall back onto (`AGENTS.md` §2).
+Two things make the local store behave like the remote one rather than merely stand in for it:
 
 * **`due()` orders by `(next_check_at, claim_id)`** — the same order Firestore returns for
   `order_by("next_check_at")`, whose implicit tiebreak is the document id.
@@ -22,7 +24,8 @@ store behave like the remote one rather than merely stand in for it:
 Storage and nothing else. The deciding stays in `schema.py` — `Claim.is_due` and the
 transitions that return new records — and no logic may migrate in here.
 
-Pure: filesystem only, like `core/wiki/snapshots.py`. No network, no vendor SDK.
+Pure: this module holds no I/O at all. The driver lives at the perimeter in
+`backend/mongo.py`, so the core still imports nothing and its tests still run bare.
 """
 
 from __future__ import annotations
@@ -33,11 +36,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-from .documents import from_document, to_document
+from .documents import from_document
 from .schema import Claim
-
-#: Local ledger file, relative to the repo root. Gitignored: it is run state, not source.
-DEFAULT_LEDGER_PATH = Path("data") / "ledger.json"
 
 #: Claim ids are `claim-0001`, `claim-0002`, … — a counter, not a hash of anything. Zero-padded
 #: so lexical order matches numeric order, which is what `all()` and `due()`'s tiebreak sort on;
@@ -55,7 +55,7 @@ class ClaimStore(Protocol):
     """Six operations, and deliberately no more.
 
     `due` is the audit stage's input, `put`/`put_all` are how a run writes its conclusions
-    back, `get` resolves `ripple_targets`, and `all` serves `/api/state`. `for_page` is how the
+    back, `get` reads one claim back, and `all` serves `/api/state`. `for_page` is how the
     audit stage sees what it already tracks, and `next_claim_id` allocates a name for a new
     claim — both belong here because only the store knows what exists. Every store that
     satisfies this — in-memory, file, Firestore — is interchangeable in the graph.
@@ -147,7 +147,7 @@ class InMemoryClaimStore:
         Deliberately a meaningless counter. An id derived from the claim's content — a hash of
         page and anchor was the first attempt — changes when the content does, and applying an
         edit changes the anchor by definition: the record would be re-keyed on every successful
-        edit, dangling every `ripple_targets` entry pointing at it. So identity is assigned once
+        edit, dangling every stored reference to it. So identity is assigned once
         and never recomputed, and *finding* a claim is `for_page` plus an anchor match.
 
         Single writer assumed: one hourly tick, one run. Two concurrent runs could allocate the
@@ -156,44 +156,6 @@ class InMemoryClaimStore:
         """
         used = [_claim_number(c.claim_id) for c in self._claims.values()]
         return f"{CLAIM_ID_PREFIX}{max(used, default=0) + 1:04d}"
-
-
-class JsonFileClaimStore(InMemoryClaimStore):
-    """The local database: an in-memory store that survives the process.
-
-    It *inherits* rather than reimplements, so `due` and `all` cannot drift from the
-    in-memory semantics the graph is tested against — the whole point of running local first
-    is that the behaviour ports, not just the data.
-
-    The file holds `{"claims": {claim_id: document}}`, sorted and indented, so a run's effect
-    on the ledger is legible in a diff. Every write rewrites the file: O(n) per put, which at
-    one wiki and eight pages is nothing, and which Firestore removes rather than optimises.
-    Writes go through a temp file and `Path.replace`, so an interrupted run leaves the previous
-    ledger intact instead of a truncated one.
-    """
-
-    def __init__(self, path: Path | str = DEFAULT_LEDGER_PATH) -> None:
-        self.path = Path(path)
-        super().__init__(_read_claims(self.path))
-
-    def put(self, claim: Claim) -> None:
-        super().put(claim)
-        self._flush()
-
-    def put_all(self, claims: Iterable[Claim]) -> None:
-        super().put_all(claims)
-        self._flush()
-
-    def _flush(self) -> None:
-        write_json(
-            self.path,
-            {
-                "claims": {
-                    claim_id: to_document(claim)
-                    for claim_id, claim in sorted(self._claims.items())
-                }
-            },
-        )
 
 
 # -- file plumbing --------------------------------------------------------------------

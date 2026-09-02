@@ -54,3 +54,6 @@ build/
 
 # Claude Code local overrides
 .claude/settings.local.json
+
+# mongod's own data directory — a database, not source.
+/data/mongo/

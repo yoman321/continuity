@@ -35,6 +35,7 @@ from backend.agent.model import (  # noqa: E402
     record,
 )
 from backend.agent.tools import Ledger, WebSearch  # noqa: E402
+from backend.core.ledger import Claim, ClaimKind, Wave  # noqa: E402
 from backend.core.ledger.baseline import InMemoryBaselineStore  # noqa: E402
 from backend.core.profile import local_wiki  # noqa: E402
 from backend.core.wiki import SnapshotPageSource  # noqa: E402
@@ -81,12 +82,21 @@ def main() -> int:
     ingest_page(SnapshotPageSource(REPO_ROOT, state="seed"), profile, baseline, PAGE, now=NOW)
     section = baseline.for_page(PAGE)[0]
 
-    # 2. a claim against it
-    ledger = Ledger.in_memory(profile, clock=lambda: NOW)
-    claim = ledger.track_claim(page=PAGE, text=CLAIM_TEXT, wikitext_anchor=ANCHOR,
-                               section_heading=section.section_heading,
-                               section_index=section.section_index,
-                               kind="prose", wave="announcement_driven")
+    # 2. a claim against it, built directly — there is no proposal stage and no `track_claim`
+    #    to call (removed Sept 1, 2026), so this script states the claim it wants to classify.
+    seeded = Claim(
+        claim_id="claim-0001",
+        page=PAGE,
+        entity_ref=profile.entity_ref(PAGE),
+        kind=ClaimKind.PROSE,
+        wave=Wave.ANNOUNCEMENT_DRIVEN,
+        text=CLAIM_TEXT,
+        wikitext_anchor=ANCHOR,
+        section_index=section.section_index,
+        section_heading=section.section_heading,
+    ).seeded(NOW)
+    ledger = Ledger.in_memory(profile, [seeded], clock=lambda: NOW)
+    claim = ledger.read_claim(seeded.claim_id)
 
     # 3. research — replayed, so this never bills a search
     search = WebSearch.recorded(profile, REPO_ROOT / "fixtures" / "searches.json").search(

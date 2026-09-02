@@ -4,13 +4,15 @@ version = "0.1.0"
 description = "A wiki maintainer agent: re-verifies claims against the live web and drafts cited, section-level edits."
 requires-python = ">=3.10"
 dependencies = [
-    "google-adk>=2.6.3",
     "google-genai",
     "parallel-web",
-    # backend/ imports these directly; google-adk happens to pull them too, but a transitive
-    # dependency is not a contract.
+    # backend/ imports these directly. They used to arrive transitively through google-adk
+    # too; that dependency went on Sept 1, 2026 when the orchestrator stopped being a graph.
     "fastapi",
     "uvicorn",
+    # The ledger's store. There is no file fallback as of Sept 1, 2026 (`AGENTS.md` §2), so a
+    # run needs a reachable MongoDB — the driver is not optional.
+    "pymongo",
 ]
 
 [project.optional-dependencies]

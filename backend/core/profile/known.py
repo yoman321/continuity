@@ -141,6 +141,7 @@ MCU_FANDOM = WikiProfile(
     # answers a bare `CC-BY-SA` (`AGENTS.md` §6). Share-alike carries onto our own edits.
     licence="CC BY-SA 3.0 Unported",
     licence_url="https://creativecommons.org/licenses/by-sa/3.0/",
+    article_base="https://marvelcinematicuniverse.fandom.com/wiki/",
     user_agent=USER_AGENT,
 )
 
@@ -156,6 +157,7 @@ WIKIPEDIA_EN = WikiProfile(
     pages=("Deadpool & Wolverine",),
     licence="CC BY-SA 4.0",
     licence_url="https://creativecommons.org/licenses/by-sa/4.0/",
+    article_base="https://en.wikipedia.org/wiki/",
     user_agent=USER_AGENT,
 )
 
@@ -193,6 +195,7 @@ def local_wiki(api_url: str, *, name: str = "Continuity Wiki") -> WikiProfile:
         # instance, whatever the software's default footer says (`snapshots/ATTRIBUTION.md`).
         licence=MCU_FANDOM.licence,
         licence_url=MCU_FANDOM.licence_url,
+        article_base=MCU_FANDOM.article_base,
         user_agent=USER_AGENT,
         writable=True,
         # Treated as external even though it is ours: a configured endpoint plus a credential,

@@ -39,11 +39,10 @@ gate, which is the invariant the whole publish path rests on (`AGENTS.md` §2).
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from ..core.ledger.baseline import BaselineStore
 from ..core.ledger.documents import task_id_for
@@ -57,20 +56,9 @@ from .model import ModelError
 from .semantic_diff import Review, Reviewer
 from .tools import DEFAULT_DUE_LIMIT, Ledger, WebSearch, utcnow
 
-if TYPE_CHECKING:  # the SDK is imported in `build()`; see the module docstring
-    from google.adk.agents.context import Context
-    from google.adk.workflow import Workflow
-
-#: The graph's name, and the author every node event is attributed to.
-GRAPH = "continuity"
-
-#: Node names, in the order the run visits them. Stage seven and eight are deliberately absent.
-NODES = ("audit", "research", "classify", "draft", "diff", "verify")
-
-#: The two routes out of Classify. `THIN` is the backward edge to Research; `READY` goes on to
-#: Draft. Nodes route by assigning `ctx.route` — returning the name does nothing (`AGENTS.md` §6).
-THIN = "thin"
-READY = "ready"
+#: The stages a run visits, in order. Seven and eight are deliberately absent: Publish is a
+#: button on a route and Fan-out has nothing to expand until an edit has been applied.
+STAGES = ("audit", "research", "classify", "draft", "diff", "verify")
 
 #: Every bucket that carried something the page does not say. `still_true` is the only one that
 #: produces no card, because there is nothing to show — the claim's citation is refreshed and
@@ -131,6 +119,7 @@ class RunReport:
     discarded: int  # searches that errored: the round is discarded, the claim keeps its schedule
     out_of_budget: int  # claims Research refused a further round for
     rounds: int  # Research passes, so >1 means the backward edge fired
+    stages: tuple[str, ...]  # the stages this run completed, in order
     buckets: Mapping[str, int]
     #: Claims the second classification sweep moved to a different bucket, on evidence another
     #: claim's search returned. A run that changed its mind and did not say so is unauditable.
@@ -139,6 +128,7 @@ class RunReport:
     failed: tuple[str, ...]  # claim ids the draft stage could not write an edit for
     unresolved: tuple[str, ...]  # claim ids a person must settle; no card carries them yet
     skipped: tuple[str, ...]  # claim ids with no baseline section to read against
+    unjudged: tuple[str, ...]  # claims whose classification could not be read back
     draft_id: str  # "" when the run proposed nothing, and then nothing is stored
     changes: int
 
@@ -297,6 +287,11 @@ class Run:
     rounds: int = 0
     claims: dict[str, dict[str, Any]] = field(default_factory=dict)
     pending: tuple[str, ...] = ()
+    #: Claims a malformed model answer cost their judgement, with the reason.
+    unjudged: list[str] = field(default_factory=list)
+    #: Stage names in completion order. The run's own account of where it went,
+    #: which is what a graph object used to be inspected for.
+    visited: list[str] = field(default_factory=list)
     refused: tuple[str, ...] = ()  # out of budget on *this* pass; settled by the next Classify
     searches: dict[str, dict[str, Any]] = field(default_factory=dict)
     #: The latest verdict per claim — including one being held for a retry, which is what the
@@ -340,7 +335,10 @@ class Run:
         the same rule `ingest_all` follows for a baseline pass.
         """
         self.started_at = self.stages.clock()
-        self.task_id = task_id_for(self.started_at)
+        # Minted here unless the caller already has one. A run started from the button proposes
+        # its claims *before* Audit and seals the store to that id, so both halves have to agree
+        # — a second id here would have Audit reading a scope nothing was written under.
+        self.task_id = self.task_id or task_id_for(self.started_at)
         # Bound rather than passed: the ledger stamps what it writes, and a task is no more a
         # model-facing parameter than a profile is (`AGENTS.md` §7).
         self.ledger = replace(self.stages.ledger, task_id=self.task_id)
@@ -427,7 +425,16 @@ class Run:
                 # nobody re-read the page for; run `scripts/ingest_baseline.py` first.
                 self.skipped.append(claim_id)
                 continue
-            self.judge(claim, section, self.verdicts.get(claim_id))
+            try:
+                self.judge(claim, section, self.verdicts.get(claim_id))
+            except ModelError as exc:
+                # One unreadable answer must not cost the other claims their review. The
+                # searches behind them are already billed, and a run that aborts here throws
+                # away every judgement it had made. Measured Sept 1, 2026: a live run returned
+                # `conflicting` with no sides on one claim of twelve and took the whole tick
+                # down with it. The claim keeps its schedule and comes due again.
+                self.unjudged.append(f"{claim_id}: {exc}")
+                continue
             judged.append(claim_id)
 
         # -- sweep two: and against everything else this run found about its subject -------
@@ -442,7 +449,13 @@ class Run:
             }
             section = self.section_text(claim["page"], claim["section_index"]) or ""
             before = self.verdicts[claim_id]
-            after = self.judge(claim, section, before)
+            try:
+                after = self.judge(claim, section, before)
+            except ModelError as exc:
+                # Same rule as the first sweep: a bad second answer must not cost the claim the
+                # verdict it already has. It keeps `before` and settles on that.
+                self.unjudged.append(f"{claim_id}: {exc}")
+                continue
             if after.bucket != before.bucket:
                 self.reclassified.append(claim_id)
 
@@ -679,139 +692,72 @@ class Run:
             discarded=len(self.discarded),
             out_of_budget=len(self.out_of_budget),
             rounds=self.rounds,
+            stages=tuple(self.visited),
             buckets=buckets,
             reclassified=tuple(self.reclassified),
             drafted=len(self.drafts),
             failed=tuple(self.failed),
             unresolved=tuple(self.unresolved),
             skipped=tuple(self.skipped),
+            unjudged=tuple(self.unjudged),
             draft_id=self.draft_id,
             changes=len(self.drafts) if self.draft_id else 0,
         )
 
-    # -- the node bodies -------------------------------------------------------------
-    # Thin on purpose: a node records its stage's summary and, for Classify, the route. The
-    # work is the method above it, which knows nothing about graphs.
+    # -- the run -----------------------------------------------------------------------
 
-    def node_audit(self, ctx: Context) -> dict[str, Any]:
-        return self._record(ctx, self.audit())
+    def execute(self) -> RunReport:
+        """The six stages, in order, with the one backward edge as a loop.
 
-    def node_research(self, ctx: Context) -> dict[str, Any]:
-        return self._record(ctx, self.research())
+        This used to be an ADK `Workflow` with six nodes and a routing map. It is a plain
+        method now, because the routing was never a judgement: nothing here asks a model which
+        stage runs next. Audit, Research, Classify, Draft, Diff and Verify run in a fixed
+        order, and the single non-linear edge — a claim that needs another research round —
+        is a `while`. A graph engine bought scheduling this does not need and cost an SDK in
+        the import path.
 
-    def node_classify(self, ctx: Context) -> dict[str, Any]:
-        summary = self._record(ctx, self.classify())
-        ctx.route = THIN if self.pending else READY
-        return summary
+        **What terminates it is unchanged**, and it is not the cap below: `research()` refuses
+        a claim whose budget is spent, so `pending` shrinks to empty within
+        `MAX_RESEARCH_ROUNDS` rounds on its own. The cap is a backstop against a future edit
+        that breaks that, not the mechanism — a loop whose only bound is a constant is one
+        nobody has to keep honest.
+        """
+        for stage in (self.audit, self.research, self.classify):
+            stage()
+            self.visited.append(stage.__name__)
 
-    def node_draft(self, ctx: Context) -> dict[str, Any]:
-        return self._record(ctx, self.draft())
+        rounds = 0
+        while self.pending:
+            rounds += 1
+            if rounds > MAX_ROUNDS:  # pragma: no cover - the budget check gets there first
+                raise RuntimeError(
+                    f"classify kept asking for another round after {rounds} of them; "
+                    "the research budget check is what is supposed to stop this."
+                )
+            self.research()
+            self.classify()
 
-    def node_diff(self, ctx: Context) -> dict[str, Any]:
-        return self._record(ctx, self.diff())
-
-    def node_verify(self, ctx: Context) -> dict[str, Any]:
-        return self._record(ctx, self.verify())
-
-    def _record(self, ctx: Context, summary: dict[str, Any]) -> dict[str, Any]:
-        ctx.state[summary["stage"]] = summary
-        return summary
-
-
-# -- the graph ----------------------------------------------------------------------------
-
-
-def build(run: Run) -> Workflow:
-    """The six nodes and the edges between them.
-
-    `(START, audit)` is first because a graph with no `START` edge does not construct — the
-    entry point is not inferred (`AGENTS.md` §6). The routing map on Classify is the backward
-    edge; every other edge is unconditional, so each stage runs when the one before it is done.
-
-    Imports the SDK here rather than at module top: a cold Cloud Run container would otherwise
-    pay 5-15s for ADK before it could serve `index.html` (`AGENTS.md` §7).
-    """
-    from google.adk.workflow import START, Workflow, node
-
-    audit = node(run.node_audit, name="audit")
-    research = node(run.node_research, name="research")
-    classify = node(run.node_classify, name="classify")
-    draft = node(run.node_draft, name="draft")
-    diff = node(run.node_diff, name="diff")
-    verify = node(run.node_verify, name="verify")
-    return Workflow(
-        name=GRAPH,
-        edges=[
-            (START, audit),
-            (audit, research),
-            (research, classify),
-            (classify, {THIN: research, READY: draft}),
-            (draft, diff),
-            (diff, verify),
-        ],
-    )
+        for stage in (self.draft, self.diff, self.verify):
+            stage()
+            self.visited.append(stage.__name__)
+        return self.report
 
 
-async def run_async(stages: Stages, *, session_id: str | None = None) -> RunReport:
-    """Drive one invocation of the graph and report what it did.
-
-    `InMemoryRunner` because the session is scratch: what has to survive this process is the
-    stored draft, not the invocation, so there is nothing here worth a session service.
-    """
-    from google.adk.runners import InMemoryRunner
-    from google.genai import types
-
-    pipeline = Run(stages)
-    runner = InMemoryRunner(node=build(pipeline), app_name=GRAPH)
-    session = session_id or f"run-{stages.clock():%Y%m%dT%H%M%S}"
-    await runner.session_service.create_session(
-        app_name=GRAPH, user_id=GRAPH, session_id=session
-    )
-    async for _ in runner.run_async(
-        user_id=GRAPH,
-        session_id=session,
-        new_message=types.Content(role="user", parts=[types.Part(text="tick")]),
-    ):
-        pass
-    return pipeline.report
+#: A backstop on the Research <- Classify loop. The real bound is the per-claim research
+#: budget; this only fires if that stops working.
+MAX_ROUNDS = 10
 
 
-def run(stages: Stages, *, session_id: str | None = None) -> RunReport:
-    """`run_async` for a caller that has no event loop — a script, or a test."""
-    return asyncio.run(run_async(stages, session_id=session_id))
-
-
-def straight_through(stages: Stages) -> RunReport:
-    """The same six stages, called in order, with no ADK installed.
-
-    Not a second implementation — it calls the identical methods — so it is what lets the
-    pipeline be tested on a bare interpreter beside the dependency-free core (`AGENTS.md` §5).
-    What it cannot express is the backward edge, which is the thing the graph is for: it runs
-    Research exactly once, so a claim that needed a second round simply does not get one.
-    """
-    pipeline = Run(stages)
-    for stage in (
-        pipeline.audit,
-        pipeline.research,
-        pipeline.classify,
-        pipeline.draft,
-        pipeline.diff,
-        pipeline.verify,
-    ):
-        stage()
-    return pipeline.report
+def run(stages: Stages) -> RunReport:
+    """One tick: build the run and execute it."""
+    return Run(stages).execute()
 
 
 __all__ = [
-    "GRAPH",
-    "NODES",
-    "READY",
-    "THIN",
     "Run",
     "RunReport",
     "Stages",
     "after_date_for",
-    "build",
     "draft_id_for",
     "edit_id_for",
     "flags_for",
@@ -819,8 +765,6 @@ __all__ = [
     "objective_for",
     "queries_for",
     "run",
-    "run_async",
     "sources_for",
-    "straight_through",
     "survivors",
 ]

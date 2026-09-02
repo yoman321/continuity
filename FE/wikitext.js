@@ -196,9 +196,16 @@
         url + "</a>";
     });
 
-    out = out.replace(/'''''([^']+?)'''''/g, "<strong><em>$1</em></strong>");
-    out = out.replace(/'''([^']+?)'''/g, "<strong>$1</strong>");
-    out = out.replace(/''([^']+?)''/g, "<em>$1</em>");
+    /* Quote markup runs AFTER link substitution, so the content between the delimiters can
+       contain an apostrophe that was never in the wikitext — `[[Gambit's Bo Staff|...]]`
+       becomes an href carrying one. `[^']+?` therefore stopped at the wrong character and
+       left `'''` sitting in the output, visible only on sections the fixture never carried.
+       So: any character that is not a quote or a newline, or a lone quote that does not
+       begin the closing delimiter. Newlines stay excluded because MediaWiki's own quote
+       markup does not span lines. */
+    out = out.replace(/'''''((?:[^'\n]|'(?!''''))+?)'''''/g, "<strong><em>$1</em></strong>");
+    out = out.replace(/'''((?:[^'\n]|'(?!''))+?)'''/g, "<strong>$1</strong>");
+    out = out.replace(/''((?:[^'\n]|'(?!'))+?)''/g, "<em>$1</em>");
     out = out.replace(/<br\s*\/?>/gi, "<br>");
     out = out.replace(/<small>/gi, '<span class="small">').replace(/<\/small>/gi, "</span>");
 
@@ -212,19 +219,30 @@
   }
 
   /* Replace templates before the line pass, since they span lines and would otherwise be
-   * read as list items and headings. {{Quote}} survives as a blockquote because it is
-   * content; everything else is layout we cannot expand. */
+   * read as list items and headings. Two survive because they are *content* rather than
+   * layout; everything else is dropped, because a half-expanded template reads worse than
+   * none.
+   *
+   * {{Quote}} becomes a blockquote. {{WPS|Page|Label}} is a Wikipedia shortcut and becomes
+   * its label: it is 110 of the trunk page's 134 template calls (`seed-plan.md` §7), so
+   * dropping it lost most of several sections — and because it is nearly always written
+   * inside italics as ''{{WPS|Old Yeller}}'', dropping it also left the surrounding quote
+   * markers with nothing between them, which then leaked into the output as stray
+   * apostrophes. Found by rendering all 284 sections rather than the fixture's sample. */
   function stripTemplates(text) {
     var spans = findTemplates(text);
     var out = "";
     var cursor = 0;
     spans.forEach(function (span) {
       out += text.slice(cursor, span.start);
-      if (/^quote$/i.test(templateName(span.raw))) {
-        var params = splitParams(span.raw.slice(2, -2));
+      var name = templateName(span.raw);
+      var params = splitParams(span.raw.slice(2, -2));
+      if (/^quote$/i.test(name)) {
         var body = (params[1] || "").trim();
         var who = (params[2] || "").trim();
         if (body) out += "\n\u0003" + body + (who ? "\u0004" + who : "") + "\n";
+      } else if (/^wps$/i.test(name)) {
+        out += ((params[2] || params[1] || "").trim());
       }
       cursor = span.end;
     });

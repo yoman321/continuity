@@ -145,7 +145,6 @@ class Claim:
     objective: str = ""
     research_rounds: int = 0
 
-    ripple_targets: tuple[str, ...] = ()  # claim_ids on other pages this one implicates
 
     last_verified: datetime | None = None
     next_check_at: datetime | None = None

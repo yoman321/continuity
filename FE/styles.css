@@ -575,3 +575,43 @@ mark.claim-hit {
   main { padding: 20px 16px; }
   .article { padding: 20px; }
 }
+
+/* -- the launcher ---------------------------------------------------------------------
+   The button on an article that runs the agent against it. Fixed to the corner rather than
+   placed in the nav: it stands in for the browser extension a real deployment would ship, so
+   it should read as something watching the page rather than as part of the site's chrome. */
+.continuity-launch {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 18px;
+  font: 600 13px/1 var(--sans);
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .22);
+  cursor: pointer;
+}
+.continuity-launch:hover { filter: brightness(1.08); }
+.continuity-launch:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* Reads as "watching", and it is the one piece of motion on the article. */
+.launch-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  animation: launch-pulse 2.4s ease-in-out infinite;
+}
+@keyframes launch-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .launch-dot { animation: none; opacity: .8; }
+}
+
+.rail-note.err { color: var(--bad, #b3261e); }

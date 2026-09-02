@@ -18,14 +18,12 @@ Unlike the ledger tests these need the venv — `app.py` imports FastAPI. The mo
 rather than fails on a bare interpreter so the dependency-free suite still runs there.
 """
 
-import contextlib
 import logging
 import os
 import subprocess
 import sys
-import tempfile
 import unittest
-from collections.abc import Iterator
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -45,20 +43,14 @@ from backend.agent.tools import WikiWrite  # noqa: E402
 from backend.core.ledger.drafts import (  # noqa: E402
     Change,
     Decision,
-    JsonFileDraftStore,
     ReviewDraft,
 )
+from backend.mongo import MongoDraftStore  # noqa: E402
+from tests.mongo_support import MONGO_URI, requires_mongo  # noqa: E402
 
 TOKEN = "correct-horse-battery-staple"
 
 #: Shaped like `.env`, valued like nothing. No test here opens a socket.
-WIKI_ENV = {
-    "MEDIAWIKI_API_URL": "http://wiki.invalid/api.php",
-    "MEDIAWIKI_API_KEY": "not-a-real-key",
-    "MEDIAWIKI_BOT_USER": "TestBot@tests",
-    "MEDIAWIKI_BOT_PASSWORD": "not-a-real-password",
-}
-
 WRITTEN = {
     "status": "written", "wiki": "Continuity Wiki", "resolved_title": "Deadpool & Wolverine",
     "base_revid": 100, "base_timestamp": "2026-08-15T12:00:00Z", "section_index": 2,
@@ -96,43 +88,6 @@ def stored(*changes: Change) -> ReviewDraft:
         changes=changes or (change("edit-a"),),
     )
 
-
-class StubWrite:
-    """Stands in for `WikiWrite`, recording the call instead of making it."""
-
-    def __init__(self, result: dict[str, Any] | list[dict[str, Any]]) -> None:
-        self.result = result
-        self.logins: list[tuple[str, str]] = []
-        self.calls: list[dict[str, str]] = []
-
-    def login(self, username: str, password: str) -> str:
-        self.logins.append((username, password))
-        return username
-
-    def write_anchor(
-        self, title: str, heading: str, anchor: str, replacement: str, summary: str
-    ) -> dict[str, Any]:
-        self.calls.append({
-            "title": title, "heading": heading, "anchor": anchor,
-            "replacement": replacement, "summary": summary,
-        })
-        if isinstance(self.result, list):
-            # One outcome per write, so a partial failure can be staged.
-            return self.result[min(len(self.calls), len(self.result)) - 1]
-        return self.result
-
-
-@contextlib.contextmanager
-def wiki(
-    result: dict[str, Any] | list[dict[str, Any]] | None = None,
-    env: dict[str, str] | None = None,
-) -> Iterator[tuple[StubWrite, mock.MagicMock]]:
-    """The wiki, replaced. Yields the stub and the patched constructor, because half of what
-    these tests assert is that the constructor was never reached at all."""
-    stub = StubWrite(WRITTEN if result is None else result)
-    with mock.patch.dict(os.environ, WIKI_ENV if env is None else env), \
-            mock.patch.object(WikiWrite, "live", return_value=stub) as live:
-        yield stub, live
 
 
 def setUpModule() -> None:
@@ -195,37 +150,52 @@ class TestTickAuth(unittest.TestCase):
 
 
 class TestApiRoutes(unittest.TestCase):
-    def test_state_is_unavailable_so_the_frontend_falls_back(self) -> None:
-        r = client().get("/api/state")
+    def test_an_empty_or_unreachable_ledger_is_a_503_never_a_fixture(self) -> None:
+        """The frontend decides live-vs-fixture from this one response, so anything but a
+        failure here would put a *live* pill above data no run produced. An empty database is
+        the same answer as an unreachable one on purpose: neither is state worth labelling."""
+        with mock.patch.dict(os.environ, {"MONGO_DB": f"continuity_empty_{uuid.uuid4().hex[:8]}"}):
+            r = client().get("/api/state")
         self.assertEqual(r.status_code, 503)
         msg = "the FE fallback keys off !r.ok; a 2xx here would claim 'live'"
         self.assertFalse(r.is_success, msg)
 
 
+@requires_mongo
 class DraftCase(unittest.TestCase):
-    """Every draft test runs against a real store in a temp file, not a mock of one.
+    """Every draft test runs against a real store, not a mock of one.
 
     The store is the thing under test as much as the routes are: a verdict that does not
-    survive the write is the failure the whole change exists to prevent.
+    survive the write is the failure the whole change exists to prevent. Each test gets its
+    own database so a run never sees another run's rows, and never the demo's.
     """
 
     def setUp(self) -> None:
-        tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(tmp.cleanup)
-        self.path = Path(tmp.name) / "drafts.json"
-        patch = mock.patch.dict(os.environ, {"DRAFT_STORE_PATH": str(self.path)})
+        import uuid
+
+        import pymongo
+
+        name = f"continuity_test_{uuid.uuid4().hex[:12]}"
+        patch = mock.patch.dict(os.environ, {"MONGO_DB": name, "DRAFT_STORE": "mongo"})
         patch.start()
         self.addCleanup(patch.stop)
+        client: object = pymongo.MongoClient(MONGO_URI)
+        self.addCleanup(client.drop_database, name)  # type: ignore[attr-defined]
+
+    def store(self) -> "MongoDraftStore":
+        from backend.mongo import MongoDraftStore
+
+        return MongoDraftStore()
 
     def seed(self, draft: ReviewDraft | None = None) -> ReviewDraft:
         draft = draft if draft is not None else stored()
-        JsonFileDraftStore(self.path).put(draft)
+        self.store().put(draft)
         return draft
 
     def reread(self) -> ReviewDraft:
         """What the *next* process would see. Asserting on this rather than on the response is
         what makes these tests about persistence and not about a return value."""
-        held = JsonFileDraftStore(self.path).get(DRAFT_ID)
+        held = self.store().get(DRAFT_ID)
         assert held is not None
         return held
 
@@ -272,14 +242,14 @@ class TestDecidingOneChange(DraftCase):
 
     def test_rejecting_writes_nothing_to_the_wiki(self) -> None:
         """A discard, not a verdict on the claim (`AGENTS.md` §2). It changes the draft and
-        nothing else — no write, and no wiki session even opened."""
+        nothing else — and no writer is constructed, which is what "writes nothing" means now
+        that the write itself happens in the browser."""
         self.seed()
-        with wiki() as (stub, live):
+        with mock.patch.object(WikiWrite, "live") as live:
             client().post(
                 f"/api/drafts/{DRAFT_ID}/changes/edit-a", json={"decision": "rejected"}
             )
-        self.assertFalse(live.called)
-        self.assertEqual(stub.calls, [])
+        live.assert_not_called()
         self.assertIs(self.reread().changes[0].decision, Decision.REJECTED)
 
     def test_an_empty_body_is_refused_rather_than_answered_with_a_no_op(self) -> None:
@@ -313,7 +283,13 @@ class TestDecidingOneChange(DraftCase):
 
 
 class TestPublish(DraftCase):
-    """The write. Every case is about what the request is *not* allowed to decide."""
+    """The route records what the browser wrote. Every case is about what the request is
+    *not* allowed to decide.
+
+    The wiki moved into the browser on Sept 1, 2026 (`AGENTS.md` §2), so the server performs
+    no `action=edit` at all any more — which is itself asserted below, because a route that
+    quietly kept a write path would make the gate optional.
+    """
 
     def accepted(self, *edit_ids: str) -> ReviewDraft:
         draft = stored(*[change(edit_id) for edit_id in edit_ids])
@@ -321,136 +297,107 @@ class TestPublish(DraftCase):
             draft = draft.decide(edit_id, Decision.ACCEPTED)
         return self.seed(draft)
 
-    def test_everything_the_write_is_made_from_comes_from_the_store(self) -> None:
-        draft = self.accepted("edit-a")
-        with wiki() as (stub, _):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(stub.calls, [{
-            "title": draft.changes[0].page,
-            "heading": "",  # the lead has no heading of its own
-            "anchor": draft.changes[0].before,
-            "replacement": draft.changes[0].after,
-            "summary": draft.changes[0].summary,
-        }])
-
-    def test_the_reviewers_own_text_is_what_publishes(self) -> None:
-        self.accepted("edit-a")
-        client().post(f"/api/drafts/{DRAFT_ID}/changes/edit-a", json={"text": "mine"})
-        with wiki() as (stub, _):
-            client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(stub.calls[0]["replacement"], "mine")
-
-    def test_a_rejected_change_is_never_written(self) -> None:
-        draft = stored(change("edit-a"), change("edit-b"))
-        self.seed(
-            draft.decide("edit-a", Decision.ACCEPTED).decide("edit-b", Decision.REJECTED)
+    def publish(self, *results: dict[str, Any]) -> Any:
+        return client().post(
+            f"/api/drafts/{DRAFT_ID}/publish", json={"results": list(results)}
         )
-        with wiki() as (stub, _):
-            client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual([c["anchor"] for c in stub.calls], [draft.changes[0].before])
 
-    def test_publishing_stamps_the_draft(self) -> None:
+    def test_a_reported_write_is_recorded_and_the_draft_is_stamped(self) -> None:
         self.accepted("edit-a")
-        with wiki():
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertTrue(r.json()["published"])
-        self.assertTrue(self.reread().published)
-        self.assertEqual(self.reread().changes[0].written_revid, 101)
-
-    def test_an_undecided_card_holds_the_whole_publish(self) -> None:
-        """The gate's rule, enforced where it matters rather than only in the browser."""
-        self.seed(stored(change("edit-a"), change("edit-b")).decide("edit-a", Decision.ACCEPTED))
-        with wiki() as (stub, live):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(r.status_code, 409)
-        self.assertFalse(live.called)
-        self.assertEqual(stub.calls, [])
-
-    def test_a_second_press_writes_nothing_again(self) -> None:
-        self.accepted("edit-a")
-        with wiki():
-            client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        with wiki() as (stub, _):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(r.status_code, 409)
-        self.assertEqual(stub.calls, [])
-
-    def test_a_partial_failure_keeps_what_landed_and_retries_the_rest(self) -> None:
-        """MediaWiki has no cross-page transaction, so this is the case that decides whether
-        `written_revid` earns its place: the retry must write one change, not two."""
-        self.accepted("edit-a", "edit-b")
-        stale = {"status": "conflict", "error": "Re-read the section and re-draft."}
-        with wiki(result=[WRITTEN, stale]) as (stub, _):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-
-        self.assertEqual(len(stub.calls), 2)
-        self.assertEqual([x["status"] for x in r.json()["results"]], ["written", "conflict"])
-        self.assertFalse(r.json()["published"])
-        self.assertFalse(self.reread().published)
-
-        with wiki() as (stub, _):
-            retry = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual([c["anchor"] for c in stub.calls], [change("edit-b").before])
-        self.assertTrue(retry.json()["published"])
-
-    def test_a_failure_is_reported_per_change_rather_than_as_one_status(self) -> None:
-        self.accepted("edit-a")
-        refused = {"status": "error", "error": "protected page", "code": "protectedpage"}
-        with wiki(result=refused):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        # 200: the request was carried out. What happened to each change is in the body, which
-        # is the only shape that can describe two writes with different outcomes.
+        r = self.publish({"edit_id": "edit-a", "status": "written", "revid": 4242})
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["results"][0]["error"], "protected page")
-        self.assertFalse(r.json()["published"])
+        self.assertTrue(r.json()["published"])
 
-    def test_a_publish_without_credentials_writes_nothing(self) -> None:
+        held = self.reread()
+        self.assertEqual(held.changes[0].written_revid, 4242)
+        self.assertIsNotNone(held.published_at)
+
+    def test_the_server_never_writes_to_a_wiki(self) -> None:
+        """The gate does the writing. If this route ever constructs a writer again, the
+        browser and the server would both be publishing and neither would know."""
         self.accepted("edit-a")
-        with wiki(env=dict.fromkeys(WIKI_ENV, "")) as (_, live):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(r.status_code, 503)
-        self.assertFalse(live.called)
+        with mock.patch.object(WikiWrite, "live") as live:
+            self.publish({"edit_id": "edit-a", "status": "written", "revid": 1})
+        live.assert_not_called()
 
-    def test_an_unknown_draft_never_reaches_the_wiki(self) -> None:
-        with wiki() as (stub, live):
-            r = client().post("/api/drafts/draft-nope/publish")
-        self.assertEqual(r.status_code, 404)
-        self.assertFalse(live.called)
-        self.assertEqual(stub.calls, [])
+    def test_a_body_that_names_a_target_is_refused(self) -> None:
+        """The security property, now that the body is not empty: outcomes may travel, write
+        targets may not. `extra="forbid"` is what makes this a 422 and not a silent ignore."""
+        self.accepted("edit-a")
+        r = client().post(f"/api/drafts/{DRAFT_ID}/publish", json={"results": [
+            {"edit_id": "edit-a", "status": "written", "revid": 1,
+             "page": "Main Page", "after": "anything"}
+        ]})
+        self.assertEqual(r.status_code, 422)
+        self.assertIsNone(self.reread().published_at)
+
+    def test_reporting_a_change_the_draft_is_not_awaiting_is_refused(self) -> None:
+        """A rejected, unknown or already-written id must not be honoured — the gate and the
+        store disagreeing about what happened is the bug worth failing on."""
+        draft = stored(change("edit-a"), change("edit-b"))
+        self.seed(draft.decide("edit-a", Decision.ACCEPTED)
+                       .decide("edit-b", Decision.REJECTED))
+        for edit_id in ("edit-b", "edit-nope"):
+            r = self.publish({"edit_id": edit_id, "status": "written", "revid": 9})
+            self.assertEqual(r.status_code, 422, edit_id)
+        self.assertIsNone(self.reread().published_at)
+
+    def test_an_undecided_card_shuts_the_gate(self) -> None:
+        self.seed(stored(change("edit-a"), change("edit-b"))
+                  .decide("edit-a", Decision.ACCEPTED))
+        r = self.publish({"edit_id": "edit-a", "status": "written", "revid": 1})
+        self.assertEqual(r.status_code, 409)
+        self.assertIsNone(self.reread().published_at)
 
     def test_a_draft_with_nothing_accepted_is_not_published(self) -> None:
-        self.seed(stored().decide("edit-a", Decision.REJECTED))
-        with wiki() as (_, live):
-            r = client().post(f"/api/drafts/{DRAFT_ID}/publish")
+        """A run the reviewer discarded whole published nothing, and must not read as
+        published — that would be the demo lying about its own headline moment."""
+        self.seed(stored(change("edit-a")).decide("edit-a", Decision.REJECTED))
+        r = self.publish()
         self.assertEqual(r.status_code, 409)
-        self.assertFalse(live.called)
-        self.assertFalse(self.reread().published)
+        self.assertIsNone(self.reread().published_at)
 
-    def test_the_key_and_the_bot_credentials_reach_the_tool(self) -> None:
+    def test_a_published_draft_refuses_a_second_publish(self) -> None:
         self.accepted("edit-a")
-        with wiki() as (stub, live):
-            client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(live.call_args.kwargs["api_key"], WIKI_ENV["MEDIAWIKI_API_KEY"])
-        self.assertEqual(
-            stub.logins,
-            [(WIKI_ENV["MEDIAWIKI_BOT_USER"], WIKI_ENV["MEDIAWIKI_BOT_PASSWORD"])],
-        )
+        self.publish({"edit_id": "edit-a", "status": "written", "revid": 1})
+        r = self.publish({"edit_id": "edit-a", "status": "written", "revid": 2})
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(self.reread().changes[0].written_revid, 1)
 
-    def test_one_login_serves_the_whole_draft(self) -> None:
+    def test_a_partial_failure_keeps_what_landed_and_leaves_the_rest_outstanding(self) -> None:
+        """No cross-page transaction, so a partial publish is a real outcome. What landed is
+        recorded; what did not is still awaiting a write."""
         self.accepted("edit-a", "edit-b")
-        with wiki() as (stub, _):
-            client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        self.assertEqual(len(stub.logins), 1)
-
-    def test_a_published_draft_refuses_a_new_verdict(self) -> None:
-        self.accepted("edit-a")
-        with wiki():
-            client().post(f"/api/drafts/{DRAFT_ID}/publish")
-        r = client().post(
-            f"/api/drafts/{DRAFT_ID}/changes/edit-a", json={"decision": "rejected"}
+        r = self.publish(
+            {"edit_id": "edit-a", "status": "written", "revid": 7},
+            {"edit_id": "edit-b", "status": "conflict", "error": "Edit conflict."},
         )
-        self.assertEqual(r.status_code, 409)
+        self.assertEqual(r.status_code, 200)
+
+        held = self.reread()
+        by_id = {c.edit_id: c for c in held.changes}
+        self.assertEqual(by_id["edit-a"].written_revid, 7)
+        self.assertIsNone(by_id["edit-b"].written_revid)
+
+    def test_a_failure_is_reported_per_change_rather_than_as_one_status(self) -> None:
+        self.accepted("edit-a", "edit-b")
+        r = self.publish(
+            {"edit_id": "edit-a", "status": "written", "revid": 7},
+            {"edit_id": "edit-b", "status": "missing", "error": "anchor gone"},
+        )
+        statuses = {row["edit_id"]: row["status"] for row in r.json()["results"]}
+        self.assertEqual(statuses, {"edit-a": "written", "edit-b": "missing"})
+
+    def test_an_unknown_status_is_refused(self) -> None:
+        """The status vocabulary is closed, so a typo cannot become a new outcome nobody
+        handles."""
+        self.accepted("edit-a")
+        r = self.publish({"edit_id": "edit-a", "status": "probably-fine"})
+        self.assertEqual(r.status_code, 422)
+
+    def test_an_unknown_draft_is_a_404_before_anything_is_read(self) -> None:
+        r = client().post("/api/drafts/draft-nope/publish", json={"results": []})
+        self.assertEqual(r.status_code, 404)
 
 
 class TestStaticFrontend(unittest.TestCase):

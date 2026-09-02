@@ -4,32 +4,39 @@ The hosted project URL. Three views over one JSON document:
 
 | View | Route | What it shows |
 |---|---|---|
-| Review queue | `#/queue` | Each drafted edit as a git-style diff — removed lines red, added green, changed words marked — with its rationale, citations and confidence. **The Verify gate** (`summary.md` §6): approve, edit the draft in place, or reject |
+| Wiki page | `#/wiki/<slug>` *(the default)* | The article as a reader sees it, with each claim's anchor highlighted. **No tool chrome** — just the floating **Continuity** button in the corner |
+| Run view | `#/verify?page=…&start=1` | What the button opens, in a popup: the stages advancing as the run happens, then the drafted edits as cards, then the publish bar |
+| Review queue | `#/queue` | Every drafted edit as a git-style diff — removed lines red, added green, changed words marked — with rationale, citations and confidence |
 | Claim ledger | `#/ledger` | Every tracked claim: status, wave, confidence, recheck interval and next check |
-| Wiki pages | `#/wiki/<slug>` | The seeded page as a reader sees it, with each claim's anchor highlighted in place |
-| Run view | `#/verify?page=…&rev=…` | The eight stages of the run with their counts, then the queue filtered to one page, then the publish bar. Site chrome stripped. What the floating **Continuity** button on the wiki opens, in a popup |
 
-The wiki picker in the header is the plug-and-play surface: the agent is pointed at a wiki,
-not wired to one.
+**The chrome belongs to the tool, not to the wiki.** A reader on `#/wiki/…` is looking at a wiki
+page, and a toolbar belonging to the agent sitting on top of it would say this is the agent's
+site — it is not. The only thing the agent puts on an article is the corner button. Everything
+that is the tool — the run rail, the review queue, the claim ledger, the wiki picker and the
+live/fixture pill — lives in the window that button opens. The footer stays on both, because it
+carries the CC BY-SA attribution the wiki text is reproduced under.
 
-`#/verify` is how the gate is reached from the wiki itself. `wiki-config/continuity-launcher.js`
-is installed onto our instance as `MediaWiki:Common.js` and puts a floating **Continuity**
-button in the article's bottom-right corner; clicking it opens this route in a 960×980 popup,
-passing the page and the revision the reader was on.
+The wiki picker, in the popup's header, is the plug-and-play surface: the agent is pointed at a
+wiki, not wired to one.
 
-The view stacks three things. The **rail** is the eight stages of `summary.md` §6 as a stepper,
-ticked through Diff with a count under each — and every count is derived from the claims and
-queue being rendered, so it describes the run that produced what is on screen rather than
-animating a fiction. The stagger is a CSS `animation-delay`, not a timer driving a fake state
-machine. The **cards** are the drafted edits. The **publish bar** is the last gate: per-card
+**The button starts the run.** `renderWiki` puts it in the article's corner; clicking it opens
+`#/verify?page=…&start=1` in a 960×980 popup on this same origin, and the popup POSTs to
+`/api/runs` itself — so the run and the review it produces have one owner and one window. It
+runs replayed by default; `&live=1` opts into billing real Parallel searches and model calls,
+because a corner button that bills on every press is one a refresh loop can drain.
+
+The view stacks three things. The **rail** is the stages as a stepper, and it now narrates a
+run that is actually happening: `GET /api/runs/{id}` is polled once a second and each tick means
+that stage *returned*, not that a timer reached it. With no live run it falls back to describing
+the stored draft. The **cards** are the drafted edits. The **publish bar** is the last gate: per-card
 Accept/Reject writes nothing, and one button over the accepted set does. Rejecting is a
 *discard* — the card drops out of the run and nothing about it is sent anywhere, so what
 survives the discards is the final draft and the bar publishes exactly that. The request body
 is the reviewer's text and nothing else; the route reads the page and section from the queue
-entry the id points at (`AGENTS.md` §2). The gate renders here rather than inside MediaWiki so that
-the draft routes stay same-origin (`AGENTS.md` §2) — that is the reason it is a popup and
-not a panel. `window.opener` is kept on purpose: after a successful publish the gate reloads the
-article behind it. The same URL works from a bookmarklet on a wiki we do not control.
+entry the id points at (`AGENTS.md` §2). The gate renders on our own origin, which is what keeps
+`/api/*` same-origin with no CORS. **Publishing reloads nothing** — the wiki lives in this tab
+(`wiki-api.js`), so a full page load would discard the very edits just published; the article
+and the gate are two routes in one app and it re-renders instead.
 
 ## Running it
 
@@ -59,8 +66,9 @@ says there is nothing to publish rather than offering a button that would post i
 Rebuild the fixture, then load it into the store:
 
 ```bash
-python3 scripts/build_demo_state.py
-python3 scripts/seed_drafts.py
+python3 scripts/build_wiki_db.py       # the wiki's tables, from snapshots/seed/
+python3 scripts/ingest_baseline.py     # what the pages say -> mongo
+python3 scripts/propose_claims.py      # what they assert -> mongo
 ```
 
 That script reads `snapshots/`, so **page text is verbatim from the committed corpus** —
@@ -103,6 +111,7 @@ that call has no body at all: everything the write is made from comes from the s
 
 ```text
 index.html      # shell: header, nav, mount point
+wiki-api.js     # THE WIKI: MediaWiki's action API over in-memory tables
 styles.css      # all styling; no framework, no external fonts
 wikitext.js     # a deliberately partial wikitext -> HTML renderer
 app.js          # state loading, routing, the three views

@@ -9,21 +9,17 @@ failure that would pass every other local test and only appear deployed.
 Stdlib only; the core has no dependencies and its tests shouldn't either.
 """
 
-import json
-import tempfile
 import unittest
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
 
 from backend.core.ledger import (
     Claim,
     ClaimKind,
-    ClaimStatus,
     ClaimStore,
     Contradiction,
     InMemoryClaimStore,
-    JsonFileClaimStore,
     LedgerError,
     Source,
     Wave,
@@ -32,6 +28,8 @@ from backend.core.ledger import (
     to_document,
 )
 from backend.core.profile import MCU_FANDOM
+from backend.mongo import MongoClaimStore
+from tests.mongo_support import MongoTestCase, requires_mongo
 
 NOW = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
 TIERS = MCU_FANDOM.domain_tiers
@@ -64,7 +62,6 @@ def loaded_claim() -> Claim:
         entity_ref=MCU_FANDOM.entity_ref("Human Torch/Void-Analyzing Fantastic Four"),
         kind=ClaimKind.LINK,
         wave=Wave.SETTLED,
-        ripple_targets=("c-other", "c-third"),
     )
     sources = (
         Source.create(
@@ -147,7 +144,7 @@ class TestDocumentRoundTrip(unittest.TestCase):
 
 
 class TestStoreContract(unittest.TestCase):
-    """Run against the in-memory store; `TestJsonFileStore` re-runs the ones that can drift."""
+    """Run against the in-memory store; `TestMongoClaimStore` re-runs the ones that can drift."""
 
     def test_unscheduled_claim_is_refused(self) -> None:
         # The Firestore null trap: a claim with no wake time is due in memory and invisible
@@ -214,9 +211,7 @@ class TestStoreContract(unittest.TestCase):
         self.assertEqual([c.claim_id for c in store.all()], ["c-a", "c-b"])
 
     def test_both_stores_satisfy_the_protocol(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            self.assertIsInstance(InMemoryClaimStore(), ClaimStore)
-            self.assertIsInstance(JsonFileClaimStore(Path(tmp) / "l.json"), ClaimStore)
+        self.assertIsInstance(InMemoryClaimStore(), ClaimStore)
 
 
 class TestIdentityAndLookup(unittest.TestCase):
@@ -263,91 +258,61 @@ class TestIdentityAndLookup(unittest.TestCase):
         self.assertEqual(InMemoryClaimStore().for_page("Blade"), ())
 
 
-class TestJsonFileStore(unittest.TestCase):
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.path = Path(self._tmp.name) / "nested" / "ledger.json"
+@requires_mongo
+class TestMongoClaimStore(MongoTestCase):
+    """The real store. These are the assertions that only mean something against persistence."""
+
+    def store(self) -> MongoClaimStore:
+        return MongoClaimStore(self.db)
 
     def test_claims_survive_a_new_process(self) -> None:
         # The property the whole ledger exists for: the next run is not the same run.
-        JsonFileClaimStore(self.path).put(loaded_claim())
-        reopened = JsonFileClaimStore(self.path)
-        self.assertEqual(reopened.get("c-full"), loaded_claim())
+        self.store().put(loaded_claim())
+        self.assertEqual(self.store().get("c-full"), loaded_claim())
 
-    def test_missing_file_opens_empty_rather_than_failing(self) -> None:
-        self.assertEqual(len(JsonFileClaimStore(self.path)), 0)
-        self.assertFalse(self.path.exists())
+    def test_an_empty_collection_opens_empty_rather_than_failing(self) -> None:
+        self.assertEqual(self.store().all(), ())
 
     def test_interval_carries_across_runs_so_the_ladder_climbs(self) -> None:
         # A purging store would restart every claim at its wave seed and the ladder would
         # never leave 45d. This is that regression, pinned.
-        store = JsonFileClaimStore(self.path)
-        store.put(scheduled(wave=Wave.SETTLED))
+        self.store().put(scheduled(wave=Wave.SETTLED))
 
-        first = JsonFileClaimStore(self.path)
+        first = self.store()
         due = first.due(NOW + timedelta(days=46))
         first.put(due[0].unchanged(NOW + timedelta(days=46)))
 
-        second = JsonFileClaimStore(self.path)
-        stored = second.get("c1")
+        stored = self.store().get("c1")
         assert stored is not None
         self.assertEqual(stored.check_interval, timedelta(days=90))
 
     def test_the_id_counter_survives_a_new_process(self) -> None:
         # Without this the second run reissues the first run's numbers and each new claim
         # silently overwrites an existing one — a data-loss bug with no error anywhere.
-        first = JsonFileClaimStore(self.path)
+        first = self.store()
         first.put(scheduled(claim_id=first.next_claim_id()))
+        self.assertEqual(self.store().next_claim_id(), "claim-0002")
 
-        second = JsonFileClaimStore(self.path)
-        self.assertEqual(second.next_claim_id(), "claim-0002")
+    def test_the_id_counter_is_max_plus_one_not_count_plus_one(self) -> None:
+        # A removed claim must never free its number for a different claim to inherit.
+        store = self.store()
+        store.put(scheduled(claim_id="claim-0007"))
+        self.assertEqual(store.next_claim_id(), "claim-0008")
 
-    def test_for_page_survives_a_new_process(self) -> None:
-        JsonFileClaimStore(self.path).put(scheduled(page="Gambit"))
-
-        self.assertEqual(len(JsonFileClaimStore(self.path).for_page("Gambit")), 1)
-
-    def test_file_is_readable_json_keyed_by_claim_id(self) -> None:
-        JsonFileClaimStore(self.path).put_all([scheduled(claim_id="c-b"),
-                                               scheduled(claim_id="c-a")])
-        payload = json.loads(self.path.read_text(encoding="utf-8"))
-        self.assertEqual(list(payload["claims"]), ["c-a", "c-b"])
-        self.assertEqual(payload["claims"]["c-a"]["claim_id"], "c-a")
-
-    def test_write_leaves_no_temp_file_behind(self) -> None:
-        JsonFileClaimStore(self.path).put(scheduled())
-        self.assertEqual([p.name for p in self.path.parent.iterdir()], ["ledger.json"])
-
-    def test_a_refused_write_does_not_touch_the_file(self) -> None:
-        store = JsonFileClaimStore(self.path)
-        store.put(scheduled())
-        before = self.path.read_text(encoding="utf-8")
+    def test_put_refuses_a_claim_with_no_wake_time(self) -> None:
+        # A null field is invisible to a Firestore inequality filter, so an unseeded claim
+        # would be due here and absent in production. Refused at the write instead.
         with self.assertRaises(LedgerError):
-            store.put_all([scheduled(claim_id="ok"), make_claim(claim_id="bad")])
-        self.assertEqual(self.path.read_text(encoding="utf-8"), before)
+            self.store().put(replace(scheduled(), next_check_at=None))
 
-    def test_status_and_enums_survive_the_file(self) -> None:
-        store = JsonFileClaimStore(self.path)
-        store.put(scheduled().changed(NOW))
-        stored = JsonFileClaimStore(self.path).get("c1")
-        assert stored is not None
-        self.assertIs(stored.status, ClaimStatus.UNRESOLVED)
-        self.assertIs(stored.kind, ClaimKind.LIST_MEMBER)
-        self.assertIs(stored.wave, Wave.ANNOUNCEMENT_DRIVEN)
-
-    def test_file_and_memory_return_the_same_order(self) -> None:
-        claims = [scheduled(claim_id="c-b", wave=Wave.SETTLED),
-                  scheduled(claim_id="c-a", wave=Wave.SETTLED),
-                  scheduled(claim_id="c-c", wave=Wave.RELEASE_DRIVEN)]
-        on_disk = JsonFileClaimStore(self.path)
-        on_disk.put_all(claims)
-        later = NOW + timedelta(days=200)
-        self.assertEqual(
-            [c.claim_id for c in on_disk.due(later)],
-            [c.claim_id for c in InMemoryClaimStore(claims).due(later)],
-        )
-
+    def test_due_orders_by_wake_time_then_id(self) -> None:
+        # Firestore's implicit order_by tiebreak is the document id, so a limited query has
+        # to page identically in both stores.
+        store = self.store()
+        store.put(scheduled(claim_id="c2"))
+        store.put(scheduled(claim_id="c1"))
+        got = store.due(NOW + timedelta(days=400))
+        self.assertEqual([c.claim_id for c in got], ["c1", "c2"])
 
 if __name__ == "__main__":
     unittest.main()

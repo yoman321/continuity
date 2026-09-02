@@ -32,7 +32,7 @@ Three things follow from the same rule:
   the content does, which applying an edit guarantees. Both duplicate the record. So the store
   hands out a counter (`next_claim_id`), identity never moves once assigned, and recognising an
   existing claim is a lookup: `for_page` plus an exact anchor match.
-* **Scheduling happens on the way in.** `track_claim` calls `Claim.seeded` before storing,
+* **Scheduling happens on the way in.** A claim is stored through `Claim.seeded`,
   which is what satisfies the store's "a persisted claim always has a wake time" contract
   (`core/ledger/store.py`) rather than making every caller remember it.
 
@@ -56,20 +56,15 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from ...core.ledger import (
-    DEFAULT_LEDGER_PATH,
     MAX_RESEARCH_ROUNDS,
     Claim,
-    ClaimKind,
     ClaimStore,
     Contradiction,
     InMemoryClaimStore,
-    JsonFileClaimStore,
     Source,
-    Wave,
 )
 from ...core.profile import WikiProfile
 
@@ -96,7 +91,7 @@ class Ledger:
     The profile is bound here for the same reason it is in the other three tools — the model
     picks which claim, the deployment picks which wiki and whose source table scores it. The
     store is bound for the reason that makes the local-first split pay off: swapping
-    `JsonFileClaimStore` for the Firestore adapter changes nothing above this line.
+    `MongoClaimStore` for the Firestore adapter changes nothing above this line.
     """
 
     profile: WikiProfile
@@ -111,12 +106,13 @@ class Ledger:
     def local(
         cls,
         profile: WikiProfile,
-        path: Path | str = DEFAULT_LEDGER_PATH,
         *,
         clock: Callable[[], datetime] = utcnow,
     ) -> Ledger:
-        """The local database: one JSON file holding the documents Firestore will hold."""
-        return cls(profile, JsonFileClaimStore(path), clock)
+        """The local database: MongoDB, holding the documents Firestore will hold."""
+        from backend.mongo import MongoClaimStore
+
+        return cls(profile, MongoClaimStore(), clock)
 
     @classmethod
     def in_memory(
@@ -126,8 +122,8 @@ class Ledger:
         *,
         clock: Callable[[], datetime] = utcnow,
     ) -> Ledger:
-        """The deterministic path: no file, no database, no cloud project. What the graph is
-        tested against, the way `SnapshotPageSource` is for reads."""
+        """The test double: no database, no cloud project. What the suite runs against, so the
+        core's tests still need nothing installed — not a path a demo may fall back onto."""
         return cls(profile, InMemoryClaimStore(claims), clock)
 
     # -- the tools ----------------------------------------------------------------------
@@ -164,65 +160,6 @@ class Ledger:
         if claim is None:
             return {"error": f"no claim {claim_id!r} in the ledger", "claim_id": claim_id}
         return self._view(claim)
-
-    def track_claim(
-        self,
-        page: str,
-        text: str,
-        wikitext_anchor: str,
-        section_heading: str,
-        section_index: int,
-        kind: str,
-        wave: str,
-    ) -> dict[str, Any]:
-        """Start tracking one atomic claim found on a page. This is the audit stage's output.
-
-        Phrase `text` as a positive assertion about what the page says — "Gambit appears in
-        Deadpool & Wolverine", never "Gambit appears *only* in Deadpool & Wolverine". A
-        closed-world claim is contradicted by every new fact and generates false alarms
-        forever (`AGENTS.md` §7).
-
-        Proposing a claim that is already tracked is safe and changes nothing: a claim is
-        recognised by its page and anchor, so the existing record comes back instead.
-
-        Args:
-          page: resolved page title, as `read_page_outline` returned it.
-          text: the assertion, in one sentence, phrased positively.
-          wikitext_anchor: the exact substring of the section's wikitext this claim rests on,
-            copied verbatim — it is what a later edit patches.
-          section_heading: heading the anchor sits under, without the `==` markers.
-          section_index: that section's index, from the same read.
-          kind: one of `prose`, `link`, `list_member`.
-          wave: how fast this kind of fact moves — one of `settled`, `in_universe_slow`,
-            `release_driven`, `announcement_driven`. It seeds the first recheck interval only;
-            after one run the ledger's own history drives the schedule.
-        """
-        try:
-            claim_kind = ClaimKind(kind)
-        except ValueError:
-            return _invalid("kind", kind, [k.value for k in ClaimKind])
-        try:
-            claim_wave = Wave(wave)
-        except ValueError:
-            return _invalid("wave", wave, [w.value for w in Wave])
-
-        existing = self._at_anchor(page, wikitext_anchor)
-        if existing is not None:
-            return {**self._view(existing), "result": "already_tracked"}
-
-        claim = Claim(
-            claim_id=self.store.next_claim_id(),
-            page=page,
-            entity_ref=self.profile.entity_ref(page),
-            kind=claim_kind,
-            wave=claim_wave,
-            text=text,
-            wikitext_anchor=wikitext_anchor,
-            section_index=section_index,
-            section_heading=section_heading,
-        ).seeded(self.clock())
-        self._store(claim)
-        return {**self._view(claim), "result": "tracked"}
 
     def record_research(
         self, claim_id: str, objective: str, sources: list[dict[str, Any]]
@@ -330,38 +267,6 @@ class Ledger:
         self._store(resolved)
         return {**self._view(resolved), "result": "recorded"}
 
-    def link_ripple_targets(
-        self, claim_id: str, target_claim_ids: list[str]
-    ) -> dict[str, Any]:
-        """Record that this claim implicates claims on other pages — the fan-out stage's memo.
-
-        Stored so the next run starts already knowing where a change spreads, instead of
-        rediscovering it. Targets that are not tracked yet are kept and reported: the page
-        holding them may simply not have been audited.
-
-        Fan-out runs after the publish gate (`AGENTS.md` §7), so the edge recorded here is one
-        the *applied* revision implies — not one a draft proposed and a reviewer then rejected
-        or softened.
-
-        Args:
-          claim_id: the claim whose edit was published.
-          target_claim_ids: ids of claims this one implicates. The claim's own id is ignored,
-            and repeats collapse.
-        """
-        claim = self.store.get(claim_id)
-        if claim is None:
-            return {"error": f"no claim {claim_id!r} in the ledger", "claim_id": claim_id}
-
-        merged = dict.fromkeys((*claim.ripple_targets, *target_claim_ids))
-        merged.pop(claim_id, None)
-        linked = replace(claim, ripple_targets=tuple(merged))
-        self._store(linked)
-        return {
-            **self._view(linked),
-            "result": "linked",
-            "untracked": [t for t in linked.ripple_targets if self.store.get(t) is None],
-        }
-
     # -- shared -------------------------------------------------------------------------
 
     def _store(self, claim: Claim) -> None:
@@ -433,7 +338,6 @@ class Ledger:
                 {"note": c.note, "source_a": c.source_a, "source_b": c.source_b}
                 for c in claim.contradicts
             ],
-            "ripple_targets": list(claim.ripple_targets),
             "last_verified": _iso(claim.last_verified),
             "next_check_at": _iso(claim.next_check_at),
             # Hours rather than seconds because the ladder is stated in hours and days

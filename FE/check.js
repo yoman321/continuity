@@ -17,6 +17,12 @@ const ROOT = path.resolve(__dirname, "..");
 const state = JSON.parse(fs.readFileSync(path.join(ROOT, "FE/data/demo-state.json"), "utf8"));
 const wikitextSrc = fs.readFileSync(path.join(ROOT, "FE/wikitext.js"), "utf8");
 const appSrc = fs.readFileSync(path.join(ROOT, "FE/app.js"), "utf8");
+const wikiApiSrc = fs.readFileSync(path.join(ROOT, "FE/wiki-api.js"), "utf8");
+/* The wiki the browser loads. Page text is checked against *this* now, not against the
+   fixture: the fixture carries a display sample of a few sections, while this is the whole
+   article the article view actually renders. */
+const wikiDb = JSON.parse(
+  fs.readFileSync(path.join(ROOT, "FE/data/wiki-db.json"), "utf8"));
 
 const CTRL = new RegExp("[\\u0001-\\u0004]", "g");
 const WIKITEXT = /\{\{|\}\}|\[\[|\]\]|'''/;
@@ -136,15 +142,19 @@ function renderAt(hash) {
         Promise.resolve({ drafts: [{ draft_id: DRAFT_ID, published: false }] }) });
       if (url.indexOf("/api/drafts/") === 0) return Promise.resolve({ ok: true, json: () =>
         Promise.resolve(storedDraft()) });
+      // The wiki: a static file in the browser, so this is the one fetch that is real.
+      if (url === "data/wiki-db.json") return Promise.resolve({ ok: true, json: () =>
+        Promise.resolve(JSON.parse(JSON.stringify(wikiDb))) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve(state) });
     },
   });
 
   new Function(wikitextSrc).call(global);
+  new Function(wikiApiSrc).call(global);
   new Function(appSrc).call(global);
 
   return new Promise((resolve) =>
-    setTimeout(() => resolve({ html: nodes.view.innerHTML, pill: nodes["source-pill"] }), 40));
+    setTimeout(() => resolve({ html: nodes.view.innerHTML, pill: nodes["source-pill"] }), 120));
 }
 
 async function checkViews() {
@@ -220,7 +230,7 @@ function checkDiffs() {
 
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/* `#/verify?page=X` is what the wiki's own tab opens (wiki-config/continuity-launcher.js).
+/* `#/verify?page=X` is the gate, opened from the article view (or a bookmarklet).
    The assertions are the two things that make it a gate rather than a view: it shows exactly
    the cards for the page it was opened from, and the text is editable before it is written. */
 async function checkVerify(W) {
@@ -284,38 +294,17 @@ async function checkVerify(W) {
 /* The wiki-side half. It is not loaded by the browser here — it is installed onto MediaWiki —
    so what is checkable is its contract with the popup, and each of these has a failure mode
    that is silent in a demo. */
-function checkLauncher() {
-  console.log("\n# wiki launcher");
-  const src = fs.readFileSync(path.join(ROOT, "wiki-config/continuity-launcher.js"), "utf8");
-  // Comments stripped: these are assertions about what the code does, and the file explains
-  // several of them in prose that would otherwise satisfy its own check.
-  const code = src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+function checkGate() {
+  console.log("\n# the gate");
 
-  check("no deploy URL is committed", !/https?:\/\//.test(src),
-    "the origin is a deployment identifier and belongs in .env (`AGENTS.md` §2)");
-  check("the origin is substituted at install time", code.indexOf("__CONTINUITY_ORIGIN__") !== -1);
-  check("reads the page and revision MediaWiki exposes",
-    code.indexOf("wgPageName") !== -1 && code.indexOf("wgCurRevisionId") !== -1);
-  check("is a floating button, not skin chrome",
-    code.indexOf("continuity-launch") !== -1 && code.indexOf("appendChild") !== -1 &&
-    code.indexOf("addPortletLink") === -1);
+  /* The wiki lives in this tab (`FE/wiki-api.js`), so a full page load discards every edit
+     that was just published. The gate must therefore NOT reload anything after publishing —
+     it re-renders instead. This check is inverted from what it used to assert, and the
+     inversion is the point: reloading was right while the wiki was a separate MediaWiki page
+     and is now the fastest way to throw the demo's best moment away. */
+  check("publishing does not reload anything away",
+    !/location\.reload\(\)/.test(appSrc));
 
-  /* It runs inside a skin we do not own, so a single unprefixed selector would restyle the
-     wiki. Every rule it injects has to name our own button. */
-  const cssText = (code.slice(code.indexOf("mw.util.addCSS("), code.indexOf("var button"))
-    .match(/'([^']*)'/g) || []).map((q) => q.slice(1, -1)).join("");
-  const selectors = [...cssText.matchAll(/([^{}]+)\{/g)]
-    .map((m) => m[1].trim())
-    .filter((sel) => sel && !sel.startsWith("@media"));
-  check("every injected rule is scoped to our own button",
-    selectors.length > 0 && selectors.every((sel) => sel.indexOf("continuity-launch") !== -1),
-    selectors.join(" | "));
-  // `noopener` would sever window.opener and silently kill the reload below.
-  check("the popup keeps its opener",
-    code.indexOf("window.open") !== -1 && !/noopener/.test(code));
-
-  check("the gate reloads the article behind it after a publish",
-    /window\.opener[\s\S]{0,160}location\.reload\(\)/.test(appSrc));
   // A conflicting claim reaches the gate as a card like any other; what makes it readable is
   // that the disagreement is on screen above the diff, with both sides linked. Rendering the
   // card without it would ask the reviewer to take an edit on trust.
@@ -326,10 +315,22 @@ function checkLauncher() {
 
   check("a hand-edited draft is saved as the text that publishes",
     /save\(box\.dataset\.edit, \{ text: box\.value \}\)/.test(appSrc));
-  // `AGENTS.md` §2: the publish request decides nothing at all — not the text, not the target.
-  // Everything it writes comes from the stored draft.
-  check("the publish request has no body",
-    /\/publish", \{ method: "POST" \}\)/.test(appSrc));
+
+  /* `AGENTS.md` §2: the publish request reports outcomes and steers nothing. The wiki write
+     happens in the browser now, so the body carries what each edit *did* — an id, a status, a
+     revision — and must never carry where to write. A page, section, anchor or text on the
+     wire would turn a public route back into a write primitive. */
+  const publishBody = /\/publish"[\s\S]{0,320}?JSON\.stringify\(([\s\S]{0,120}?)\)/.exec(appSrc);
+  check("the publish request sends a body of outcomes", publishBody !== null);
+  if (publishBody) {
+    check("the publish body steers nothing",
+      !/\b(page|section|anchor|before|after|title|summary)\b/.test(publishBody[1]),
+      publishBody[1].trim());
+  }
+
+  // One writer, and it is the wiki's own endpoint — never a direct poke at the tables.
+  check("the gate writes through the wiki API, not around it",
+    /Wiki\.request\(\{[\s\S]{0,80}action: "edit"/.test(appSrc));
 }
 
 // -- wiring ------------------------------------------------------------------
@@ -367,7 +368,7 @@ function checkWiring() {
   await checkVerify(W);
   checkDiffs();
   checkWiring();
-  checkLauncher();
+  checkGate();
   console.log(failures ? `\n${failures} FAILURE(S)` : "\nall FE checks passed");
   process.exit(failures ? 1 : 0);
 })();

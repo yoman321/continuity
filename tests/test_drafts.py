@@ -10,22 +10,20 @@ Pure and dependency-free, like the claim ledger beside it: these run on a bare i
 
 from __future__ import annotations
 
-import json
-import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from backend.core.ledger.drafts import (
     Change,
     Decision,
     DraftError,
     InMemoryDraftStore,
-    JsonFileDraftStore,
     ReviewDraft,
     from_document,
     to_document,
 )
+from backend.mongo import MongoDraftStore
+from tests.mongo_support import MongoTestCase, requires_mongo
 
 NOW = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
 
@@ -230,30 +228,41 @@ class TestStores(unittest.TestCase):
         store = InMemoryDraftStore([done, open_one])
         self.assertEqual([d.draft_id for d in store.unpublished()], ["draft-0002"])
 
+@requires_mongo
+class TestMongoDraftStore(MongoTestCase):
+    """The real store. These are the persistence assertions — against an in-memory dict they
+    would assert nothing at all."""
+
+    def store(self) -> MongoDraftStore:
+        return MongoDraftStore(self.db)
+
     def test_a_decision_survives_the_process(self) -> None:
-        """The whole point of the store. Written by one instance, read by the next."""
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "drafts.json"
-            first = JsonFileDraftStore(path)
-            first.put(draft().decide("edit-a", Decision.ACCEPTED).revise("edit-a", "mine"))
+        """The whole point of the store. Written by one connection, read by the next."""
+        self.store().put(draft().decide("edit-a", Decision.ACCEPTED).revise("edit-a", "mine"))
 
-            reopened = JsonFileDraftStore(path).get("draft-0001")
-            assert reopened is not None
-            self.assertIs(reopened.changes[0].decision, Decision.ACCEPTED)
-            self.assertEqual(reopened.changes[0].after, "mine")
+        reopened = self.store().get("draft-0001")
+        assert reopened is not None
+        self.assertIs(reopened.changes[0].decision, Decision.ACCEPTED)
+        self.assertEqual(reopened.changes[0].after, "mine")
 
-    def test_a_missing_file_is_an_empty_store_not_a_crash(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(JsonFileDraftStore(Path(tmp) / "nothing.json").all(), ())
+    def test_an_empty_collection_is_an_empty_store_not_a_crash(self) -> None:
+        self.assertEqual(self.store().all(), ())
 
-    def test_the_file_is_replaced_atomically(self) -> None:
-        # An interrupted publish must leave the previous draft readable, not a truncated file.
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "drafts.json"
-            store = JsonFileDraftStore(path)
-            store.put(draft())
-            self.assertFalse(path.with_name(path.name + ".tmp").exists())
-            self.assertIn("drafts", json.loads(path.read_text(encoding="utf-8")))
+    def test_re_putting_a_draft_replaces_it_rather_than_duplicating(self) -> None:
+        """`_id` is the draft id, so a run that writes its draft twice has one row. Without
+        that a reviewer would meet the same cards twice."""
+        store = self.store()
+        store.put(draft())
+        store.put(draft().decide("edit-a", Decision.REJECTED))
+        self.assertEqual(len(store.all()), 1)
+        held = store.get("draft-0001")
+        assert held is not None
+        self.assertIs(held.changes[0].decision, Decision.REJECTED)
+
+    def test_unpublished_excludes_a_published_run(self) -> None:
+        store = self.store()
+        store.put(draft())
+        self.assertEqual([d.draft_id for d in store.unpublished()], ["draft-0001"])
 
 
 if __name__ == "__main__":  # pragma: no cover

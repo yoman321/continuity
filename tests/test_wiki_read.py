@@ -236,43 +236,47 @@ class TestSnapshotSource(unittest.TestCase):
             self.assertTrue(source.revision(title).content)
 
 
-class TestAdkBinding(unittest.TestCase):
-    """The tools are wrappable as-is, which is the only reason the signatures look like this.
+class TestToolSurface(unittest.TestCase):
+    """What a model would be shown, and what it must never be shown.
 
-    Needs the venv and is skipped without it, so the rest of this file still runs bare. ADK is
-    imported inside the test rather than at module top for the same reason.
+    These used to wrap the methods in ADK's `FunctionTool` and read the declaration it built.
+    ADK went on Sept 1, 2026 with the orchestrator, so the assertions are made against the
+    signature directly — which is what the SDK was reading anyway, and which means they no
+    longer need the venv.
+
+    The property is unchanged and still matters: the profile is *bound*, never a parameter, so
+    a model cannot choose which wiki to read (`AGENTS.md` §7); and every parameter a model can
+    fill is a plain scalar, because that is all a JSON schema can carry.
     """
 
-    def tools(self) -> Any:
-        try:
-            # From the concrete module, not the package: ADK 2.7 builds `tools.__all__` at
-            # runtime from a lazy mapping, so under mypy strict the package re-export is not
-            # an explicit one and `from google.adk.tools import FunctionTool` fails to
-            # typecheck while working perfectly at runtime (`AGENTS.md` §6).
-            from google.adk.tools.function_tool import FunctionTool
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+    def methods(self) -> list[Any]:
         wiki = reader()
-        return FunctionTool, [
-            FunctionTool(wiki.read_page_outline),
-            FunctionTool(wiki.read_section),
-        ]
+        return [wiki.read_page_outline, wiki.read_section]
 
-    def test_a_bound_method_becomes_a_tool_the_model_can_name(self) -> None:
-        _, tools = self.tools()
+    def test_each_tool_is_a_named_method_with_a_description(self) -> None:
         self.assertEqual(
-            [t.name for t in tools], ["read_page_outline", "read_section"]
+            [m.__name__ for m in self.methods()], ["read_page_outline", "read_section"]
         )
-        for tool in tools:
-            self.assertTrue(tool.description)
+        for method in self.methods():
+            self.assertTrue((method.__doc__ or "").strip(), method.__name__)
 
-    def test_the_declared_schema_hides_self_and_the_profile(self) -> None:
-        _, tools = self.tools()
-        schemas = [t._get_declaration() for t in tools]
-        properties = [
-            set((d.parameters_json_schema or {}).get("properties", {})) for d in schemas
-        ]
-        self.assertEqual(properties, [{"title"}, {"title", "heading"}])
+    def test_the_signature_hides_self_and_the_profile(self) -> None:
+        """A bound method drops `self`, and no tool takes a profile — the two things a
+        declaration must not expose."""
+        params = [set(inspect.signature(m).parameters) for m in self.methods()]
+        self.assertEqual(params, [{"title"}, {"title", "heading"}])
+
+    def test_every_model_facing_argument_is_json_expressible(self) -> None:
+        """A scalar, or a list of them. Anything else could not survive a schema.
+
+        Compared by name because `from __future__ import annotations` makes every annotation a
+        string — resolving them would import the module's namespace to learn what the source
+        already says plainly.
+        """
+        allowed = {"str", "int", "float", "bool", "list[str]", "tuple[str, ...]"}
+        for method in self.methods():
+            for name, param in inspect.signature(method).parameters.items():
+                self.assertIn(str(param.annotation), allowed, f"{method.__name__}.{name}")
 
 
 if __name__ == "__main__":  # pragma: no cover

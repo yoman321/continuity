@@ -37,10 +37,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from .documents import as_datetime
-from .store import LedgerError, write_json
-
-#: Local baseline file. Beside `ledger.json`, gitignored for the same reason: run state.
-DEFAULT_BASELINE_PATH = Path("data") / "baseline.json"
+from .store import LedgerError
 
 #: Bumped when a stored field changes meaning, like `documents.DOCUMENT_VERSION`.
 BASELINE_VERSION = 1
@@ -166,30 +163,6 @@ class InMemoryBaselineStore:
 
     def pages(self) -> tuple[str, ...]:
         return tuple(sorted({s.page for s in self._sections.values()}))
-
-
-class JsonFileBaselineStore(InMemoryBaselineStore):
-    """The local database. Inherits so the read semantics cannot drift from the in-memory
-    store the graph is tested against — the same argument as `JsonFileClaimStore`."""
-
-    def __init__(self, path: Path | str = DEFAULT_BASELINE_PATH) -> None:
-        self.path = Path(path)
-        super().__init__(_read_sections(self.path))
-
-    def replace_page(self, page: str, sections: Iterable[SectionBaseline]) -> None:
-        super().replace_page(page, sections)
-        self._flush()
-
-    def _flush(self) -> None:
-        write_json(
-            self.path,
-            {
-                "sections": {
-                    key: to_document(section)
-                    for key, section in sorted(self._sections.items())
-                }
-            },
-        )
 
 
 def _read_sections(path: Path) -> tuple[SectionBaseline, ...]:

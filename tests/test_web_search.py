@@ -369,21 +369,21 @@ class TestToolSurface(unittest.TestCase):
         self.assertIs(hints["objective"], str)
         self.assertIs(hints["after_date"], str)
 
-    def test_the_declared_schema_hides_self_and_the_profile(self) -> None:
-        try:
-            from google.adk.tools.function_tool import FunctionTool
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+    def test_the_signature_hides_self_and_the_profile(self) -> None:
+        """What a model would be shown, and what it must never be shown.
 
-        tool = FunctionTool(WebSearch(MCU_FANDOM, Fake()).search)
-        self.assertEqual(tool.name, "search")
-        declaration = tool._get_declaration()
-        assert declaration is not None
-        schema = declaration.parameters_json_schema or {}
-        self.assertEqual(
-            set(schema.get("properties", {})), {"search_queries", "objective", "after_date"}
-        )
-        self.assertEqual(schema["properties"]["search_queries"]["type"], "array")
+        This read ADK's built declaration until Sept 1, 2026; it reads the signature directly
+        now, which is what the SDK was reading anyway. The property is the one that matters
+        and is unchanged: the profile is bound, so `include_domains` is never a parameter — a
+        tool that let a model choose the domains would hand back the retrieval policy the
+        profile exists to hold (`AGENTS.md` §7).
+        """
+        search = WebSearch(MCU_FANDOM, Fake()).search
+        self.assertEqual(search.__name__, "search")
+        params = inspect.signature(search).parameters
+        self.assertEqual(set(params), {"search_queries", "objective", "after_date"})
+        # A list, because `sku_search` bills per call and batching is a property of the type.
+        self.assertEqual(str(params["search_queries"].annotation), "list[str]")
 
 
 class TestWireShape(unittest.TestCase):

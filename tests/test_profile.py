@@ -243,9 +243,10 @@ class TestNothingSourceIsIgnored(unittest.TestCase):
 
     def test_the_committed_config_and_scripts_are_not_ignored(self) -> None:
         wanted = [
-            "wiki-config/LocalSettings.overrides.php",
-            "scripts/setup_wiki.sh",
+            "scripts/mongo.sh",
             "snapshots/manifest.json",
+            "snapshots/wiki-db.dummy.json",
+            "FE/data/wiki-db.json",
             "pyproject.toml",
             ".env.example",
         ]

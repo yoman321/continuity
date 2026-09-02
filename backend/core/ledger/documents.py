@@ -86,7 +86,6 @@ def to_document(claim: Claim) -> dict[str, Any]:
         "contradicts": [_contradiction_document(c) for c in claim.contradicts],
         "objective": claim.objective,
         "research_rounds": claim.research_rounds,
-        "ripple_targets": list(claim.ripple_targets),
         "last_verified": _utc(claim.last_verified),
         "next_check_at": _utc(claim.next_check_at),
         # Firestore has no duration type. Seconds as an integer, because every interval on the
@@ -124,7 +123,6 @@ def from_document(doc: Mapping[str, Any]) -> Claim:
         contradicts=tuple(_contradiction(c) for c in doc.get("contradicts", ())),
         objective=doc.get("objective", ""),
         research_rounds=doc.get("research_rounds", 0),
-        ripple_targets=tuple(doc.get("ripple_targets", ())),
         last_verified=as_datetime(doc.get("last_verified")),
         next_check_at=as_datetime(doc.get("next_check_at")),
         check_interval=timedelta(seconds=doc.get("check_interval_seconds", 0)),

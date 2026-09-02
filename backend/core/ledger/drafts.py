@@ -39,9 +39,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
-#: Local draft file, relative to the repo root. Gitignored: it is run state, not source.
-DEFAULT_DRAFTS_PATH = Path("data") / "drafts.json"
-
 #: Bumped when a stored field changes meaning. `from_document` refuses anything else rather than
 #: guessing, for the same reason the claim ledger does: a draft read wrong is a wrong edit.
 DRAFT_DOCUMENT_VERSION = 1
@@ -343,31 +340,6 @@ class InMemoryDraftStore:
 
     def unpublished(self) -> tuple[ReviewDraft, ...]:
         return tuple(d for d in self.all() if not d.published)
-
-
-class JsonFileDraftStore(InMemoryDraftStore):
-    """The local database: an in-memory store that survives the process.
-
-    Inherits rather than reimplements, so ordering cannot drift from the semantics the gate is
-    tested against. The file holds `{"drafts": {draft_id: document}}`, and every write rewrites
-    it through a temp file and `Path.replace` — an interrupted publish leaves the previous draft
-    intact rather than a truncated one.
-    """
-
-    def __init__(self, path: Path | str = DEFAULT_DRAFTS_PATH) -> None:
-        self.path = Path(path)
-        super().__init__(_read_drafts(self.path))
-
-    def put(self, draft: ReviewDraft) -> None:
-        super().put(draft)
-        self._flush()
-
-    def _flush(self) -> None:
-        write_json(
-            self.path,
-            {"drafts": {d.draft_id: to_document(d) for d in sorted(self._drafts.values(),
-                                                                   key=lambda x: x.draft_id)}},
-        )
 
 
 def _read_drafts(path: Path) -> tuple[ReviewDraft, ...]:

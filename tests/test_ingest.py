@@ -12,7 +12,6 @@ the real path against real pages with nothing running.
 
 from __future__ import annotations
 
-import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,7 +19,6 @@ from pathlib import Path
 from backend.agent.ingest import ingest_all, ingest_page
 from backend.core.ledger.baseline import (
     InMemoryBaselineStore,
-    JsonFileBaselineStore,
     SectionBaseline,
     from_document,
     to_document,
@@ -28,6 +26,8 @@ from backend.core.ledger.baseline import (
 from backend.core.ledger.store import LedgerError
 from backend.core.profile import local_wiki
 from backend.core.wiki import PageRevision, SnapshotPageSource, WikiError
+from backend.mongo import MongoBaselineStore
+from tests.mongo_support import MongoTestCase, requires_mongo
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 NOW = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
@@ -174,31 +174,34 @@ class TestBaselineStore(unittest.TestCase):
             from_document(doc)
 
 
-class TestJsonFileBaselineStore(unittest.TestCase):
-    def setUp(self) -> None:
-        self.dir = tempfile.TemporaryDirectory()
-        self.path = Path(self.dir.name) / "baseline.json"
-        self.addCleanup(self.dir.cleanup)
+@requires_mongo
+class TestMongoBaselineStore(MongoTestCase):
+    def store(self) -> MongoBaselineStore:
+        return MongoBaselineStore(self.db)
 
     def test_the_baseline_survives_a_new_process(self) -> None:
-        ingest_page(seed_source(), PROFILE, JsonFileBaselineStore(self.path), "Gambit", now=NOW)
-        reopened = JsonFileBaselineStore(self.path)
-
+        ingest_page(seed_source(), PROFILE, self.store(), "Gambit", now=NOW)
+        reopened = self.store()
         self.assertGreater(len(reopened.for_page("Gambit")), 1)
         self.assertEqual(reopened.pages(), ("Gambit",))
 
-    def test_a_missing_file_opens_empty(self) -> None:
-        self.assertEqual(len(JsonFileBaselineStore(self.path)), 0)
-        self.assertFalse(self.path.exists())
+    def test_an_empty_collection_opens_empty(self) -> None:
+        self.assertEqual(self.store().pages(), ())
 
-    def test_the_file_and_memory_agree(self) -> None:
-        memory, on_disk = InMemoryBaselineStore(), JsonFileBaselineStore(self.path)
-        for store in (memory, on_disk):
+    def test_the_store_and_memory_agree(self) -> None:
+        memory, stored = InMemoryBaselineStore(), self.store()
+        for store in (memory, stored):
             ingest_page(seed_source(), PROFILE, store, "Gambit", now=NOW)
+        self.assertEqual(memory.for_page("Gambit"), self.store().for_page("Gambit"))
 
-        reopened = JsonFileBaselineStore(self.path)
-        self.assertEqual(memory.for_page("Gambit"), reopened.for_page("Gambit"))
-
+    def test_a_page_is_replaced_as_a_set_never_merged(self) -> None:
+        """Indices are only meaningful relative to each other, so a merge would file one
+        section's text under another's index."""
+        store = self.store()
+        ingest_page(seed_source(), PROFILE, store, "Gambit", now=NOW)
+        first = len(store.for_page("Gambit"))
+        ingest_page(seed_source(), PROFILE, store, "Gambit", now=NOW)
+        self.assertEqual(len(store.for_page("Gambit")), first)
 
 if __name__ == "__main__":
     unittest.main()

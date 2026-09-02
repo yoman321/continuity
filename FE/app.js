@@ -19,6 +19,7 @@
   "use strict";
 
   var W = window.Wikitext;
+  var Wiki = window.WikiAPI;   // the wiki itself — see FE/wiki-api.js
   var esc = W.escapeHtml;
 
   var state = null;
@@ -125,7 +126,7 @@
 
   // -- verify: the run, and the gate at the end of it --------------------------
 
-  /* Opened from the wiki itself by `wiki-config/continuity-launcher.js`, which passes the page
+  /* Opened from the article view, which passes the page
      the reader was on. Two things stacked: the run that produced the queue, and the queue
      itself scoped to that page. The cards are the same ones `#/queue` renders — what differs
      is the filter, the rail above them, and the site chrome being gone, because this runs in a
@@ -151,7 +152,19 @@
     });
   }
 
+  function currentPage() {
+    return parseRoute().params.page || "";
+  }
+
   function renderVerify(params) {
+    /* `start=1` is the launcher saying "and run it". Fired once — `liveRun` is set
+       synchronously by `startRun`, so a re-render while the run is going does not restart it. */
+    if (params.start && !liveRun) {
+      // `live=1` spends real Parallel searches and model calls, so it is opt-in in the URL
+      // rather than the button's default — a corner button that bills on every press is one
+      // a page-refresh loop can drain (`AGENTS.md` §2).
+      startRun(params.page || "", params.live === "1");
+    }
     var title = pageTitle(params.page);
     var items = scopedItems(params);
     var run = runSummary(scopedClaims(params), items);
@@ -185,7 +198,6 @@
     claims.forEach(function (claim) {
       sources += claim.sources.length;
       if (claim.conflict_note) conflicting += 1;
-      ripples += (claim.ripple_targets || []).length;
     });
 
     var decided = 0;
@@ -216,6 +228,61 @@
   /* Which stage the run is standing on. Everything through Diff has already happened — the
      cards below *are* its output — so the only live question is how far past Verify the
      reviewer has got. */
+  /* A run started from the article, and watched while it happens.
+   *
+   * `liveRun` is null until the reader presses the button. While it is set, the rail reads its
+   * `stages_done` instead of inferring state from the queue — which is the difference the
+   * rail's own comment used to disclaim: there is a real run to narrate now, so it narrates
+   * that one, and falls back to describing the stored draft when there is not. */
+  var liveRun = null;
+  var runPoll = null;
+
+  function startRun(page, live) {
+    if (liveRun && !liveRun.finished) return;
+    liveRun = { stages_done: [], current: "audit", finished: false, error: "", starting: true };
+    route();
+    fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ page: page || "", live: !!live })
+    })
+      .then(function (r) { return r.json().then(function (b) {
+        if (!r.ok) throw new Error(b.detail || "HTTP " + r.status);
+        return b;
+      }); })
+      .then(function (payload) { liveRun = payload; watchRun(payload.run_id); route(); })
+      .catch(function (error) {
+        liveRun = { stages_done: [], finished: true, error: String(error.message || error) };
+        route();
+      });
+  }
+
+  /* Poll rather than stream: a run is six stages over tens of seconds, so a second is finer
+     than anything a reader can perceive, and it needs no server-side connection to hold. */
+  function watchRun(runId) {
+    if (runPoll) clearInterval(runPoll);
+    runPoll = setInterval(function () {
+      fetch("/api/runs/" + encodeURIComponent(runId))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (payload) {
+          if (!payload) return;
+          liveRun = payload;
+          if (payload.finished) {
+            clearInterval(runPoll);
+            runPoll = null;
+            // The run ends by storing a draft; load it so the cards below the rail are the
+            // ones this run just produced.
+            if (payload.draft_id) {
+              loadDraft(payload.draft_id).then(route);
+              return;
+            }
+          }
+          route();
+        })
+        .catch(function () { clearInterval(runPoll); runPoll = null; });
+    }, 1000);
+  }
+
   function stageStates(run) {
     var states = ["done", "done", "done", "done", "done", "active", "pending", "pending"];
     if (!run.edits || (run.decided === run.edits && run.edits)) {
@@ -230,7 +297,7 @@
   }
 
   function renderRail(run) {
-    var states = stageStates(run);
+    var states = liveRun ? liveStageStates() : stageStates(run);
     var nodes = STAGES.map(function (name, index) {
       return '<li class="stage ' + states[index] + '" style="animation-delay:' +
         (index * 90) + 'ms">' +
@@ -240,11 +307,42 @@
         "</li>";
     }).join("");
 
-    return '<ol class="rail">' + nodes + "</ol>" +
-      '<p class="rail-note">' + (live
-        ? "Live run state."
-        : "Replay of the run that produced this queue. Every count is read from the state on " +
-          "screen — the stages are not simulated.") + "</p>";
+    return '<ol class="rail">' + nodes + "</ol>" + railNote();
+  }
+
+  /* The rail from a run that is actually happening. `stages_done` is what the run itself
+     recorded as each stage returned, so a tick here means that stage finished — not that a
+     timer reached it. */
+  function liveStageStates() {
+    var done = liveRun.stages_done || [];
+    return STAGES.map(function (name) {
+      var key = name.toLowerCase().replace("-", "");
+      if (done.indexOf(key) !== -1) return "done";
+      if (!liveRun.finished && liveRun.current === key) return "active";
+      return "pending";
+    });
+  }
+
+  function railNote() {
+    if (liveRun) {
+      if (liveRun.error) return '<p class="rail-note err">The run stopped: ' + esc(liveRun.error) + "</p>";
+      if (liveRun.starting) return '<p class="rail-note">Starting…</p>';
+      if (!liveRun.finished) {
+        return '<p class="rail-note">Running ' + esc(liveRun.current || "") + "… " +
+          (liveRun.live ? "live — this one bills." : "replayed from recordings.") + "</p>";
+      }
+      var r = liveRun.report || {};
+      return '<p class="rail-note">Run finished — ' + (r.due || 0) + " claim(s) audited, " +
+        (r.researched || 0) + " searched over " + (r.rounds || 0) + " round(s), " +
+        (r.drafted || 0) + " edit(s) drafted." +
+        ((r.unjudged && r.unjudged.length)
+          ? " " + r.unjudged.length + " claim(s) lost their judgement to an unreadable answer."
+          : "") + "</p>";
+    }
+    return '<p class="rail-note">' + (live
+      ? "Live run state."
+      : "Replay of the run that produced this queue. Every count is read from the state on " +
+        "screen — the stages are not simulated.") + "</p>";
   }
 
   // -- the gate ----------------------------------------------------------------
@@ -453,9 +551,58 @@
       "</tr></thead><tbody>" + rows + "</tbody></table></div>";
   }
 
+  /* Page text comes from the wiki itself, not from the fixture.
+   *
+   * `action=query` is public on this wiki exactly as it is on a real one, so the browser reads
+   * it with no credential: the API key gates writing, and a secret never reaches client code
+   * (`CLAUDE.md` §3). Cached per slug, so flipping between pages costs one request each and a
+   * published edit shows up on the next visit to that page rather than on every keystroke.
+   */
+  var wikiPages = {};
+
+  function loadWikiPage(slug, title) {
+    return Wiki.request({
+      action: "query",
+      prop: "revisions",
+      titles: title,
+      rvprop: "ids|timestamp|user|comment|size|content",
+      rvslots: "main",
+      rvlimit: "1",
+      redirects: "1",
+      format: "json",
+      formatversion: "2"
+    })
+      .then(function (payload) {
+        if (payload.error) throw new Error(payload.error.code);
+        var page = payload.query && payload.query.pages && payload.query.pages[0];
+        if (!page || page.missing) throw new Error("not on this wiki");
+        var rev = page.revisions[0];
+        var content = rev.slots.main.content;
+        wikiPages[slug] = {
+          sections: Wiki.splitSections(content),
+          revid: rev.revid,
+          timestamp: rev.timestamp,
+          bytes: rev.size
+        };
+      })
+      .catch(function (error) {
+        /* Cached as a failure on purpose: the router re-runs after every load, so an
+           uncached error would retry forever. */
+        wikiPages[slug] = { error: String((error && error.message) || error) };
+      });
+  }
+
   function renderWiki(slug) {
     var page = state.pages[slug];
     if (!page) return '<p class="empty">Unknown page.</p>';
+
+    var live = wikiPages[slug];
+    if (!live) return '<p class="empty">Reading ' + esc(page.title) + ' from the wiki\u2026</p>';
+    if (live.error) {
+      return '<p class="empty">The wiki did not serve ' + esc(page.title) + ': ' +
+        esc(live.error) + '. The tables load from <code>data/wiki-db.json</code>; ' +
+        'rebuild them with <code>python3 scripts/build_wiki_db.py</code>.</p>';
+    }
 
     var claims = state.claims.filter(function (c) { return c.page_slug === slug; });
     var base = articleBase();
@@ -465,7 +612,7 @@
         esc(state.pages[key].title) + "</a>";
     }).join("") + "</nav>";
 
-    var lead = page.sections[0];
+    var lead = live.sections[0];
     var box = W.infobox(lead.text);
     var boxKeys = {};
     claims.forEach(function (c) {
@@ -485,7 +632,7 @@
         }).join("") + "</dl></aside>";
     }
 
-    var body = page.sections.map(function (section) {
+    var body = live.sections.map(function (section) {
       var text = section.text;
       claims.forEach(function (c) {
         if (c.section_index === section.index && !W.infoboxKey(c.wikitext_anchor)) {
@@ -501,21 +648,40 @@
           "<p>" + esc(c.text) + "</p>" +
           '<p class="rail-meta">' + esc(c.claim_id) + " · §" + c.section_index + " " +
           esc(c.section_heading) + "</p>" +
-          '<p class="rail-why">' + esc(c.rationale) + "</p></div>";
+          // Only when there is something to say: a live claim has no hand-written rationale,
+          // and an empty paragraph reads as a missing value rather than an absent one.
+          (c.rationale ? '<p class="rail-why">' + esc(c.rationale) + "</p>" : "") +
+          "</div>";
       }).join("") : '<p class="muted">None seeded.</p>') + "</aside>";
 
     return nav +
-      '<div class="page-meta">Seeded from revision ' + page.revid + " · " +
-        shortDate(page.timestamp) + " · " + page.seed_size.toLocaleString() + " bytes · " +
-        page.section_count + " sections · live copy has drifted " +
-        (page.drift_pct >= 0 ? "+" : "") + page.drift_pct + "%</div>" +
+      '<div class="page-meta">Live from the wiki · revision ' + live.revid + " · " +
+        shortDate(live.timestamp) + " · " + live.bytes.toLocaleString() + " bytes · " +
+        live.sections.length + " sections" +
+        (live.revid === page.revid ? " · unedited since seeding" :
+          ' · <strong>edited since seeding</strong> (seed was ' + page.revid + ")") +
+        "</div>" +
       '<div class="article-grid"><article class="article"><h1>' + esc(page.title) + "</h1>" +
       infoboxHtml + body +
-      '<p class="attrib">Text from the Marvel Cinematic Universe Wiki, frozen at revision ' +
+      '<p class="attrib">Text from the Marvel Cinematic Universe Wiki, seeded at revision ' +
       page.revid + ', licensed <a href="https://creativecommons.org/licenses/by-sa/3.0/" ' +
       'target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a>. Rendered by a deliberately ' +
       "partial parser; templates are not expanded.</p>" +
-      "</article>" + sidebar + "</div>";
+      "</article>" + sidebar + "</div>" + launcher(page.title);
+  }
+
+  /* The button a reader presses to run the agent on the article they are looking at.
+   *
+   * It lives in the corner of the page rather than in the site nav because it stands in for
+   * the browser extension a real deployment would ship — the affordance that says "something
+   * else is watching this page" — and because it survives a layout change. It opens the gate
+   * in a popup on this same origin, which is what keeps `/api/*` same-origin with no CORS
+   * (`AGENTS.md` §2), and the popup starts the run itself so the whole lifecycle has one
+   * owner. */
+  function launcher(title) {
+    return '<button class="continuity-launch" data-launch="' + esc(title) + '" ' +
+      'title="Run Continuity on this page">' +
+      '<span class="launch-dot"></span>Continuity</button>';
   }
 
   // -- chrome ------------------------------------------------------------------
@@ -540,7 +706,9 @@
      have folded into the view name. Parsed here rather than with `URLSearchParams` so the two
      halves of a hash route are read in one place. */
   function parseRoute() {
-    var hash = location.hash || "#/queue";
+    // No hash means the wiki: the main window is the encyclopedia, and the tool is
+    // what the corner button opens.
+    var hash = location.hash || "#/wiki";
     var cut = hash.indexOf("?");
     var path = (cut === -1 ? hash : hash.slice(0, cut)).replace(/^#\//, "");
     var params = {};
@@ -563,14 +731,20 @@
   function route() {
     var parsed = parseRoute();
     var parts = parsed.parts;
-    var view = parts[0] || "queue";
+    var view = parts[0] || "wiki";
     var popup = view === "verify";
 
-    /* The gate opens in a popup window beside the article, so it sheds the site chrome — but
-       not the footer, which carries the CC BY-SA attribution the wiki text is reproduced
-       under (`snapshots/ATTRIBUTION.md`). That one is not ours to drop for layout. */
-    el("topbar").hidden = popup;
-    el("mainnav").hidden = popup;
+    /* **The article carries no tool chrome; the popup carries all of it.**
+       A reader on `#/wiki/…` is looking at a wiki page, and a toolbar belonging to the agent
+       sitting on top of it would say this is the agent's site — it is not. The only thing the
+       agent puts on an article is the corner button. Everything that is the *tool* — the run
+       rail, the review queue, the claim ledger, the wiki picker and the live/fixture pill —
+       lives in the window the button opens.
+       The footer stays on both: it carries the CC BY-SA attribution the wiki text is
+       reproduced under (`snapshots/ATTRIBUTION.md`), which is not ours to drop for layout. */
+    var article = view === "wiki";
+    el("topbar").hidden = article;
+    el("mainnav").hidden = article;
 
     Array.prototype.forEach.call(document.querySelectorAll("nav.main a"), function (a) {
       a.classList.toggle("on", a.getAttribute("href").indexOf("#/" + view) === 0);
@@ -578,7 +752,15 @@
 
     if (view === "verify") el("view").innerHTML = renderVerify(parsed.params);
     else if (view === "ledger") el("view").innerHTML = renderLedger();
-    else if (view === "wiki") el("view").innerHTML = renderWiki(parts[1] || Object.keys(state.pages)[0]);
+    else if (view === "wiki") {
+      var slug = parts[1] || Object.keys(state.pages)[0];
+      el("view").innerHTML = renderWiki(slug);
+      /* Not yet read: paint the placeholder above, fetch, and re-route once. `loadWikiPage`
+         always fills the cache — with an error if it has to — so this cannot loop. */
+      if (!wikiPages[slug] && state.pages[slug]) {
+        loadWikiPage(slug, state.pages[slug].title).then(route);
+      }
+    }
     else el("view").innerHTML = renderQueue();
 
     window.scrollTo(0, 0);
@@ -634,35 +816,54 @@
      draft published when nothing is left. Sequential and per-change on the server side, because
      MediaWiki has no cross-page transaction — a partial failure is a real outcome and comes
      back as one, per change (`AGENTS.md` §2). */
+  /* Publish: write each accepted change to the wiki, then tell the server what happened.
+   *
+   * The wiki is in this browser (`FE/wiki-api.js`), so the gate performs the writes itself —
+   * one `action=edit` per change, in order, exactly as the server used to. What goes to
+   * `/api/drafts/{id}/publish` afterwards is the *outcome* of each one, so the draft in Mongo
+   * records which revision each change created and gets stamped published. The request names
+   * no page, section, anchor or text: it cannot steer a write, only report one.
+   *
+   * Sequential rather than parallel, and the reason is not politeness — each edit re-reads the
+   * page it is patching, so two writes to the same page racing would have the second one
+   * resolve its anchor against text the first had already changed.
+   */
   function publishAll() {
     if (!draftId || publishing || draftPublished) return;
+
+    // The accepted set that has not landed yet. `published` is keyed by edit_id and is what
+    // makes pressing publish twice write nothing the first press already wrote.
+    var pending = (state.queue || []).filter(function (c) {
+      return decisions[c.edit_id] === "approved" && !published[c.edit_id];
+    });
+    if (!pending.length) return;
 
     publishing = true;
     publishError = "";
     route();
 
-    fetch("/api/drafts/" + encodeURIComponent(draftId) + "/publish", { method: "POST" })
-      .then(function (response) {
-        return response.json().catch(function () { return {}; }).then(function (body) {
-          publishing = false;
-          if (!response.ok) {
-            publishError = body.detail || "HTTP " + response.status;
+    writeSequentially(pending)
+      .then(function (results) {
+        return fetch("/api/drafts/" + encodeURIComponent(draftId) + "/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ results: results })
+        }).then(function (response) {
+          return response.json().catch(function () { return {}; }).then(function (body) {
+            publishing = false;
+            if (!response.ok) {
+              publishError = body.detail || "HTTP " + response.status;
+              route();
+              return;
+            }
+            applyDraft(body.draft);
+            var failed = results.filter(function (r) { return r.status !== "written"; });
+            publishError = failed.length
+              ? failed.length + " of " + results.length + " not written — " +
+                (failed[0].error || failed[0].status)
+              : "";
             route();
-            return;
-          }
-          applyDraft(body.draft);
-          var results = body.results || [];
-          var failed = results.filter(function (r) { return r.status !== "written"; });
-          publishError = failed.length
-            ? failed.length + " of " + results.length + " not written — " +
-              (failed[0].error || failed[0].status)
-            : "";
-          route();
-          // The article that opened this popup now has the edits on it. Repaint it, so the
-          // reviewer watches the writes land rather than being told they did.
-          if (!failed.length && window.opener && !window.opener.closed) {
-            window.opener.location.reload();
-          }
+          });
         });
       })
       .catch(function (error) {
@@ -670,6 +871,81 @@
         publishError = String(error.message || error);
         route();
       });
+  }
+
+  /* One edit at a time, collecting an outcome per change rather than failing the batch.
+     A partial publish is a real result — the wiki has no cross-page transaction and neither
+     does this — so every change reports for itself and the reviewer is told which landed. */
+  function writeSequentially(changes) {
+    var results = [];
+
+    function step(i) {
+      if (i >= changes.length) return Promise.resolve(results);
+      var change = changes[i];
+      return editOne(change)
+        .then(function (outcome) { results.push(outcome); })
+        .then(function () { return step(i + 1); });
+    }
+    return step(0);
+  }
+
+  /* One change -> one `action=edit`, substituting the approved text for the drafted anchor in
+     whatever the section says now. A missing or ambiguous anchor is refused rather than
+     guessed at, and an edit already on the page is a no-op rather than a second append. */
+  function editOne(change) {
+    var text = change.after;
+    return Wiki.request({
+      action: "query", prop: "revisions", titles: change.page,
+      rvprop: "ids|timestamp|content", rvslots: "main", rvlimit: "1",
+      redirects: "1", format: "json", formatversion: "2"
+    }).then(function (payload) {
+      if (payload.error) throw new Error(payload.error.code);
+      var page = payload.query && payload.query.pages && payload.query.pages[0];
+      if (!page || page.missing) throw new Error("missingtitle");
+      var rev = page.revisions[0];
+      var sections = Wiki.splitSections(rev.slots.main.content);
+      var section = sections[change.section_index];
+      if (!section) throw new Error("nosuchsection");
+
+      var occurrences = section.text.split(change.before).length - 1;
+      if (occurrences === 0) {
+        // Either somebody else changed the line, or this edit is already on the page.
+        return section.text.indexOf(text) !== -1
+          ? { edit_id: change.edit_id, status: "nochange" }
+          : { edit_id: change.edit_id, status: "missing",
+              error: "the drafted text is no longer on the page" };
+      }
+      if (occurrences > 1) {
+        return { edit_id: change.edit_id, status: "missing",
+                 error: "the drafted text appears " + occurrences + " times; refusing to guess" };
+      }
+
+      return Wiki.request({
+        action: "query", meta: "tokens", type: "csrf", format: "json"
+      }).then(function (t) {
+        return Wiki.request({
+          action: "edit",
+          title: change.page,
+          section: String(change.section_index),
+          text: section.text.replace(change.before, text),
+          summary: change.summary,
+          basetimestamp: rev.timestamp,
+          token: t.query.tokens.csrftoken,
+          format: "json"
+        });
+      }).then(function (result) {
+        if (result.error) {
+          return { edit_id: change.edit_id, status:
+            result.error.code === "editconflict" ? "conflict" : "error",
+            error: result.error.info };
+        }
+        return "nochange" in result.edit
+          ? { edit_id: change.edit_id, status: "nochange" }
+          : { edit_id: change.edit_id, status: "written", revid: result.edit.newrevid };
+      });
+    }).catch(function (error) {
+      return { edit_id: change.edit_id, status: "error", error: String(error.message || error) };
+    });
   }
 
   /* Walk away. Puts every unwritten card back to undecided and leaves the hand-edits alone, so
@@ -691,6 +967,16 @@
       if (!button) return;
       if (button.classList.contains("publish")) return publishAll();
       if (button.classList.contains("discard")) return discardRun();
+      /* The article's corner button. It opens the gate in a popup on this origin and passes
+         the page; the popup starts the run, so the run and the review it produces have one
+         owner and one window. */
+      if (button.dataset.launch) {
+        var url = "#/verify?page=" + encodeURIComponent(button.dataset.launch) + "&start=1";
+        var popup = window.open(url, "continuity-gate", "width=960,height=980");
+        if (!popup) window.location.hash = url.slice(1);  // popups blocked: run here instead
+        return;
+      }
+      if (button.classList.contains("runagain")) return startRun(currentPage(), false);
       if (!button.dataset.edit) return;
       if (button.classList.contains("undo")) return decide(button.dataset.edit, null);
       decide(button.dataset.edit, button.classList.contains("approve") ? "approve" : "reject");
@@ -753,8 +1039,10 @@
 
   /* Pick the run to review: the one named in the URL, else the oldest still open, else the
      newest. A published draft is still readable — that is how the reviewer sees what landed. */
-  function loadDraft() {
-    var wanted = parseRoute().params.draft;
+  function loadDraft(wantedId) {
+    // An explicit id wins: a run that just finished knows exactly which draft it wrote, and
+    // "newest unpublished" would be a guess that is right until two runs overlap.
+    var wanted = wantedId || parseRoute().params.draft;
     return fetch("/api/drafts")
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (payload) {

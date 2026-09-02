@@ -121,7 +121,6 @@ class DemoClaim:
     outcome: str  # "changed" | "unchanged" | "unresolved"
     replacement: str | None = None  # what the anchor becomes; None when no edit is drafted
     rationale: str = ""
-    ripple_targets: tuple[str, ...] = ()
     runs: int = 1  # how many clean rechecks to simulate; >1 shows the interval ladder
     contradiction: Contradiction | None = None
     conflict_note: str = ""
@@ -164,7 +163,6 @@ DEMO_CLAIMS: tuple[DemoClaim, ...] = (
             "rather than wrong — appended in the wiki's existing <br> convention, no new "
             "field and no new section."
         ),
-        ripple_targets=("PS6-FILMS-01",),
     ),
     DemoClaim(
         claim_id="DW-VOID-01",
@@ -343,7 +341,6 @@ def build_claim(demo: DemoClaim, section_index: int) -> Claim:
         wikitext_anchor=demo.anchor,
         section_index=section_index,
         section_heading=demo.section_heading,
-        ripple_targets=demo.ripple_targets,
     ).seeded(NOW)
 
     sources = tuple(
@@ -395,7 +392,6 @@ def serialise_claim(claim: Claim, demo: DemoClaim) -> dict[str, Any]:
         "auto_appliable": claim.auto_appliable,
         "objective": claim.objective,
         "research_rounds": claim.research_rounds,
-        "ripple_targets": list(claim.ripple_targets),
         "last_verified": iso(claim.last_verified),
         "next_check_at": iso(claim.next_check_at),
         "check_interval_hours": round(claim.check_interval.total_seconds() / 3600),

@@ -12,12 +12,12 @@ so the tool itself is testable with nothing installed.
 
 from __future__ import annotations
 
-import tempfile
+import os
 import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any
+from unittest import mock
 
 from backend.agent.tools import DEFAULT_DUE_LIMIT, Ledger
 from backend.core.ledger import (
@@ -28,6 +28,7 @@ from backend.core.ledger import (
     Wave,
 )
 from backend.core.profile import MCU_FANDOM
+from tests.mongo_support import MONGO_URI, requires_mongo
 
 NOW = datetime(2026, 8, 15, 12, 0, tzinfo=timezone.utc)
 
@@ -61,7 +62,27 @@ def ledger(clock: Clock | None = None, claims: tuple[Claim, ...] = ()) -> Ledger
 
 
 def tracked(tool: Ledger, **overrides: Any) -> dict[str, Any]:
-    return tool.track_claim(**{**GAMBIT, **overrides})
+    """Put one claim in the ledger and return the tool's own view of it.
+
+    This called `Ledger.track_claim` until Sept 1, 2026, when the claim-creation path was
+    removed along with claim proposal. Claims are now stated by whoever seeds the ledger, so
+    this builds one and stores it directly. Every test below is about what the tool does *to*
+    a claim — research, outcomes, the ladder — and none of them was about how it got there.
+    """
+    fields = {**GAMBIT, **overrides}
+    claim = Claim(
+        claim_id=tool.store.next_claim_id(),
+        page=str(fields["page"]),
+        entity_ref=tool.profile.entity_ref(str(fields["page"])),
+        kind=ClaimKind(fields["kind"]),
+        wave=Wave(fields["wave"]),
+        text=str(fields["text"]),
+        wikitext_anchor=str(fields["wikitext_anchor"]),
+        section_index=int(fields["section_index"]),
+        section_heading=str(fields["section_heading"]),
+    ).seeded(tool.clock())
+    tool.store.put(replace(claim, task_id=tool.task_id))
+    return tool.read_claim(claim.claim_id)
 
 
 class TestClaimIdentity(unittest.TestCase):
@@ -81,19 +102,6 @@ class TestClaimIdentity(unittest.TestCase):
         reopened = Ledger.in_memory(MCU_FANDOM, tool.store.all(), clock=Clock())
 
         self.assertEqual(tracked(reopened, wikitext_anchor="c")["claim_id"], "claim-0003")
-
-    def test_tracking_the_same_claim_twice_stores_one_record(self) -> None:
-        tool = ledger()
-        first = tracked(tool)
-        again = tracked(tool, text="Gambit is in Deadpool & Wolverine.")
-
-        self.assertEqual(first["result"], "tracked")
-        self.assertEqual(again["result"], "already_tracked")
-        self.assertEqual(again["claim_id"], first["claim_id"])
-        self.assertEqual(len(tool.store.all()), 1)
-        # The stored record is the first one: re-proposing does not overwrite research
-        # already attached to it.
-        self.assertEqual(again["text"], GAMBIT["text"])
 
     def test_the_same_anchor_on_another_page_is_another_claim(self) -> None:
         tool = ledger()
@@ -146,18 +154,6 @@ class TestTracking(unittest.TestCase):
         self.assertEqual(view["entity"]["variant"], "Universe Defender Blade")
         self.assertTrue(view["entity"]["is_variant"])
 
-    def test_an_unknown_kind_is_a_value_listing_the_real_ones(self) -> None:
-        view = tracked(ledger(), kind="factoid")
-
-        self.assertIn("factoid", view["error"])
-        self.assertEqual(view["allowed"], [k.value for k in ClaimKind])
-
-    def test_an_unknown_wave_is_a_value_listing_the_real_ones(self) -> None:
-        view = tracked(ledger(), wave="fast")
-
-        self.assertIn("fast", view["error"])
-        self.assertEqual(view["allowed"], [w.value for w in Wave])
-
     def test_what_the_call_did_and_what_the_claim_is_are_different_keys(self) -> None:
         tool = ledger()
         claim_id = tracked(tool)["claim_id"]
@@ -168,19 +164,13 @@ class TestTracking(unittest.TestCase):
         self.assertEqual(view["result"], "recorded")
         self.assertEqual(view["status"], ClaimStatus.UNRESOLVED.value)
 
-    def test_a_rejected_claim_is_not_stored(self) -> None:
-        tool = ledger()
-        tracked(tool, kind="factoid")
-
-        self.assertEqual(len(tool.store.all()), 0)
-
 
 class TestTheModelCannotWriteTheSchedule(unittest.TestCase):
     """The reason this tool exists instead of a passthrough over `ClaimStore.put`."""
 
     def test_no_write_method_accepts_a_schedule_or_a_confidence(self) -> None:
         forbidden = {"next_check_at", "check_interval", "confidence", "status", "tier"}
-        for name in ("track_claim", "record_research", "record_outcome", "link_ripple_targets"):
+        for name in ("record_research", "record_outcome"):
             with self.subTest(method=name):
                 args = set(getattr(Ledger, name).__code__.co_varnames)
                 self.assertEqual(args & forbidden, set())
@@ -437,57 +427,36 @@ class TestReading(unittest.TestCase):
         self.assertIn("nope", view["error"])
 
 
-class TestRippleTargets(unittest.TestCase):
-    def test_targets_are_deduped_and_never_include_the_claim_itself(self) -> None:
-        tool = ledger()
-        claim_id = tracked(tool)["claim_id"]
-        other = tracked(tool, page="Phase Six", wikitext_anchor="films")["claim_id"]
-
-        view = tool.link_ripple_targets(claim_id, [other, other, claim_id])
-
-        self.assertEqual(view["ripple_targets"], [other])
-
-    def test_linking_twice_accumulates_rather_than_replaces(self) -> None:
-        tool = ledger()
-        claim_id = tracked(tool)["claim_id"]
-
-        tool.link_ripple_targets(claim_id, ["a"])
-        view = tool.link_ripple_targets(claim_id, ["b"])
-
-        self.assertEqual(view["ripple_targets"], ["a", "b"])
-
-    def test_untracked_targets_are_kept_and_reported(self) -> None:
-        tool = ledger()
-        claim_id = tracked(tool)["claim_id"]
-
-        view = tool.link_ripple_targets(claim_id, ["not-audited-yet"])
-
-        # The page holding it may simply not have been audited, so this is information for
-        # the fan-out node rather than a rejection.
-        self.assertEqual(view["untracked"], ["not-audited-yet"])
-        self.assertEqual(view["ripple_targets"], ["not-audited-yet"])
-
 
 class TestPersistence(unittest.TestCase):
     """The whole reason the store exists: a run has to find last run's ladder."""
 
+    @requires_mongo
     def test_the_interval_survives_a_new_process(self) -> None:
+        import uuid
+
+        import pymongo
+
+        name = f"continuity_test_{uuid.uuid4().hex[:12]}"
+        client: object = pymongo.MongoClient(MONGO_URI)
+        self.addCleanup(client.drop_database, name)  # type: ignore[attr-defined]
+        env = mock.patch.dict(os.environ, {"MONGO_DB": name})
+        env.start()
+        self.addCleanup(env.stop)
+
         clock = Clock()
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "ledger.json"
+        first = Ledger.local(MCU_FANDOM, clock=clock)
+        claim_id = tracked(first)["claim_id"]
 
-            first = Ledger.local(MCU_FANDOM, path, clock=clock)
-            claim_id = tracked(first)["claim_id"]
+        clock.advance(timedelta(hours=24))
+        second = Ledger.local(MCU_FANDOM, clock=clock)
+        view = second.record_outcome(claim_id, "unchanged")
 
-            clock.advance(timedelta(hours=24))
-            second = Ledger.local(MCU_FANDOM, path, clock=clock)
-            view = second.record_outcome(claim_id, "unchanged")
+        self.assertEqual(view["check_interval_hours"], 48.0)
 
-            self.assertEqual(view["check_interval_hours"], 48.0)
-
-            clock.advance(timedelta(hours=48))
-            third = Ledger.local(MCU_FANDOM, path, clock=clock)
-            self.assertEqual(third.due_claims()["count"], 1)
+        clock.advance(timedelta(hours=48))
+        third = Ledger.local(MCU_FANDOM, clock=clock)
+        self.assertEqual(third.due_claims()["count"], 1)
 
     def test_the_default_clock_is_a_function_not_a_bound_method(self) -> None:
         # `slots=True` keeps the callable default an instance attribute; were it a class

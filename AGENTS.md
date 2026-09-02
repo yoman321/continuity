@@ -11,15 +11,15 @@ section-level edits with citations and a confidence level — flagging honestly 
 disagree rather than always producing an answer. Audience: wiki maintainers.
 
 Built for **Agentic Cinema: The Blockbuster Hackathon** (Google Cloud x Devpost).
-Deadline **Sept 7, 2026, 2:00 PM PT**. Parallel track. Demo subject: *Deadpool & Wolverine*,
+Deadline **Sept 9, 2026, 2:00 PM PDT** (verified off the live rules page Sept 1, 2026). Parallel track. Demo subject: *Deadpool & Wolverine*,
 seeded from real MCU Wiki revision history frozen at 2024-08-09 (`seed-plan.md`).
 
 ## 2. Project invariants
 
 Violating one of these means a rewrite, a ban, or a disqualification — not a patch.
 
-- **Every `model=` string is `gemini-*`.** ADK ships adapters for the platform's non-Google
-  catalog; the rules ban them outright. Never pin `gemini-2.5-flash` (shutdown 2026-10-16,
+- **Every `model=` string is `gemini-*`.** The platform catalogs 200+ non-Google models
+  (Claude included) and the rules ban them outright, so a wrong string is one autocomplete away. Never pin `gemini-2.5-flash` (shutdown 2026-10-16,
   judging ends Oct 07).
 - **One model everywhere: `gemini-3.5-flash`.** No pro tier and no per-node split. Measured
   Aug 22 2026 on the Classify task against the seed corpus (4 cases, 6 reps): 3.5-flash 24/24
@@ -33,22 +33,52 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   satisfying the track, but the AI-usage clause bans third-party agent frameworks and the
   plain SDK already satisfies it. Gemini never fetches. Exactly one partner track is
   permitted, so no second partner may be used for its AI features.
-- **The publish request decides nothing. It has no body.** Judging requires
-  `--allow-unauthenticated`, so `POST /api/drafts/{id}/publish` is public and there is no
-  session to identify a reviewer by. Everything the write is made from — which changes were
-  accepted, their text, their pages, their anchors and their edit summaries — is read from the
-  stored draft, so the most a stranger who guesses a draft id can do is publish a review a
-  person already accepted. An unknown id is a 404 before anything is read. Never add a
-  parameter to that route: a page, a section or a text on the wire turns a review gate into a
-  public write primitive. The decision route beside it takes a verdict and the reviewer's own
-  text and nothing else, with unknown fields refused rather than ignored.
+- **The publish request reports outcomes and steers nothing — revised Sept 1, 2026.** It used
+  to have no body at all, because the server did the writing and everything it wrote came from
+  the stored draft. The wiki now lives in the browser (below), so the gate performs each
+  `action=edit` itself and `POST /api/drafts/{id}/publish` records what happened: a list of
+  `{edit_id, status, revid, error}` and nothing else. **The reason the old rule existed is
+  intact and is what must be preserved.** Judging requires `--allow-unauthenticated`, so this
+  route is public and there is no session to identify a reviewer by; the body therefore may
+  never carry a page, a section, an anchor, a summary or any text, because any one of those
+  turns a review gate into a public write primitive. Unknown fields are refused rather than
+  ignored, the status vocabulary is closed, and an `edit_id` the draft is not currently
+  awaiting is a 422 — so the most a stranger who guesses a draft id can do is mark a review a
+  person already accepted as published. An unknown id is still a 404 before anything is read.
+  The server performs no wiki write at all any more, and a test asserts the writer is never
+  even constructed.
 - **Never write to any real wiki.** Unsanctioned bot edits get banned, and Wikipedia is
   stricter than Fandom — automated editing needs Bot Approval Group sign-off. All writes go to
-  our own seeded MediaWiki instance, whatever wiki the profile points reads at. This is a
+  our own simulated wiki, whatever wiki the profile points reads at. This is a
   field, not a convention: `WikiProfile.writable` is `True` only for `local_wiki()`, the
   factory for our own instance, and a test asserts every shipped profile is `False`. The write
   path checks the field. `local_wiki()` takes its endpoint as a required argument with no
   default, because the URL is a deployment identifier and belongs in `.env` alone.
+- **The wiki is simulated in the browser; its interface is still an endpoint — decided
+  Sept 1, 2026, revised the same day.** There is no MediaWiki, no MariaDB and no server behind
+  it. `FE/wiki-api.js` *is* the wiki: it loads `FE/data/wiki-db.json` — rows in MediaWiki's own
+  `page` / `revision` / `text` / `redirect` shape, built from `snapshots/seed/` — and answers
+  reads and writes from memory. **What must stay real is the call shape.** `WikiAPI.request()`
+  takes action-API parameters and resolves to the JSON `api.php` would answer with, so every
+  caller is written as though it were talking to a server: `action=query&prop=revisions` for
+  raw wikitext, `action=edit&section=N` against a section index, `basetimestamp` as the
+  conflict guard, `editconflict` and `nosuchsection` returned as codes in an `error` block.
+  Swapping this back for a real endpoint is changing what `request` does, not changing anyone
+  who calls it. Reaching around it — mutating the tables directly from a view — is the mistake
+  this rules out. Reasoning: the decision-log entry "The wiki is simulated" in `summary.md`
+  §10. *An earlier pass put this in Python behind `/wiki/api.php`; that code is deleted.*
+- **Edits live in the tab, and reloading is the reset — decided Sept 1, 2026.** A browser
+  cannot write to a file, so a published edit updates the in-memory tables and nothing else.
+  Reloading the page re-fetches `FE/data/wiki-db.json` and the wiki is pristine again: that is
+  the whole reset story, and it needs no button and no script. **Do not reach for
+  `localStorage` to make edits survive** — it would turn "reload to reset" into a cache someone
+  has to remember to clear, which is worse on camera and worse to debug.
+  The publish-then-see-it-land beat is unaffected, and this is why it is safe: the article and
+  the review gate are two routes in one app, so publishing re-renders rather than reloads.
+  Anything that forces a full page load between publishing and reading the article — a
+  `location.reload()`, an `opener` reload left over from the MediaWiki era — throws the edit
+  away and must not be reintroduced. `snapshots/wiki-db.dummy.json` stays the canonical copy;
+  `FE/data/wiki-db.json` is written beside it by the same command so the two cannot drift.
 - **Wiki-specific behaviour lives in a profile, never in the core.** The product is
   plug-and-play across MediaWiki sites (`summary.md` §5), so title grammar, section
   vocabulary, source tiers, licence and auth are per-wiki config the core reads. A hardcoded
@@ -68,18 +98,30 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   domain → tier lookup table; the poll interval is `double on no-change, halve on change,
   clamp [6h, 6mo]`. Gemini reasons *over* the tiers; it never invents them per call. Handing
   either to the model makes the headline behaviour unreproducible on camera.
-- **The ledger store stays schema-flexible.** ADK 2.0 added `node_info` and `output` to the
-  Event schema; rigid SQL columns fail on insert or ORM deserialize. Prefer Firestore, or
-  migrate columns before first run.
-- **The ledger runs local first and ports to Firestore; the document shape is what ports.**
-  `JsonFileClaimStore` is the local database and `InMemoryClaimStore` the deterministic
-  fallback, both writing the documents `core/ledger/documents.py` defines — the exact value
-  types Firestore accepts, so the adapter hands a document to `.set()` untranslated. Two rules
-  make the local store *behave* like the remote one rather than merely stand in for it, and
-  both are asserted in `tests/test_ledger_store.py`: a stored claim always has a
-  `next_check_at` (`require_scheduled`), and `due()` filters and orders on that one field
-  only. Neither is a preference — see §6. Never let a store decide anything: `Claim.is_due`
-  and the transitions in `schema.py` do the deciding, and this layer is storage.
+- **The ledger store stays schema-flexible.** Documents gain fields as the design moves, and
+  rigid SQL columns fail on insert or ORM deserialize. MongoDB now, Firestore deployed; never
+  a relational schema that has to be migrated before a run.
+- **The ledger is a real database, and it has no fallback — decided Sept 1, 2026.** The JSON
+  file stores are deleted. Persistence is `backend/mongo.py` against a running MongoDB
+  (`./scripts/mongo.sh start`), and Firestore behind the same protocols when `DRAFT_STORE=firestore`.
+  **This is a deliberate exemption from `CLAUDE.md` §3's "every external source has a
+  deterministic fallback"** — waived by the user for the ledger specifically, so a run with no
+  database *fails* rather than starting from an empty one. That is the honest behaviour: a gate
+  that silently served an empty queue would look like a run that proposed nothing. The
+  exemption does not extend to anything else — retrieval, the model and the wiki all keep their
+  offline paths. The `InMemory*` stores still exist and are what the test suite uses, which is
+  what keeps the core's tests runnable with nothing installed; they are a test double, never a
+  production path. Both stores write the documents `core/ledger/documents.py` defines — the
+  exact value types Firestore and MongoDB both accept, so an adapter hands a document to
+  `.set()` untranslated. Two rules make the local store *behave* like the remote one rather
+  than merely stand in for it, and both are asserted in `tests/test_ledger_store.py`: a stored
+  claim always has a `next_check_at` (`require_scheduled`), and `due()` filters and orders on
+  that one field only. Neither is a preference — see §6. Never let a store decide anything:
+  `Claim.is_due` and the transitions in `schema.py` do the deciding, and this layer is storage.
+- **Identity is the document `_id`, so a re-`put` replaces rather than appends.** The claim id,
+  the draft id, the judgement id and a section's key are the `_id` in Mongo exactly as they are
+  the document name in Firestore. A store that let the driver allocate an id would give one
+  claim two rows on the second write, and the ledger would grow a duplicate per run.
 - **Assume a single editor while the agent runs — decided Aug 29, 2026, and it is a hackathon
   assumption, not a property of the system.** Nobody else edits a page between the read that
   drafts an edit and the write that publishes it. What that buys: the page at publish time *is*
@@ -102,39 +144,40 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   button —
   `POST /api/drafts/{id}/publish` — and remains the only thing that writes to the wiki. Putting a
   model back into Verify is a design change and not a patch: it reinstates a `Verify → Draft`
-  backward edge, and termination currently rests on the one-hop fan-out rule alone. The accepted
+  backward edge, and termination rests on the research budget alone. The accepted
   cost is written up in `summary.md` §6 — an edit clean at its anchor that contradicts a sentence
   three sections away ships unless a person sees it — and it belongs in the submission
   description for the same reason the single-editor assumption does.
-- **The graph runs six stages and stops at Verify — decided Aug 30, 2026.** `agent/graph.py`
-  is one ADK `Workflow`: Audit, Research, Classify, Draft, Diff, Verify. **Publish and Fan-out
-  are not nodes and must not become them.** Publish is a button on a route, and a node that
-  wrote to the wiki would make the gate optional — which is the one thing the whole publish
-  path rests on; Fan-out has nothing to expand until an edit has actually been applied, and
-  that happens after this run has ended. Verify does not *pause* the run either, which an
-  earlier plan had it doing through `request_input`: Cloud Run scales to zero and the tick is
-  hourly, so a coroutine waiting on a reviewer dies at the first idle timeout while a stored
-  `ReviewDraft` survives the container, the reload and the week. Verify's node writes the draft
-  and the invocation finishes — the pause is the store, and the resume is the publish route.
-  One backward edge is in play, `Classify → Research`, and it fires on exactly one signal: a
+- **The run is six stages and a loop, and it stops at Verify — decided Aug 30, 2026; the
+  orchestrator became plain Python on Sept 1, 2026.** `Run.execute` in `agent/graph.py` calls
+  Audit, Research, Classify, Draft, Diff and Verify in order. It was an ADK `Workflow` with
+  six nodes and a routing map; it is a method now, because **the routing was never a
+  judgement** — no model has ever decided which stage runs next, so a graph engine was
+  scheduling a fixed order and charging an SDK import for it. The one non-linear edge,
+  `Classify → Research`, is a `while self.pending:` loop, and it fires on exactly one signal: a
   `conflicting` verdict where filtering dropped *every* excerpt, which is retrieval having gone
   off-subject rather than the world disagreeing with itself. A real conflict routes to a person
-  and never to a retry. It is bounded in the Research node, which is the only thing anywhere
-  that refuses a fourth round — `record_research` spends one without consulting the budget.
-- **The gate reaches the wiki as a tab, not as an embedded panel — decided Aug 30, 2026.**
-  `wiki-config/continuity-launcher.js` is installed onto our own instance as
-  `MediaWiki:Common.js` and does exactly one thing: it puts a floating **Continuity** button in
-  the article's bottom-right corner that opens `#/verify?page=…&rev=…` in a popup window. A
-  corner button rather than skin chrome, because it stands in for the browser extension a real
-  deployment would ship and survives a skin change. The gate itself renders on *our* origin,
-  never inside MediaWiki's DOM, and that is the invariant: it keeps `/api/state` and the draft
-  routes same-origin, so the app keeps the "one origin, no CORS, no second
-  deploy" shape `backend/app.py` is built on (§3), and `FE/styles.css` never has to survive a
-  collision with a skin's stylesheet. Rendering the gate in the page — a browser extension, an
-  injected panel — means adding CORS to the API, and that is a deployment change, not a
-  frontend one. The popup must keep `window.opener`: the gate reloads the article behind it
-  after a publish, which is how the reviewer sees the write land. A bookmarklet firing the same
-  URL is the supported path on a wiki we do not control; no extension exists or is planned.
+  and never to a retry. **What terminates it is the research budget, not the loop:**
+  `research()` refuses a claim whose budget is spent, so `pending` empties on its own; the
+  `MAX_ROUNDS` constant beside it is a backstop against a future edit breaking that, never the
+  mechanism. **Publish is not a stage and must not become one:** it is a button on a route, and
+  a stage that wrote to the wiki would make the gate optional, which is the one thing the whole
+  publish path rests on. *Fan-out — an approved edit expanding into the claims it implicates on
+  other pages — was designed as a ninth stage and its code was removed on Sept 1, 2026; it is an
+  "if time permits" item in `summary.md` §10 and nothing here depends on it.* Verify does not *pause*
+  the run either: Cloud Run scales to zero and the tick is hourly, so a coroutine waiting on a
+  reviewer dies at the first idle timeout while a stored `ReviewDraft` survives the container,
+  the reload and the week. Verify writes the draft and the run finishes — the pause is the
+  store, and the resume is the publish route.
+- **The gate renders on our own origin, and the article carries no tool chrome.** The reader
+  presses a floating **Continuity** button in the article's corner; it opens `#/verify?page=…`
+  in a popup on this same origin, which is what keeps `/api/*` same-origin with no CORS and no
+  second deploy. Everything that is the *tool* — the run rail, the queue, the ledger, the wiki
+  picker, the live/fixture pill — lives in that popup; the article gets the button and nothing
+  else, because a toolbar on an article says the agent owns the page and it does not. Anything
+  that would split the two across origins — an extension, an injected panel, a second host —
+  brings CORS and a second deploy back and is a deployment change wearing a frontend change's
+  clothes. `#/verify?page=…` is the contract, and it works from a bookmarklet too.
 - **Accepting a card writes nothing; the publish bar is the only writer — decided Aug 30,
   2026.** The gate has two levels on purpose. Per-card **Accept / Reject** decides *what* would
   go and is held in the browser; one **Publish** button at the foot of the run then writes the
@@ -196,6 +239,33 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   two tasks came back with the same id, which would have had one silently overwriting the
   other's judgements. Nothing branches on a `task_id`: it is provenance, not state, and a stage
   that read one would be reading a copy of something `Claim` already holds.
+- **A proposed claim's anchor is verified against the page, and the page cap is real —
+  Sept 1, 2026.** `agent/propose.py` reads a section and returns claims; nothing it says is
+  trusted. Every anchor must be a **verbatim, unique** substring of that section or the
+  proposal is dropped with a reason: a paraphrased anchor is an edit that can never apply, and
+  a repeated one is an edit `write_anchor` refuses at publish time, hours after anyone could
+  act on it. **Two caps, and the distinction cost a live run to learn:** `MAX_PER_SECTION`
+  bounds one call, `MAX_PER_PAGE` bounds a page across all its sections and is the one that
+  matters. The per-section cap alone bounds nothing — a long page just has more sections, and
+  Gambit produced **50 claims from 19 sections** under a per-section cap of 6. Every claim
+  costs one Parallel search on every tick forever, so this is a cost ceiling, not a formatting
+  preference. A newly proposed claim is also pulled **due immediately**, because `seeded()`
+  schedules as though the claim had just been confirmed and nobody has ever asked the world
+  about this one.
+- **A run started from the button is sealed to its own id — decided Sept 1, 2026.** It mints a
+  task id before Audit, proposes its own claims under it, and reads through a
+  `MongoClaimStore(scope=task_id)` that filters every query on it. So pressing the button twice
+  gives two independent runs over the same page, and nothing an earlier run concluded can reach
+  a later one. **This reverses what the ledger was for and the cost is not small:** the decay
+  ladder, "have I already checked this?", and a claim's history across ticks are all cross-run
+  memory, and a sealed run has none — it proposes, researches once, and its schedule dies with
+  it. What it buys is a demo that behaves the same on the tenth press as on the first; without
+  it, run one settles its claims to ninety days out and run two finds nothing due, which on
+  screen is indistinguishable from a button that did nothing. Two things stay unsealed on
+  purpose: `next_claim_id` scans every run, because `_id` is the claim id and two runs handing
+  out `claim-0001` would have one overwrite the other; and `/api/state` reads unscoped, because
+  the ledger view is *about* the whole ledger. The scheduled tick, when it exists, should run
+  unscoped — it is the thing the ladder was built for.
 - **A profile names the pages it monitors (`WikiProfile.pages`).** The agent is not a crawler:
   which pages we maintain is a decision, not something to infer from a category listing. It
   lives on the profile beside `section_vocabulary` because it is per-wiki config, and because
@@ -208,22 +278,20 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   (`seed-plan.md` §3) and which specific ones the video needs (§4); never how many there are.
   The six in `FE/data/demo-state.json` are the fixture described in §4 below, not a partial
   ledger.
-- **The wiki is external, including our own — decided Aug 29, 2026.** The agent gets no
-  privileged path to the instance it writes to. `local_wiki()` sets `requires_key=True`, both
-  adapters refuse to *construct* without one (`MEDIAWIKI_API_KEY`), and the credential travels
-  in an `X-API-Key` header — never a query parameter, because a URL is logged by every proxy it
-  passes and lands in error messages. `requires_key` is a fact about the endpoint, so Fandom's
-  open API stays keyless and must not start carrying a credential it never asked for. **Be
-  honest about what this is:** MediaWiki does not validate the header today, so the gate is
-  ours — what is real is that the endpoint is configured, the credential is required, the
-  failure is at construction rather than at the first unauthorised request, and the secret
-  flows through `.env`/Secret Manager like every other. Pointing this at a wiki that genuinely
-  gates reads is then a value in `.env`, not a code change. If real enforcement is ever wanted,
-  the upgrade is MediaWiki's own: `$wgGroupPermissions['*']['read'] = false` in
-  `wiki-config/`, and the bot login the writer already performs. `snapshots/` needs no key
-  because it is a committed corpus, not a service.
+- **The wiki is external, including our own — decided Aug 29, 2026, and now moot for the
+  agent.** The rule was that the agent gets no privileged path to the wiki it writes to:
+  `local_wiki()` sets `requires_key=True`, the adapters refuse to *construct* without a key,
+  and the credential rides an `X-API-Key` header rather than a query parameter, because a URL
+  is logged by every proxy it passes. `requires_key` describes the endpoint, so Fandom's open
+  API stays keyless and must not start carrying a credential it never asked for — that part
+  still holds and is still tested. What is gone is the credential itself: with the wiki in the
+  browser (below) nothing in Python opens a wiki connection, so `MEDIAWIKI_API_URL`,
+  `MEDIAWIKI_API_KEY` and the bot password were deleted from `.env` on Sept 1, 2026. Reinstate
+  them only alongside a real endpoint, and never as a query parameter. `snapshots/` needs no
+  key because it is a committed corpus, not a service.
 - **Secrets:** `.env` locally (gitignored), Secret Manager when deployed. Gemini uses ADC —
-  no API key exists on either side. Parallel and MediaWiki credentials are real secrets.
+  no API key exists on either side. The Parallel key and the tick token are the only real
+  secrets left; the wiki has none, because it is a file the browser loads.
 - **Anything configured in `.env` is named only in `.env`.** The GCP project id, the wiki API
   URL and the bot user are not credentials, but the repo is public and they are deployment
   identifiers, not product facts — so docs, commit messages and code refer to "the project in
@@ -240,12 +308,13 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
 
 | Layer | Choice |
 |---|---|
-| Orchestration | ADK 2.x Workflow Runtime (`google-adk` ≥2.6.3) — stages as graph nodes |
-| Model | `gemini-3.5-flash` everywhere — measured, not assumed (§2) — via `google-genai` |
+| Orchestration | Plain Python: `Run.execute` calls the six stages in order, one `while` for the retry. No graph engine — the routing was never a judgement (§2) |
+| Model | `gemini-3.5-flash` everywhere — measured, not assumed (§2) — via `google-genai`, which is the accepted-package requirement on its own (`summary.md` §12) |
 | Auth | Enterprise/ADC — no API key. `GOOGLE_GENAI_USE_ENTERPRISE=true` (§5) |
-| Retrieval | Parallel Search via `parallel-web`, wrapped as an ADK tool |
-| Wiki I/O | MediaWiki API — `action=query&prop=revisions` reads raw wikitext, `action=edit` with section param writes it |
-| Ledger | A local JSON file now, Firestore after the deploy weekend (§2). The Cloud SQL instance in the topology is MediaWiki's alone |
+| Retrieval | Parallel Search via `parallel-web`, called directly by the Research stage |
+| Wiki I/O | MediaWiki action API — `action=query&prop=revisions` reads raw wikitext, `action=edit` with section param writes it. Served by our own simulation over table-shaped fixtures; the adapters cannot tell (§2) |
+| Wiki data | `FE/data/wiki-db.json` — `page` / `revision` / `text` rows in MediaWiki's own shape, built from `snapshots/seed/`, held in the browser, reset by reloading (§2) |
+| Ledger | MongoDB locally, Firestore deployed (§2) — same protocols, same documents, `DRAFT_STORE` picks. No file store and no fallback |
 | Scheduling | Cloud Scheduler → Cloud Run endpoint, hourly; interval logic lives in the ledger |
 | Secrets | Secret Manager — Parallel key, wiki bot credentials |
 | Frontend | Vanilla HTML/CSS/JS in `FE/` — no framework, no build step, no dependencies |
@@ -255,14 +324,16 @@ Why each was chosen, and what was rejected: `summary.md` §6 and §12.
 
 ### Runtime topology
 
-Two Cloud Run services, both scale-to-zero, both in `us-east1`, plus the one Cloud SQL
-instance that cannot. Nothing else runs.
+One Cloud Run service, scale-to-zero, in `us-east1`. No second service and no Cloud SQL: the
+wiki ships with the frontend (§2), which removes the only line that billed while idle. Nothing
+else runs.
 
 ```text
   continuity                                  <-- the public project URL
     FastAPI, python:3.12-slim
       GET  /                 StaticFiles over FE/        (no build step; ships as-is)
-      GET  /api/state        ledger + page text from Firestore
+      GET  /api/state        the ledger from Mongo/Firestore. No page text — that is
+                             the browser's own wiki, and never served twice
       GET  /api/drafts       the runs waiting at the gate; {id} for one, with its verdicts
       POST /api/drafts/{id}/changes/{edit_id}
                              a verdict, the reviewer's own text, or both. Writes no wiki
@@ -272,14 +343,14 @@ instance that cannot. Nothing else runs.
       POST /internal/tick    Cloud Scheduler, hourly, shared-secret header (§2)
     runtime SA: continuity-run@  — aiplatform.user, datastore.user, secretAccessor
 
-  mediawiki                                   <-- the wiki the agent edits; never a real one
-    MediaWiki on Cloud SQL (MySQL, shared-core), over the Cloud SQL connector
-    --max-instances 1; the service scales to zero, its database does not
+      GET/POST  <the simulated wiki's api.php>   <-- same container, same origin
+                             action=query&prop=revisions | action=edit&section=N,
+                             answered from the table-shaped fixtures in memory.
+                             Real endpoint, real basetimestamp, real editconflict (§2)
 
-  Firestore (ledger: sections, claims, judgements, drafts)
-  Cloud SQL (MediaWiki's DB, and nothing else)
-  Secret Manager (Parallel key, tick token, bot password, wiki API key)
-  Cloud Scheduler (1 job)   Artifact Registry (2 images)
+  Firestore (ledger: sections, claims, judgements, drafts)   <-- the one real database
+  Secret Manager (Parallel key, tick token, wiki API key)
+  Cloud Scheduler (1 job)   Artifact Registry (1 image)
 ```
 
 That is the target shape. `backend/app.py` serves `/` and runs the gate for real: the four
@@ -294,24 +365,20 @@ Rules that fall out of this shape:
 
 - **One container serves the frontend and runs the agent.** `FE/` is static, so there is no
   second origin, no CORS and no second deploy. Do not split them.
-- **Region is `us-east1` for Cloud Run, Firestore and Cloud SQL.** Gemini is the exception —
+- **Region is `us-east1` for Cloud Run and Firestore.** Gemini is the exception —
   `location="global"`, never a region (§5).
 - **`--min-instances 0`, always — and `--max-instances 3`.** Zero is what makes idle cost
   nothing: Cloud Run bills per request-second, so an unwatched demo is free. Raising it to 1 to
   hide the cold start bills an instance around the clock and turns ~$1/mo into tens of dollars;
   the sanctioned fix for cold start is the lazy imports in §7. The ceiling stops a stuck
   research loop from draining the credits. Numbers in `summary.md` §6.
-- **MediaWiki runs on Cloud SQL, and it is the only thing here that bills while idle.**
-  SQLite on a mounted GCS bucket was the plan until Aug 23, 2026; it does not work. gcsfuse
-  implements neither file locking nor partial random writes, which are the two things SQLite
-  depends on, so the failure mode is a corrupted database found after seeding rather than an
-  error at mount. Do not retry it, and do not reach for Firestore either — MediaWiki speaks
-  MySQL, PostgreSQL or SQLite and nothing else. ~$16 through judging, covered by the credits
-  (`summary.md` §6).
-- **Gemini tokens are the only cost that can run away.** Cloud SQL is a fixed ~$16 through
-  judging and every other line above sits inside a free tier at demo traffic; the per-item
-  breakdown is in `summary.md` §6, and its figures are from recall rather than the console.
-  Set the $25 budget alert before the first deploy, not after.
+- **Nothing here bills while idle — keep it that way.** Every line sits inside a free tier at
+  demo traffic. If a real database is ever reintroduced, note that SQLite on a mounted GCS
+  bucket is not the escape: gcsfuse implements neither file locking nor partial random writes,
+  so the failure mode is a corrupted database found after seeding rather than an error at mount.
+- **Gemini tokens are now the only cost at all, and the only one that can run away.** The
+  per-item breakdown is in `summary.md` §6, and its figures are from recall rather than the
+  console. Set the $25 budget alert before the first deploy, not after.
 
 ## 4. File map
 
@@ -323,6 +390,8 @@ Rules that fall out of this shape:
     __init__.py                      # <-- read first: the pure/perimeter rule. Import-free
     app.py                           # the routes: state, drafts, publish, tick; FE/ last
     firestore.py                     # DraftStore over Firestore; SDK imported in the ctor
+    mongo.py                         # the ledger's four collections over MongoDB;
+                                     #   driver imported in connect(), never at top
     core/                            # ===== the deterministic half. No vendor, no network =====
       ledger/
         schema.py                    # <-- read first: Claim, the record everything else serves
@@ -335,7 +404,7 @@ Rules that fall out of this shape:
         citations.py                 # which source may go in the <ref>; NOT which is best
         documents.py                 # the stored shape; Firestore types only, both stores read
                                      #   it. Also `task_id_for`: one id shape for every writer
-        store.py                     # ClaimStore, the in-memory store, and the local JSON file
+        store.py                     # ClaimStore, and the in-memory reference store
         baseline.py                  # SectionBaseline: what the page says now, per section
       profile/
         schema.py                    # <-- read first: WikiProfile, everything per-wiki
@@ -348,10 +417,11 @@ Rules that fall out of this shape:
         diff.py                      # red/green rows for a drafted edit, and shape(); stdlib
                                      # ===== everything else under backend/ is perimeter =====
     agent/
-      graph.py                       # <-- read first: the six stages as ADK nodes, the
-                                     #   one backward edge, and where the run stops
+      graph.py                       # <-- read first: the six stages in order, the one
+                                     #   backward edge as a loop, and where the run stops
       ingest.py                      # step 1 of a run: pages -> sections -> the baseline
       model.py                       # the Gemini perimeter: one call, JSON schema, a cassette
+      propose.py                     # the propose stage: page -> claims, anchors verified
       classify.py                    # the classify stage: the prompt's four measured rules
       draft.py                       # the draft stage: rewrites the anchor, checks its shape
       semantic_diff.py               # the diff stage: what the edit did to the *ideas*
@@ -365,34 +435,29 @@ Rules that fall out of this shape:
   .gcloudignore                      # what Cloud Build does NOT receive; includes .gitignore
                                      #   rather than repeating it, so there is one secret list
   pyproject.toml                     # deps, ruff + mypy config, gate settings
-  scripts/setup_wiki.sh              # installs the local MediaWiki natively; idempotent
-  scripts/seed_wiki.py               # loads snapshots/seed/ into it, then verifies the hashes
-  wiki-config/                       # the wiki's settings, version controlled
-    LocalSettings.overrides.php      # subpages, licence, bot rights — required by the install
-    continuity-launcher.js           # the floating Continuity button; -> MediaWiki:Common.js.
-                                     #   Origin is a placeholder here — never a committed URL.
-                                     #   Every injected CSS rule is prefixed; check.js proves it
-  scripts/install_launcher.sh        # substitutes the origin, pushes it via maintenance/edit.php
+  scripts/build_wiki_db.py           # snapshots/seed/ -> the wiki's table-shaped rows;
+                                     #   --reset restores the live file from the dummy
+  scripts/mongo.sh                   # start/stop/status the ledger's database
   wiki/                              # GITIGNORED: the MediaWiki tree itself, a build artifact
-  data/ledger.json                   # GITIGNORED: the local ledger's claims. Run state
-  data/baseline.json                 # GITIGNORED: the local ledger's sections. Run state
-  data/drafts.json                   # GITIGNORED: the local ledger's drafts. Run state
-  data/judgements.json               # GITIGNORED: why each claim was routed. Run state
+  data/mongo/                        # GITIGNORED: mongod's own dbpath. Run state
+  snapshots/wiki-db.dummy.json       # the wiki's tables, canonical; FE/data/ gets a copy
   scripts/seed_drafts.py             # fixture queue -> one reviewable draft; also the demo reset
   scripts/pull_snapshots.py          # rebuilds snapshots/ from the live API; re-runnable
   scripts/build_demo_state.py        # snapshots/ + ledger core -> FE/data/demo-state.json
   scripts/ingest_baseline.py         # fills data/baseline.json from snapshots/ or our wiki
   scripts/classify_once.py           # one claim through classify; records the cassette
-  scripts/seed_claims.py             # the demo's claims -> the ledger, backdated so they
-                                     #   are due. Stands in for the proposal stage
+  scripts/propose_claims.py          # reads the monitored pages and fills the ledger;
+                                     #   idempotent, so it can run every tick
   scripts/run_once.py                # one tick by hand: the graph, replayed or live
   FE/
     index.html                       # <-- read first: shell, nav, mount point
     app.js                           # state loading, routing, the three views
+    wiki-api.js                      # <-- THE WIKI: action-API shapes over in-memory tables
     wikitext.js                      # deliberately partial wikitext -> HTML renderer
     styles.css                       # all styling; no framework, no external assets
     check.js                         # FE verification — counts, not eyeballing
     data/demo-state.json             # generated fallback state; never hand-edit
+    data/wiki-db.json                # the wiki's tables; generated, never hand-edit
     README.md                        # routes, data flow, licensing scope, known limits
   snapshots/
     manifest.json                    # provenance: revid, sha256, size, drift, licence
@@ -412,10 +477,12 @@ Rules that fall out of this shape:
   tests/test_wiki_write_tool.py      # heading re-resolution, and the outcomes that aren't raised
   tests/test_ledger.py               # stdlib unittest; no deps, runs today
   tests/test_ledger_store.py         # the codec round trip, and the two stores agreeing
+  tests/mongo_support.py             # a throwaway database per test; skips if mongod is down
   tests/test_ledger_tool.py          # what a node may decide, and what only the core may
   tests/test_ingest.py               # the baseline pass, against the committed corpus
   tests/test_graph.py                # what a run does to the ledger, and the edge that stops
   tests/test_model.py                # what identifies a judgement, and what a replay refuses
+  tests/test_propose.py              # the anchor check, the caps, and idempotence
   tests/test_classify.py             # the prompt's four rules, pinned; and what it won't guess
   tests/test_profile.py              # the seam: one title, two wikis; plus the layout rules
   tests/test_wiki.py                 # query/parse, plus a hash check on committed snapshots
@@ -432,7 +499,7 @@ Rules that fall out of this shape:
 It used to be the `src/` ‖ `backend/` directory split; it is now `backend.core.*` versus
 everything else under `backend/`, which puts the boundary in every import path instead of only
 in the tree. What the line means did not change (`CLAUDE.md` §3): `backend.core` is
-dependency-free — no Firestore, no ADK, no network — and its tests still run on an
+dependency-free — no Firestore, no Mongo, no network — and its tests still run on an
 interpreter with nothing installed. Storage and vendor calls arrive as adapters that import
 *from* it, never the reverse. The wiki client is the first such adapter and shows the shape:
 `fetch()` is the only method that opens a socket, so everything else is tested offline.
@@ -449,10 +516,10 @@ Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
 - `app.py` defers every vendor import into a handler, so a cold container serves
   `index.html` without paying for the SDKs.
 
-Not yet written: the claim-proposal stage, Fan-out, and the claim/section stores' Firestore
+Not yet written: Fan-out (parked, `summary.md` §10) and the claim/section stores' Firestore
 adapter — so `/api/state` and `/internal/tick` are still guarded shells answering 503/501, and
-`scripts/seed_claims.py` stands in for proposal by seeding the fixture's claims into the ledger.
-Built: the six stages that run before the human, assembled as an ADK `Workflow` in
+`scripts/propose_claims.py` fills the ledger by reading the pages.
+Built: the six stages that run before the human, called in order by `Run.execute` in
 `agent/graph.py` and driven by `scripts/run_once.py`; the gate and its routes end to end; and
 all four tools — wiki read, Parallel search, wiki section-write and the ledger — each binding a
 profile and each with a deterministic path behind it, over stores that persist. The whole run
@@ -481,29 +548,22 @@ by the test suite. Never hand-edit a file there — fix the puller and re-run.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[dev]'   # setup (.venv is gitignored)
+./scripts/mongo.sh start                                     # the ledger's database
 
 .venv/bin/python -m unittest discover -s tests               # test
 .venv/bin/mypy                                               # typecheck — strict
 .venv/bin/ruff check .                                       # lint
 node FE/check.js                                             # frontend  — render + wiring
 
-brew services start mariadb                                  # the wiki's database
-./scripts/setup_wiki.sh                                      # install the wiki; idempotent
-php -S localhost:8080 -t wiki                                # serve it (leave running)
-python3 scripts/seed_wiki.py --check                         # does it match the profile?
-python3 scripts/seed_wiki.py                                 # load the 12 pages, verify hashes
-./scripts/install_launcher.sh                                # the Continuity button -> Common.js
-python3 scripts/seed_drafts.py                               # the demo's draft -> the store
-python3 scripts/seed_drafts.py --show                        # verdicts, and what each one wrote
-
 python3 scripts/pull_snapshots.py                            # rebuild snapshots/ (~24 calls)
 python3 scripts/pull_snapshots.py --only current             # refresh the live side alone
 python3 scripts/build_demo_state.py                          # rebuild FE/data/demo-state.json
 python3 scripts/ingest_baseline.py                           # fill the baseline from snapshots/
-python3 scripts/ingest_baseline.py --live                    # ...from our own MediaWiki instead
 python3 scripts/classify_once.py                             # one claim, replayed, no key
 python3 scripts/classify_once.py --live                      # ...against Gemini, and record it
-python3 scripts/seed_claims.py                               # the demo's claims -> the ledger
+python3 scripts/propose_claims.py                            # pages -> claims, replayed
+python3 scripts/propose_claims.py --live --record            # ...against Gemini, and record
+python3 scripts/propose_claims.py --show                     # what the ledger tracks
 python3 scripts/run_once.py                                  # one tick: replayed, no key
 python3 scripts/run_once.py --live --record                  # ...for real, and record it
 .venv/bin/uvicorn backend.app:app --reload --port 8000       # serve FE *and* the API
@@ -536,10 +596,8 @@ not part of the gate: every test runs without it, because the read path has the 
 behind it and the write path is tested against a stub. The wiki is needed to exercise the real
 `action=edit` — which is how the edit-conflict path was verified — and to record the video.
 
-**The wiki is a dev dependency, not a build one.** `setup_wiki.sh` writes every credential it
-generates into `.env` and none to the terminal; `wiki/` is gitignored because it is third-party
-GPL software and a build artifact; the settings that are *ours* live in version control at
-`wiki-config/LocalSettings.overrides.php`, which the generated `LocalSettings.php` requires.
+**There is no wiki to install.** The tables come from `scripts/build_wiki_db.py` and the browser
+loads them. The only service a run needs is MongoDB.
 
 The test line moved to the venv interpreter when `backend/app.py` landed: `tests/test_app.py`
 imports FastAPI, and on a bare interpreter it raises `SkipTest` rather than failing — which would
@@ -566,7 +624,7 @@ too small to need, and cost a second toolchain in the image and a fourth thing t
 
 The ledger core has **no runtime dependencies**, and that is worth keeping: it is why its tests
 run on any 3.10+ interpreter with nothing installed. The venv is needed by the
-route tests, by the ones that wrap a tool in ADK to check its declared schema, and by the ones
+route tests, by the ones that check a tool's declared schema, and by the ones
 that assert the Parallel request body against a mock transport — everything else, the
 snapshot-backed wiki reads and the whole search tool included, runs bare.
 
@@ -632,19 +690,10 @@ Symptom → fix. Append when something costs more than ten minutes and the cause
 non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §12.
 
 - **Every adapter built against `local_wiki()` must be handed the API key.** The profile
-  declares `requires_key`, so `for_profile` raises before any request is made — `seed_wiki.py`
-  had been calling it bare and died on its first line with a message about `.env` rather than
-  about the call → pass `api_key=` at every construction site, including readers.
-- **A fragment-only `Page.navigate` does not reload the page.** Driving the gate over CDP from
-  `#/queue` to `#/verify?…` keeps the same document, so the app kept its in-memory `published`
-  map and reported writes it had not made — against a wiki that had just been re-seeded → send
-  `Page.reload` after navigating, and confirm a write on the wiki's own API rather than from
-  what the page says about it.
-- **The seeder's bot cannot install the launcher.** `MediaWiki:Common.js` needs the
-  `editinterface` right and the BotPassword created by `setup_wiki.sh` carries only
-  `basic,editpage,createeditmovepage`, so an API write there fails as a permissions error long
-  after it looks like a seeding problem → push it with `maintenance/edit.php --user` as the
-  admin account, which is all `scripts/install_launcher.sh` does.
+  declares `requires_key`, so `for_profile` raises before any request is made — the seeder had
+  been calling it bare and died on its first line with a message about `.env` rather than about
+  the call → pass `api_key=` at every construction site, including readers. Still true of any
+  adapter built against that profile, though nothing in the live path builds one now.
 - **`el.hidden` does nothing to a flex element.** `.topbar` and `nav.main` set
   `display: flex`, which outranks the user agent's `[hidden] { display: none }` — so the popup
   gate set `hidden` on both, threw no error, and rendered the full site chrome anyway →
@@ -694,24 +743,9 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **`[[File:…]]` captions contain wikilinks, so `[^\]]*` cannot match them.** A regex strip
   stops at the first `]` of the *inner* link and leaves a trail of stray `]]` through every
   Plot section → brace-match the `[[`/`]]` pairs, same as templates.
-- **`Special:Export` on Fandom is behind Cloudflare** — returns a "Just a moment…" HTML
-  challenge, not XML, so `importDump.php` cannot be used to seed → pull content through
-  `api.php` (unchallenged) and create pages on our instance with `action=edit`.
 - **Model IDs must come from `client.models.list()`, never from docs or recall.** The served
   names carry suffixes the prose drops: `gemini-3.1-pro` 404s with `Publisher model ... was not
   found`, while `gemini-3.1-pro-preview` serves. Enumerate before pinning.
-- **A `Workflow` with no `START` edge fails to construct**, with `Graph validation failed.
-  START node (name: '__START__') not found in graph nodes` from a pydantic validator — the
-  entry point is not inferred from the first edge → `from google.adk.workflow import START`
-  and make `(START, first_node)` the first item in `edges`.
-- **Nodes route by assigning `ctx.route`, not by returning a route key.** A node that returns
-  `{"route": "thin"}` takes the default edge and the dict is just its output, so a conditional
-  backward edge silently never fires → set `ctx.route = "thin"` inside the node body, and give
-  the branching edge a routing map: `(classify, {"thin": research, "ok": draft})`.
-- **`NodeInterruptedError` is internal and not exported from `google.adk.workflow`** (only
-  `NodeTimeoutError` is) — its own docstring says "Internal" → drive the Verify gate with the
-  public `google.adk.tools.request_input` tool and let the runtime raise it, rather than
-  importing it from `workflow._errors` and raising it directly.
 - **Setting `timeout=` on a Parallel call bounds nothing — the SDK retries timeouts.**
   `timeout` is a deadline for *one attempt*; `max_retries` (default 2) makes three of them,
   with exponential backoff in between, so the real ceiling is
@@ -730,24 +764,6 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   is ignored. Found by copying `git ls-files` plus untracked-not-ignored into a temp dir and
   running the suite there; `git status` shows nothing, because an ignored file is not
   "untracked" — it is invisible.
-- **Homebrew's MariaDB refuses `-u root` whatever the password.** Root authenticates over
-  `unix_socket`, so only the OS root can use it → connect as the installing user instead
-  (`mariadb -e '...'` with no `-u`), which Homebrew grants. Applies to every setup command.
-- **Main-account login via `action=login` is deprecated and refused.** A password that works
-  in the browser fails at the API with no useful reason → create a BotPassword. Non-interactive
-  and scriptable: `maintenance/run.php createBotPassword --appid=... <user>`, which removes the
-  `Special:BotPasswords` web step entirely. The username becomes `User@appid`.
-- **A csrf token fetched before logging in is silently useless.** It belongs to the anonymous
-  session, so the edit fails later with `badtoken` and nothing points at the cause → discard
-  any cached token on login. `MediaWikiWriter.login` does this; a test asserts it.
-- **The default rate limit trips while seeding.** Twelve `action=edit` calls back to back
-  exceed the per-account `edit` limit on a fresh wiki, and the failure looks like a permissions
-  problem → raised in `wiki-config/LocalSettings.overrides.php`. Our instance has one client,
-  so the limiter protects nothing here.
-- **MediaWiki 1.43.9 runs on PHP 8.5** despite predating it — `composer.json` says `>=8.1.0`
-  with no upper bound, and the CLI installer, API and maintenance scripts all work. Verified
-  Aug 23, 2026, because the version match with the real MCU Wiki was worth more than staying
-  on a blessed PHP.
 - **`max_results` above 20 is silently reduced, not rejected.** Asking for 30 returns 20
   with `warnings: [Warning(message='Reducing max_results=30 to 20.', type=
   'input_validation_warning')]` — a 200, not an error, so nothing raises and the missing
@@ -774,7 +790,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   stored sources, so a claim that has already been researched asks a *narrower* search — a
   different request, and a cassette miss. That is correct behaviour on a second tick and a trap
   when re-running one: a crashed replay leaves rounds spent behind it, and the next attempt
-  misses on retrieval rather than where it actually failed → re-run `scripts/seed_claims.py`
+  misses on retrieval rather than where it actually failed → re-propose the claims
   before every replay, and read a discarded-search report as "the ledger moved", not "the
   cassette is wrong".
 - **A null field is invisible to a Firestore inequality filter.** `Claim.is_due` treats
@@ -788,39 +804,23 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   `next_check_at` alone and filter status in Python. `due()` orders by
   `(next_check_at, claim_id)` for the same reason: Firestore's implicit tiebreak on
   `order_by` is the document id, so a limited query must page identically in both stores.
-- **Importing an ADK symbol from its package fails mypy while working at runtime.** ADK 2.7
-  builds `google.adk.tools.__all__` at runtime from a lazy mapping, so under `strict` (which
-  implies `no_implicit_reexport`) `from google.adk.tools import FunctionTool` is
-  `Module ... does not explicitly export attribute "FunctionTool"` → import from the concrete
-  module the mapping names, `google.adk.tools.function_tool`. Same shape for the other lazy
-  packages; the mapping at the top of each `__init__.py` is the reference.
-
-## 7. Code conventions
-
-- **A stage is an ordinary method; the node is a wrapper.** Every stage in `agent/graph.py`
-  takes no `Context` and returns a plain dict, and only `build()` imports the SDK — so the
-  pipeline runs, and is tested, on an interpreter with no ADK installed. Same rule as the
-  tools: the logic must not know it is in a graph, or the graph becomes the only way to
-  exercise it. What that costs is that the run's typed intermediates live on the `Run` object
+- **A stage is an ordinary method, and now that is all it is.** Every stage in
+  `agent/graph.py` takes no context object and returns a plain dict — so the
+  pipeline runs, and is tested, on an interpreter with nothing installed. The rule outlived
+  the graph it was written for: the logic must not know how it is being called, which is
+  why replacing the orchestrator changed no stage. What that costs is that the run's typed intermediates live on the `Run` object
   rather than in `ctx.state`, which is deliberate — `Draft` is not JSON, and a codec between
   two halves of one run is somewhere for them to disagree. State carries each stage's summary,
   which is what the event stream is for; the durable artifact is the stored draft.
-- **Catch narrowly inside ADK tools.** ADK 2.0 catches exceptions to drive automatic retry;
-  a broad `except Exception:` masks the failure and permanently disables retry for that step.
-  `except BaseException:` also traps `NodeInterruptedError` and breaks the HITL approval gate.
-  The line to draw is *domain error versus transport error*: a missing page or a missing
-  heading is an answer, so return it as a value the model can act on — retrying it just burns
-  a round trip on something that will never succeed. A timeout, a refused socket or a 5xx is
-  worth retrying, so let it propagate. Concretely: catch `WikiError`, never `URLError`.
 - **A tool binds its `WikiProfile`; it never takes one as an argument.** A profile is not
   JSON, so a model could not pass one — and a tool that let it choose the wiki would hand back
   the decision the profile exists to take away (§2). Every model-facing parameter is
-  JSON-expressible — a scalar, or a list of them — because that is what ADK's schema builder
-  turns into a declaration. Build with a classmethod (`WikiRead.live`,
+  JSON-expressible — a scalar, or a list of them — because that is all a declared schema can
+  carry, and a model can only fill what a schema describes. Build with a classmethod (`WikiRead.live`,
   `WebSearch.recorded`) and hand the bound method to `FunctionTool`.
 - **Every search a claim needs rides one call, and one call is enough.** `sku_search` is
   billed per *call*, not per query, so `search_queries` is a list and the signature enforces
-  the batching; a single-query tool would make fan-out cost four searches for the same
+  the batching; a single-query tool would make one claim cost four searches for the same
   evidence. Splitting retrieval into per-domain or per-tier calls is the tempting mistake, and
   it was measured on Aug 23, 2026 and is not worth it: one default call on demo claim #1
   returned **6 distinct publishers spanning tiers 1, 2 and 3**, against a confidence model that
@@ -966,12 +966,17 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   `Claim` transition; the interval doubles or halves because `decay.py` says so. For the same
   reason `record_research` takes urls and excerpts and looks the tier up itself. The test that
   guards this asserts no write method has a schedule-shaped parameter at all.
+  **There is no `track_claim`** — the claim-creation path was removed on Sept 1, 2026 with
+  claim proposal. Claims are stated by whoever seeds the ledger and constructed directly
+  through `Claim(...).seeded(now)`, so the tool now only ever *reads* a claim or records what
+  happened to one. Anything that creates a claim must still go through `seeded()`, because a
+  stored claim with no wake time is invisible to a Firestore inequality filter (§6).
 - **A claim id is allocated by the store and never derived from the claim — `claim-0001`.** Two
   wrong answers were tried before this one. A *model-chosen* id is phrased differently every
   cycle, so re-auditing the same page doubles the ledger instead of recognising it. An id
   *derived* from page + anchor fixes that and breaks something worse: applying an edit rewrites
   the anchor by definition, so the record is re-keyed on every successful edit and every
-  `ripple_targets` entry pointing at it dangles silently. Identity is assigned once by
+  stored reference to it dangles silently. Identity is assigned once by
   `ClaimStore.next_claim_id` and never recomputed; *finding* a claim is `for_page` plus an exact
   anchor match, which is one equality filter and therefore no composite index (§6). The anchor
   is where a claim sits, not what it is — treating it as identity is the mistake to not make a
@@ -995,16 +1000,17 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   word mid-line. The similarity floor that decides "edited line" from "different line" is
   measured on words alone: count the spaces two unrelated sentences share and every line clears
   it.
-- **Tool logic imports no ADK.** Wrapping happens where the graph is constructed. This keeps
-  the cold-start deferral above honest and keeps every tool — and therefore the demo's
-  deterministic fallback — runnable on an interpreter with nothing installed.
-- **A write addresses a section by heading; the index is re-resolved immediately before it.**
+- **Tool logic imports no SDK.** A tool is a plain object with plain methods, which keeps the
+  cold-start deferral above honest and keeps every tool runnable on an interpreter with
+  nothing installed. It was written for ADK's `FunctionTool` wrapping; it outlived it.
+- **A write re-reads the section immediately before substituting into it.**
   MediaWiki addresses sections by position, so `section=3` means "the fourth heading right now"
   and anything inserted above silently renumbers the rest. A drafted edit can be minutes old at
-  approval, so `WikiWrite.write_section` takes a heading, re-reads the page, resolves the index,
-  and uses that same read's timestamp as `basetimestamp`. There is deliberately no way to pass
-  an index — if there were, a stale one eventually would be. A heading that no longer exists is
-  a reason to re-plan and never to create one (§2), so it comes back with the headings that do.
+  approval, so the writer re-reads the page and uses that same read's timestamp as
+  `basetimestamp`. **Known divergence:** the browser's `editOne` passes the *stored*
+  `section_index` rather than re-resolving it from the heading. Nothing inserts headings today
+  so it has not bitten, but it is the stale-index bug this rule exists to prevent, and it is
+  the thing to fix if a run ever adds a section above another claim's.
 - **A published edit is substituted into the section, never sent as a section.** A drafted edit
   names the text it replaces (`before`) and what that becomes (`after`), so `write_anchor`
   re-reads the section and swaps the one for the other in whatever it says *now*. Sending the
@@ -1026,8 +1032,8 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **An edit conflict is a return value, not an exception — and under §2's single-editor
   assumption it is a guard, not a flow.** Nothing in the review queue asks a human to resolve
   one; the write is simply refused and the claim re-drafted. It means "re-read and re-draft",
-  which is an instruction; raising it makes ADK retry the identical stale text against a page
-  that has already moved, which cannot succeed. Match on `WikiError.code == "editconflict"`,
+  which is an instruction; raising it invites a retry of the identical stale text against a
+  page that has already moved, which cannot succeed. Match on `WikiError.code == "editconflict"`,
   never on the message — MediaWiki distinguishes `editconflict`, `protectedpage` and `badtoken`
   by code and they need different responses. Verified against the real API on Aug 23, 2026.
 - **Reading a page is two calls, never one.** An outline (sections, sizes, revision, no text)
@@ -1044,17 +1050,16 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   finding back to the source before anything could be written, and the mapping is not total —
   templates expand, references renumber. `parse` appears nowhere in the codebase; keep it that
   way.
-- **Never append to `context.session.events`.** It circumvents the 2.0 graph engine and
-  breaks determinism. Return values; let the runner emit.
-- **Import ADK, `google-genai` and `parallel-web` inside the route handlers, never at module
+- **Import `google-genai` and `parallel-web` inside the route handlers, never at module
   top.** Cloud Run scales to zero, so the first request after an idle period pays for whatever
   the module imports — 5-15s of vendor SDK before `index.html` can be served. Deferring the
   imports keeps the frontend fast on a cold container without paying for a warm one.
-- **Stages are graph nodes, not hand-rolled sub-agent calls.** The 8-stage flow with **two**
-  backward edges is an ADK 2.0 Workflow Runtime graph; **Verify** is its HITL pause, and because
-  Fan-out follows the gate the run hits that pause twice. The two edges are
-  `Classify → Research` and `Fan-out → Research`; nothing after Draft routes backwards, so the
-  one-hop fan-out rule is the whole termination argument (§2).
+- **The orchestrator schedules and nothing else.** Six stages in a fixed order plus one
+  `while` for the `Classify → Research` retry, in `Run.execute`. It was an ADK graph until
+  Sept 1, 2026 and the shape did not change when the SDK went, because the shape was never the
+  SDK's — the run has always been deterministic in *which* stage comes next, and agentic in
+  what the stages decide and how far the run reaches (the ledger's schedule, the
+  retry). Do not reintroduce a graph engine to express a fixed order.
 - **The orchestrator routes and holds no opinion.** Every judgement belongs to a specialised
   node with its own system instruction, its own response schema and one question to answer —
   `classify.py`, `draft.py`, `semantic_diff.py`, and claim proposal when it lands. Verify is not
@@ -1115,20 +1120,4 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   that one response and falls back to `FE/data/demo-state.json` itself, so a server-side
   fallback would put a **live** pill above a fixture. This outlives the stub: when Firestore
   lands, a read error is still a 503, never last-known-good demo data.
-- **Fan-out runs after Publish, and reads the applied revision — never the draft.** Order is
-  `… → Verify → Publish → Fan-out → Research`. What implicates other pages is what the wiki now
-  says, and the gate is allowed to change that: a rejection means the dependents should never
-  have been researched, and a hand-edit — which is now the whole point of the Verify gate (§2) —
-  means every dependent drafted from the pre-gate text overstates its premise, which nothing
-  downstream catches. Seed the fan-out from the published text, not from the classification.
-- **Fan-out is capped and non-transitive, and that is what terminates the graph.** It expands the
-  run's working set, so cap the claims it may add per run and never let a fanned-in claim fan out
-  again in the same run. `Fan-out → Research` is a real cycle: the one-hop rule is the only thing
-  that breaks it, so enforce it in the node, not in a config a run could raise. One hop, or a busy
-  news day turns a tick into a full-wiki rewrite that never ends.
-- **Fanned-in claims reschedule as changed.** Halve the interval and pull `next_check_at`
-  forward for every claim fan-out named, whatever the size of its own edit, even if it got none,
-  and even if the per-run cap kept it out of this run. Letting it decay like a quiet claim pushes
-  the cascade's second hop out to the ceiling, which is how a one-hop cap turns into a lost
-  cascade.
 - Typing strictness, design system and state rules: TBD with the first module.

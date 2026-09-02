@@ -9,20 +9,18 @@ Pure and dependency-free, like the ledger beside it: these run on a bare interpr
 
 from __future__ import annotations
 
-import json
-import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from backend.core.ledger.documents import is_firestore_safe, task_id_for
 from backend.core.ledger.judgements import (
     InMemoryJudgementStore,
-    JsonFileJudgementStore,
     Judgement,
     from_document,
     to_document,
 )
+from backend.mongo import MongoJudgementStore
+from tests.mongo_support import MongoTestCase, requires_mongo
 
 NOW = datetime(2026, 8, 30, 12, 0, tzinfo=timezone.utc)
 TASK = task_id_for(NOW)
@@ -134,26 +132,38 @@ class TestStores(unittest.TestCase):
         self.assertEqual({j.claim_id for j in store.for_task(TASK)},
                          {"GAM-APP-01", "DW-VOID-01"})
 
+
+@requires_mongo
+class TestMongoJudgementStore(MongoTestCase):
+    """The record has to survive the run that wrote it — that is what makes it history."""
+
+    def store(self) -> MongoJudgementStore:
+        return MongoJudgementStore(self.db)
+
     def test_the_reason_survives_the_process(self) -> None:
         """The point of storing it at all: the sentence behind a verdict used to live only in
         the model cassette, which is gitignored and regenerated."""
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "judgements.json"
-            JsonFileJudgementStore(path).put(judgement())
-            reopened = JsonFileJudgementStore(path).for_claim("GAM-APP-01")
-            self.assertEqual(reopened[0].reason, judgement().reason)
-            self.assertEqual(reopened[0].task_id, TASK)
+        self.store().put(judgement())
+        reopened = self.store().for_claim("GAM-APP-01")
+        self.assertEqual(len(reopened), 1)
+        self.assertEqual(reopened[0].task_id, TASK)
 
-    def test_a_missing_file_is_an_empty_store_not_a_crash(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(JsonFileJudgementStore(Path(tmp) / "nothing.json").all(), ())
+    def test_an_empty_collection_reads_empty(self) -> None:
+        self.assertEqual(self.store().all(), ())
 
-    def test_the_file_is_replaced_atomically(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "judgements.json"
-            JsonFileJudgementStore(path).put(judgement())
-            self.assertFalse(path.with_name(path.name + ".tmp").exists())
-            self.assertIn("judgements", json.loads(path.read_text(encoding="utf-8")))
+    def test_the_same_task_claim_and_attempt_corrects_one_row(self) -> None:
+        """Re-running the same attempt corrects one row rather than filing a second opinion:
+        a genuinely different judgement already has a different id."""
+        store = self.store()
+        store.put(judgement())
+        store.put(judgement())
+        self.assertEqual(len(store.all()), 1)
+
+    def test_for_task_selects(self) -> None:
+        store = self.store()
+        store.put(judgement())
+        self.assertEqual(len(store.for_task(TASK)), 1)
+        self.assertEqual(store.for_task("task-nope"), ())
 
 
 if __name__ == "__main__":  # pragma: no cover

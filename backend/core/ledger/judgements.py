@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from .documents import as_datetime
-from .store import write_json
 
 #: Local judgement file. Beside `ledger.json` and `baseline.json`, gitignored for the same
 #: reason: it is run state, and it carries third-party excerpt urls.
@@ -198,28 +197,6 @@ class InMemoryJudgementStore:
 
     def for_claim(self, claim_id: str) -> tuple[Judgement, ...]:
         return tuple(j for j in self.all() if j.claim_id == claim_id)
-
-
-class JsonFileJudgementStore(InMemoryJudgementStore):
-    """The local database: one JSON file of the documents Firestore holds.
-
-    Read whole and rewritten whole, like the other local stores — one wiki's judgements are a
-    small file, and an atomic replace is what stops a killed run leaving a truncated one.
-    """
-
-    def __init__(self, path: Path | str = DEFAULT_JUDGEMENTS_PATH) -> None:
-        self.path = Path(path)
-        super().__init__(_read(self.path))
-
-    def put(self, judgement: Judgement) -> None:
-        super().put(judgement)
-        self._flush()
-
-    def _flush(self) -> None:
-        write_json(
-            self.path,
-            {"judgements": [to_document(j) for j in self.all()]},
-        )
 
 
 def _read(path: Path) -> tuple[Judgement, ...]:

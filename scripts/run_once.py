@@ -12,7 +12,6 @@ written to the wiki. Publishing is the gate's button, not this script.
     python3 scripts/run_once.py --live     # Parallel and Gemini for real — this spends money
     python3 scripts/run_once.py --live --record   # ...and record both cassettes for replay
     python3 scripts/run_once.py --limit 1          # one claim
-    python3 scripts/run_once.py --no-graph         # the same stages in order, without ADK
 
 **A fresh clone cannot replay.** Both cassettes are gitignored — they carry third-party web
 excerpts — so the first run has to be `--live --record`, after which the replayed run is
@@ -36,7 +35,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from backend.agent.classify import Classifier  # noqa: E402
 from backend.agent.draft import Drafter  # noqa: E402
-from backend.agent.graph import RunReport, Stages, run, straight_through  # noqa: E402
+from backend.agent.graph import RunReport, Stages, run  # noqa: E402
 from backend.agent.model import (  # noqa: E402
     DEFAULT_CASSETTE,
     GeminiModel,
@@ -54,19 +53,14 @@ from backend.agent.tools.web_search import (  # noqa: E402
     SearchRequest,
     SearchSource,
 )
-from backend.core.ledger.baseline import DEFAULT_BASELINE_PATH, JsonFileBaselineStore  # noqa: E402
 from backend.core.ledger.drafts import (  # noqa: E402
-    DEFAULT_DRAFTS_PATH,
     DraftStore,
-    JsonFileDraftStore,
 )
 from backend.core.ledger.judgements import (  # noqa: E402
-    DEFAULT_JUDGEMENTS_PATH,
-    JsonFileJudgementStore,
     JudgementStore,
 )
-from backend.core.ledger.store import DEFAULT_LEDGER_PATH  # noqa: E402
 from backend.core.profile import local_wiki  # noqa: E402
+from backend.mongo import MongoBaselineStore  # noqa: E402
 
 DEFAULT_SEARCHES = Path("fixtures") / "searches.json"
 
@@ -117,7 +111,7 @@ def on_firestore() -> bool:
     """`DRAFT_STORE` picks the backend for *every* document store a run writes, not only the
     drafts one. One switch, because a run that put its judgements in a file and its draft in
     Firestore would have written half its provenance somewhere nothing reads."""
-    return os.environ.get("DRAFT_STORE", "file").strip().lower() == "firestore"
+    return os.environ.get("DRAFT_STORE", "mongo").strip().lower() == "firestore"
 
 
 def draft_store() -> DraftStore:
@@ -127,7 +121,9 @@ def draft_store() -> DraftStore:
         from backend.firestore import FirestoreDraftStore
 
         return FirestoreDraftStore(project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None)
-    return JsonFileDraftStore(os.environ.get("DRAFT_STORE_PATH") or REPO_ROOT / DEFAULT_DRAFTS_PATH)
+    from backend.mongo import MongoDraftStore
+
+    return MongoDraftStore()
 
 
 def judgement_store() -> JudgementStore:
@@ -136,7 +132,9 @@ def judgement_store() -> JudgementStore:
         from backend.firestore import FirestoreJudgementStore
 
         return FirestoreJudgementStore(project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None)
-    return JsonFileJudgementStore(REPO_ROOT / DEFAULT_JUDGEMENTS_PATH)
+    from backend.mongo import MongoJudgementStore
+
+    return MongoJudgementStore()
 
 
 def build(args: argparse.Namespace) -> Stages:
@@ -164,8 +162,8 @@ def build(args: argparse.Namespace) -> Stages:
 
     return Stages(
         profile=profile,
-        ledger=Ledger.local(profile, REPO_ROOT / args.ledger),
-        baseline=JsonFileBaselineStore(REPO_ROOT / args.baseline),
+        ledger=Ledger.local(profile),
+        baseline=MongoBaselineStore(),
         search=WebSearch(profile, source),
         classifier=Classifier(profile, model),
         drafter=Drafter(profile, model),
@@ -176,9 +174,8 @@ def build(args: argparse.Namespace) -> Stages:
     )
 
 
-def report(result: RunReport, *, graph: bool) -> None:
-    how = "ADK graph" if graph else "straight through"
-    print(f"{result.wiki} · {how} · {result.started_at:%Y-%m-%d %H:%M} UTC")
+def report(result: RunReport) -> None:
+    print(f"{result.wiki} · {result.started_at:%Y-%m-%d %H:%M} UTC")
     print(f"{result.task_id} — every document this run wrote names it\n")
     print(f"  audit       {result.due} claim(s) due")
     print(
@@ -198,6 +195,8 @@ def report(result: RunReport, *, graph: bool) -> None:
         print("  verify      nothing to review; no draft stored")
     for claim_id in result.unresolved:
         print(f"  ! {claim_id} left unresolved — the sources disagree, and its card says so")
+    for line in result.unjudged:
+        print(f"  ! {line[:110]}")
     for claim_id in result.skipped:
         print(f"  ! {claim_id} has no baseline section; run scripts/ingest_baseline.py")
     for claim_id in result.failed:
@@ -209,9 +208,6 @@ def main() -> int:
     parser.add_argument("--live", action="store_true", help="call Parallel and Gemini for real")
     parser.add_argument("--record", action="store_true", help="with --live, write the cassettes")
     parser.add_argument("--limit", type=int, default=25, help="how many due claims to take")
-    parser.add_argument("--no-graph", action="store_true", help="run the stages without ADK")
-    parser.add_argument("--ledger", default=str(DEFAULT_LEDGER_PATH))
-    parser.add_argument("--baseline", default=str(DEFAULT_BASELINE_PATH))
     parser.add_argument("--searches", default=str(DEFAULT_SEARCHES))
     parser.add_argument("--cassette", default=str(DEFAULT_CASSETTE))
     args = parser.parse_args()
@@ -220,8 +216,8 @@ def main() -> int:
         raise SystemExit("--record only means something with --live: a replay has nothing new")
 
     stages = build(args)
-    result = straight_through(stages) if args.no_graph else run(stages)
-    report(result, graph=not args.no_graph)
+    result = run(stages)
+    report(result)
     return 0
 
 

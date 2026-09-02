@@ -24,7 +24,7 @@ and nothing downstream is waiting on it.
 | | |
 |---|---|
 | Opened | July 27, 2026 |
-| Deadline | **Sept 7, 2026, 2:00 PM PT** (= 5 PM ET) |
+| Deadline | **Sept 9, 2026, 2:00 PM PDT** (= 5 PM EDT). Re-read off the live rules and overview pages Sept 1, 2026; both say Sep 9. Every document here said Sept 7 until then — recorded wrong on Aug 11, or extended since, with no notice either way on the page |
 | Judging | Sept 23 – Oct 7, 2026 |
 | Team size | Max 4 people |
 | Cloud credits | $100 via form, **request by Aug 31, 2026** |
@@ -212,16 +212,15 @@ the integration must be present in your code."*
 ### Control flow (8 stages, 2 backward edges)
 
 ```
-Audit ──→ Research ──→ Classify ──→ Draft ──→ Diff ──→ Verify ──→ Publish ──→ Fan-out
-          ▲  ▲            │                            (human)    (button)       │
-          │  └────────────┘                                                      │
-          │    thin retrieval                                                    │
-          └──────────────────────────────────────────────────────────────────────┘
-               one hop, capped, and only for an edit a human approved
+Propose ──→ Audit ──→ Research ──→ Classify ──→ Draft ──→ Diff ──→ Verify ──→ Publish
+(the page)              ▲              │                             (human)    (button)
+                        └──────────────┘
+                          thin retrieval
 ```
 
 | Stage | What it does |
 |---|---|
+| **Propose** | reads a monitored page and records what it asserts — one claim per assertion, each anchored on the exact wikitext it rests on. The page's turn; no web access |
 | **Audit** | hands over the claims whose `next_check_at` has passed, and says why it passed over the rest |
 | **Research** | one batched Parallel search per claim set, against the objective the ledger holds |
 | **Classify** | Gemini reads the excerpts against the page and sorts each claim: still true / new / conflicting |
@@ -229,7 +228,6 @@ Audit ──→ Research ──→ Classify ──→ Draft ──→ Diff ─�
 | **Diff** | reads the edit for what it did to the *ideas* already on the page — kept, added, dropped or reversed |
 | **Verify** | the human gate. Every section with a diff is a card: the reviewer reads it beside the Diff stage's flags, edits the text in place if they want to, and accepts or rejects. Accepting writes nothing. No model call |
 | **Publish** | the write, and the second gate. One button over the accepted set, unlocked only once every card has a decision, so the run can still be discarded whole. The API then applies each approved text with `action=edit&section=N`. The only stage that touches the wiki |
-| **Fan-out** | takes the edit that was *actually applied* and expands it into the claims it implicates on other pages |
 
 **Before Audit, and outside the graph:** the baseline ingest reads every page in
 `WikiProfile.pages`, splits it, and stores the sections verbatim. It is deterministic — no model
@@ -243,14 +241,13 @@ Both are cases where the fix is a human reading the edit rather than a second ma
 and an automatic-retry edge into Draft would double the termination surface the one-hop fan-out
 rule already has to carry. This is the Aug 30, 2026 simplification recorded below.
 
-The two backward edges are where the agentic behaviour lives — `Classify → Research` because a
-stage's output decides whether the next one runs, and `Fan-out → Research` because it decides
-how much of the wiki this run touches at all. The run ends at Fan-out; the next tick re-enters
-at Audit.
+The one backward edge is where the agentic behaviour lives — `Classify → Research`, because a
+stage's output decides whether the next one runs. There were two until Sept 1, 2026;
+`Fan-out → Research` went with the stage, and the section describing it below is parked rather
+than current (§10, "Fan-out").
 
-**Eight stages, but not one process.** As built (Aug 30, 2026) one ADK invocation carries Audit
-through Verify and finishes by storing the draft; Publish is a route a person presses, and
-Fan-out has nothing to expand until that press has applied an edit. So the diagram is a cycle
+**Not one process.** As built, `Run.execute` carries Propose through Verify and finishes by
+storing the draft; Publish is a button a person presses. So the diagram is a cycle
 through a human, not a single run — which is why Verify is a store rather than a held
 invocation, and why neither of the last two stages is a node in the graph (`AGENTS.md` §2).
 
@@ -428,7 +425,13 @@ Its rules are reasoned rather than measured, which is the difference between thi
 Classify — the classify prompt's four rules each came from a benchmark. The harness that
 produces those numbers is the open item in Phase 1, and it now has a second stage to cover.
 
-### The fan-out stage — decided Aug 22, 2026; moved after Publish Aug 29, 2026
+### The fan-out stage — designed Aug 22, 2026; **parked Sept 1, 2026**
+
+> **Not built, and its code is removed.** This section is the design, kept because it is
+> settled and worth resuming from — `summary.md` §10 carries it as an *if time permits* item.
+> Nothing in the pipeline references it: `Ledger.link_ripple_targets` and
+> `Claim.ripple_targets` are gone. Read the rest of this section as a plan, not as a
+> description of what runs.
 
 A confirmed fact rarely belongs to one claim. Gambit's *Doomsday* casting lands on `Gambit`,
 on `Phase Six`, and on the film page's appearances context (`seed-plan.md` §4.1) — one search,
@@ -556,19 +559,20 @@ now, in `AGENTS.md` §2, because getting either wrong is a failure that appears 
 
 ### Stack
 
-The layer-by-layer table lives in `AGENTS.md` §3. What matters here is *why*: ADK because
-Resources Phase 4 recommends it over external wrapper libraries and the rules' accepted-package
-list leads with it; Parallel's own SDK because the wrapper routes carry compliance risk (§5);
-Firestore because the ADK 2.0 Event schema keeps growing (§12); a human approval gate because
-that is the judging criterion, not a nicety.
+The layer-by-layer table lives in `AGENTS.md` §3. What matters here is *why*: Parallel's own SDK
+because the wrapper routes carry compliance risk (§5); a document store because the stored shape
+keeps growing and a relational schema would need migrating before every run; a human approval
+gate because that is the judging criterion, not a nicety. ADK was here too, as the orchestrator
+— it went on Sept 1, 2026 when the routing turned out never to have been a judgement (§10).
 
 ### Deployment shape — decided Aug 15, 2026
 
 The topology itself is in `AGENTS.md` §3. What matters here is why it is one Python container
 rather than the obvious two-tier web app.
 
-**The agent decides the stack, not the frontend.** ADK is Python-only, so a Python process has
-to exist no matter what the UI is written in. Next.js was the instinctive choice and is the
+**The agent decides the stack, not the frontend.** The ADK-era reasoning was that ADK is
+Python-only; the SDK is gone but the conclusion stands, because `google-genai` and
+`parallel-web` are Python and a Python process has to exist no matter what the UI is written in. Next.js was the instinctive choice and is the
 wrong one here: it would add a second runtime, a second deploy and a second cold start, plus
 CORS between them, to host a UI that has no server-side work to do. React without Next was
 rejected separately — a React SPA compiles to static files and would cost nothing extra to
@@ -622,8 +626,19 @@ AI-usage clause leaves non-AI services unrestricted — but it puts MediaWiki on
 less-travelled DB path and moves the demo's data off GCP. An always-free `e2-micro` VM running
 MediaWiki and MariaDB also costs nothing, but it is a VM to babysit two weeks out and it trades
 the scale-to-zero story for a machine that is always on. Both spend scarce engineering time to
-save ~$16 through judging, against $100 of credits confirmed received Aug 23, 2026. Cloud SQL is
-the boring answer and the right one.
+save ~$16 through judging, against $100 of credits confirmed received Aug 23, 2026. Cloud SQL
+was the boring answer and the right one *for a real MediaWiki*.
+
+**Superseded Sept 1, 2026: there is no MediaWiki and no database behind it.** The wiki is now
+simulated — page and revision rows held as text files in MediaWiki's own table shape, loaded
+into Python, mutated by a write and reset back to the dummy data. That removes the second Cloud
+Run service, the Cloud SQL instance, and with it the only line in this project that bills while
+idle. **Firestore is unaffected and stays** — the ledger is real state and is the thing the
+agent's memory is made of; the wiki is the thing being *edited*, and for a proof of concept an
+edit that lands in memory demonstrates the same pipeline as an edit that lands in MySQL. The
+gcsfuse finding above is kept because it is still why nobody should retry SQLite-on-a-bucket;
+the rest of the paragraph is history. Full reasoning and what it costs: the decision-log entry
+"The wiki is simulated" in §10.
 
 **Two costs are deferred, not avoided.** Cold start is 5-15s if the container imports the
 vendor SDKs at module load, which a judge would experience as a broken link; the fix is lazy
@@ -798,18 +813,14 @@ The one thing local work genuinely cannot prove is whether `continuity-run@`'s t
 sufficient, because local ADC runs as the project Owner and therefore always succeeds; service
 account impersonation closes even that, and it is Phase 2's first item.
 
-As of Aug 30, 2026 the critical path is **(1)** recording a run against live retrieval,
-**(2)** recording the demo video, **(3)** the deploy weekend. The wiring is done: six of the
-eight stages run as one ADK graph, Audit through Verify, and what comes out is a stored draft
-the gate reviews and the publish route writes. Two stages are outstanding and neither blocks a
-demo — claim proposal, the last one that needs a model, which `scripts/seed_claims.py` stands
-in for; and Fan-out, which is triggered by a publish rather than reached from Audit. Item (1)
-is now the real one: the run replays from cassettes that a fresh clone does not have, so it has
-to be run live once and recorded before it says anything true. The local MediaWiki, which held
-item (2) until Aug 29, is up, seeded and verified, so the agent has somewhere it is allowed to
-write.
-Both vendor perimeters — Gemini/ADK and Parallel — are proven and the FastAPI shell is written,
-so what is left is the agent itself. Nothing here is blocked on an unknown API.
+As of Sept 1, 2026 the critical path is **(1)** the chunker that stops proposal anchoring
+inside wikitext markup, **(2)** recording the demo video, **(3)** the deploy. The wiring is
+done: Propose through Verify runs as plain Python, a run is started from the article's own
+button and narrated stage by stage, and what comes out is a stored draft the gate reviews and
+publishes. Item (1) is the one that changes what a judge sees — today a run can propose a claim
+anchored on a `{{template}}` parameter, and the edit that follows corrupts the markup rather
+than the prose. Neither vendor is a risk any more: both have been called live and both replay
+from cassettes.
 
 **The wiki and the graph swapped places on Aug 23, 2026,** once the read tool landed with a
 snapshot-backed `PageSource` behind it. Every read stage — audit, classify, draft, verify —
@@ -1972,6 +1983,227 @@ is pasting a URL into a form.
       **leaked loop variable** — the last claim of the previous sweep rather than its own. It
       had been correct only by accident of iteration order.
 
+
+- [x] **The wiki is simulated, and the endpoints stay real** — decided Sept 1, 2026, and it is a
+      proof-of-concept scope cut taken deliberately. Until now the agent wrote to a genuine
+      MediaWiki 1.43.9 on MariaDB, installed natively by `setup_wiki.sh` and destined for a
+      second Cloud Run service on Cloud SQL. That whole half is dropped. **The page and revision
+      data becomes text files in MediaWiki's own table shape** — `page`, `revision`, the slot
+      text — seeded from `snapshots/seed/`, loaded into Python at boot, mutated in place by a
+      write, and reset back to the dummy data. No MariaDB, no PHP, no `wiki/` tree, no Cloud
+      SQL.
+
+      **What is deliberately *not* faked is the interface.** The action API endpoints are
+      implemented as if a real wiki on a real database sat behind them, so
+      `MediaWikiReader` and `MediaWikiWriter` are untouched and still do every real thing they
+      did: `action=query&prop=revisions` for raw wikitext, `action=edit&section=N` addressed by
+      a re-resolved heading index, `basetimestamp` as the conflict guard, and `editconflict`
+      coming back as a code rather than a message. The adapters cannot tell, which is the whole
+      point — the seam that would have to be rebuilt for a real wiki is a URL, exactly as
+      `AGENTS.md` §2's plug-and-play rule already requires.
+
+      **Why this is not a loss for the demo.** What a judge has to believe is that the agent
+      writes to real state through a real interface and that a human gate stands in front of it.
+      Both survive: the write goes through the same adapter, the same guard, and the same
+      publish route, and the reviewer still watches a page change. What is lost is that the
+      state is durable, which no beat in §9 depends on — the video is one run, and a demo reset
+      was already a scripted step. **The table shape is the hedge:** if a real wiki comes back,
+      the rows already have somewhere to go.
+
+      **Firestore stays, and the asymmetry is the point.** The ledger is the agent's memory —
+      what it tracks, when it last checked, why it routed a claim as it did — and it is what
+      makes this stateful rather than a prompt chain (§6), so it is real state in a real
+      database. The wiki is the thing being *edited*. Faking the second while keeping the first
+      is the honest split: the agent's own reasoning persists, and the artefact it edits is a
+      fixture.
+
+      **Three things it removes**, all of which were carrying cost: the second Cloud Run service
+      and the Cloud SQL instance behind it, which was the only line in the project that billed
+      while idle (~$16 through judging, §6); the whole native-install path — `setup_wiki.sh`,
+      MariaDB, `php -S`, the BotPassword dance — and the Phase 1 item that was going to
+      containerise it; and a class of gotchas in `AGENTS.md` §6 that only existed because a real
+      MediaWiki did.
+
+      **Two consequences that need deciding rather than assuming, both flagged when this was
+      taken.** *The reset must not fire on every article load.* `window.opener` is preserved so
+      that publishing reloads the article behind the popup and the reviewer sees the edit land
+      (`AGENTS.md` §2); if a page load resets the tables, that reload renders the un-edited page
+      and the strongest visual moment in the demo shows nothing. The reset belongs on app boot,
+      a button, or an explicit route. *And the launcher loses its target.* The Continuity button
+      is installed as `MediaWiki:Common.js`, which needs a `MediaWiki:` namespace that no longer
+      exists, so `wiki-config/` and `scripts/install_launcher.sh` have nothing to attach to. The
+      article the reviewer reads becomes the frontend's own `#/wiki/<slug>` view, which already
+      renders the seeded wikitext — and being same-origin by construction, it satisfies for free
+      the origin constraint that drove the popup design in the first place.
+
+      **Not yet built.** This entry records the decision; the code still speaks to a real
+      endpoint. The simulated backend, the table-shaped fixtures and the launcher's move onto
+      the page view are Phase 1 items below.
+
+
+- [x] **The ledger becomes a real database, and gives up its fallback** — decided Sept 1, 2026,
+      at your call and against `CLAUDE.md` §3. The JSON file stores — claims, sections,
+      judgements, drafts — are deleted. Persistence is MongoDB locally (`backend/mongo.py`,
+      `./scripts/mongo.sh start`) and Firestore deployed, behind the same four protocols.
+
+      **The waiver is the interesting part.** §3 requires every external source to have a
+      deterministic fallback, and the ledger no longer has one: with no database a run raises
+      instead of starting from an empty ledger. That is the better failure. The alternative —
+      falling back to in-memory — means a tick that silently found nothing, a gate that
+      silently offers no cards, and a decay ladder that silently restarts at its wave seed, all
+      looking exactly like an agent that did its job and had nothing to say. The waiver is
+      scoped to the ledger alone: retrieval keeps its cassette, the model keeps its cassette,
+      and the wiki keeps its committed corpus, because those degrade into *less* capability
+      rather than into a convincing lie.
+
+      **What survives it.** The `InMemory*` stores stay as the protocol's reference
+      implementation and as what the suite runs against, so the core's tests still need nothing
+      installed — 567 pass with mongod down, 45 of them skipping. They are a test double now,
+      not a path a demo may take. And the port is still a transport swap: `documents.py` emits
+      only value types Firestore *and* MongoDB accept, so both adapters hand a document over
+      untranslated.
+
+      **Two Firestore constraints are carried into the Mongo adapter deliberately**, because
+      the point of the local store is to behave like the one it ports to: `put` refuses a claim
+      with no `next_check_at`, since a null field is invisible to a Firestore inequality filter;
+      and `due()` filters and sorts on that one field with `_id` only as a tiebreak, since
+      Firestore's implicit tiebreak is the document id and a limited query has to page the same
+      way in both. Identity is the natural id in `_id`, so a re-`put` replaces a row rather
+      than appending a second one.
+
+      **MongoDB rather than the Firestore emulator**, which would have been more faithful:
+      the emulator needs a JRE and a `gcloud` component, neither installed, and it does not
+      enforce composite-index requirements anyway — so it would not have caught the class of
+      bug the single-field due query exists to avoid. Mongo was already on the machine.
+
+      Measured after the move: 12 pages and 284 sections ingested into `sections`, the six demo
+      claims into `claims`, both read back across a full stop/start of the server.
+
+
+- [x] **The orchestrator stops being a graph engine** — decided Sept 1, 2026, at your call.
+      `agent/graph.py` was one ADK `Workflow`: six nodes, a `START` edge, a routing map, and a
+      runner. It is `Run.execute` now — the six stage methods called in order, with the
+      `Classify → Research` edge as a `while self.pending:` loop.
+
+      **The argument for it is that the routing was never a judgement.** §4's litmus test asks
+      whether the agent could be replaced by `stepA(); stepB(); stepC()`, and for the
+      *scheduling* the honest answer was always yes: no model has ever decided which stage runs
+      next, `AGENTS.md` §7 has said "the orchestrator routes and holds no opinion" since the
+      design, and the nodes were already thin wrappers over methods that took no context — the
+      SDK was executing a fixed order and charging an import for it. What makes this agentic
+      was never the executor: it is the ledger deciding which claims a run touches, fan-out
+      widening the working set from a human answer mid-run, and the retry edge sending thin
+      retrieval back rather than forward. All three are untouched.
+
+      **What it cost, stated plainly: the "Google Cloud Agent Builder" leg of §2's hard
+      requirement.** `google-adk` headed the accepted-package list and was our reading of
+      Agent Builder — a reading §12 already flagged as inference rather than quotation. Gemini
+      is still imported and called at runtime through `google-genai`, which is on the same
+      accepted list, so the packages requirement is satisfied; what is now unrepresented is the
+      Agent Builder phrase specifically. That is a submission-description problem rather than a
+      code one, and it is worth a sentence there: the run is deterministic by design, and the
+      autonomy is in the ledger and the fan-out, not in a scheduler.
+
+      **Nothing else moved.** The stages are the same methods with the same inputs, the
+      termination argument is the same — `research()` refuses a claim whose budget is spent, so
+      `pending` empties on its own — and a replayed tick produces the same six claims, two
+      cards and one stored draft it did through ADK. `RunReport` gained `stages`, the run's own
+      account of where it went, which is what the graph object used to be inspected for; the
+      tests that read edges off a `Workflow` now read behaviour off a run, and they no longer
+      need the venv. `straight_through`, which existed only because the graph needed a
+      no-SDK twin, is gone: there is one path now.
+
+
+- [x] **`track_claim` is removed, and claim proposal is out of scope for now** — decided
+      Sept 1, 2026, at your call. The tool's claim-*creation* method is gone; `due_claims`,
+      `read_claim`, `record_research`, `record_outcome` and `link_ripple_targets` stay,
+      because `agent/graph.py` calls four of them on every run and removing those would
+      delete the pipeline rather than the claim tool.
+
+      **What it costs is worth stating, because it is the product's premise.** A claim is the
+      unit of scheduling: it is what carries `next_check_at`, what makes the decay ladder
+      per-fact rather than per-page, what gives retrieval an answerable question, and what
+      holds the `wikitext_anchor` an edit patches. Nothing now *creates* one — the six in the
+      ledger are seeded by `scripts/seed_claims.py` from hand-written fixtures, and 9 of the
+      12 ingested pages have no claim at all. The agent therefore re-checks a fixed set rather
+      than a set it discovered.
+
+      **What was already true and stays true:** proposal was never built. This removes the API
+      it would have called, not a working stage. The path back is the same as it was — read
+      the baseline sections already in Mongo, propose assertions with verbatim anchors, store
+      them — and it needs a prompt that has never been written.
+
+      Rejected on the way: feeding proposal from Parallel's output. Research is keyed on a
+      claim id, so it cannot precede claims; and a claim derived from a web excerpt carries no
+      `wikitext_anchor`, so its edit could never apply. The input with anchors in it is the
+      page.
+
+
+- [x] **Claim proposal is built, and the ledger fills itself** — Sept 1, 2026.
+      `backend/agent/propose.py` reads a page's stored sections and returns the claims that
+      section asserts; `scripts/propose_claims.py` drives it. `scripts/seed_claims.py` and its
+      six hand-written fixtures are deleted. The agent now tracks a set it found.
+
+      **The input is the page, not the web,** and that was the design question. Retrieval was
+      the obvious source and is the wrong one twice over: Research is keyed on a claim id so it
+      cannot precede claims, and a claim drawn from a web excerpt carries no `wikitext_anchor`
+      — so its edit could never be applied. The page is the only input with anchors in it.
+
+      **The anchor is checked, not trusted.** Every proposal must be a verbatim, unique
+      substring of the section or it is dropped with a reason. A paraphrase is an edit that can
+      never apply; a repeated span is one `write_anchor` refuses at publish, hours later.
+
+      **Three things a live run taught that no amount of reading would have.** *The cap was
+      misnamed and bounded nothing* — `MAX_PER_PAGE` was enforced inside a per-section call, so
+      Gambit's 19 sections produced **50 claims** under a cap of 6, and at one search per claim
+      per tick that is 50 Parallel calls for one page forever. Now `MAX_PER_SECTION` and a real
+      `MAX_PER_PAGE` counted across sections and against what is already tracked. *A freshly
+      proposed claim was scheduled 45 days out* — `seeded()` schedules as though the claim had
+      just been confirmed, which is false of one nobody has ever asked the world about, so a
+      cold start built a ledger and then audited nothing. It is pulled due immediately; the
+      interval is untouched. *And one malformed answer aborted the whole run* — Classify did
+      not catch `ModelError`, so a `conflicting` verdict returned without its two sides took
+      the tick down **after twelve billable searches had been spent**. Both sweeps now catch
+      per claim, report the id and the reason, and let the claim come due again.
+
+      **Measured after the fixes, live:** 12 claims proposed from Gambit, 12 researched over
+      **2 rounds** — the backward edge firing on real data — 2 conflicting, 1 new, 6
+      still_true, 1 reclassified by the second sweep, 3 edits drafted and a draft stored with 3
+      cards. Three claims lost their judgement to malformed answers and were reported rather
+      than fatal, which is the fix earning its place on the run that introduced it.
+
+      **Left open, and visible:** the model returns `conflicting` without the required conflict
+      block about a quarter of the time. The schema cannot express "required when bucket is
+      conflicting", so the prompt is the only lever and it is not holding. Raising is correct —
+      `AGENTS.md` §2 says a disagreement recorded without both sides is not reviewable — so the
+      fix is prompt work, not a weaker check.
+
+
+- [x] **Runs are sealed: the button starts one, and it creates its own data** — decided
+      Sept 1, 2026, at your call. `POST /api/runs` mints a task id, proposes that run's claims
+      under it, and hands the graph a claim store scoped to it, so a run reads only what it
+      wrote. `GET /api/runs/{id}` reports progress and the popup's stage rail narrates it.
+
+      **What it fixes** was a real and confusing failure: pressing the button a second time did
+      nothing visible, because the first run had classified its claims `still_true` and the
+      ledger had correctly doubled them to ninety days out. The agent was working exactly as
+      designed and the screen could not tell that apart from a broken button.
+
+      **What it costs is the ledger's whole point, and that is not a slip.** The decay ladder,
+      the memory between ticks, "have I already checked this" — all of it is cross-run state,
+      and a sealed run has none. It proposes, researches once, drafts, and its schedule dies
+      with it. The right long-term shape is that the *scheduled* tick runs unscoped, against
+      the real ledger, and only the button's run is sealed — the tick is the thing the ladder
+      was built for and it is not yet wired.
+
+      Two things deliberately stay unsealed. `next_claim_id` scans every run, because `_id` is
+      the claim id and two runs handing out `claim-0001` would have one silently overwrite the
+      other — measured: 36 claims across 4 runs, 36 unique ids. And `/api/state` reads
+      unscoped, because the ledger view is about the whole ledger rather than one run.
+
+      Measured after the change: two consecutive presses over the same page both report
+      `proposed=12 due=12 researched=12`, where the second used to report nothing due.
+
 ### Phase 1 — local; nothing in the cloud has to exist
 
 Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
@@ -1991,26 +2223,6 @@ gets cut to protect it.
       database at all; the Firestore adapter lands behind the same protocol without a node
       noticing
 
-- [ ] Build the 8-stage ADK graph. **Six of the eight landed Aug 30, 2026** — Audit through
-      Verify, in `backend/agent/graph.py`, with the `Classify → Research` edge and the budget
-      check that bounds it; the decision-log entry above records what was decided and why. Two
-      pieces of this item remain, and neither is a node in the graph as built:
-
-      **Fan-out**, the eighth stage, which runs after an edit has actually been applied and so
-      is triggered by the publish route rather than reached from Audit. It carries the second
-      backward edge to Research, and the node must refuse to fan out a claim that was already
-      fanned in, which is what terminates the cycle. The reschedule rule needs no core change:
-      `decay.next_interval(..., changed=True)` already exists, so the node calls it for every
-      claim it named. Where it lives is the open question — a second small `Workflow` behind the
-      publish route is the obvious shape, since the run that drafted the edit has ended.
-
-      **Claim proposal**, which is what fills the ledger Audit reads. `scripts/seed_claims.py`
-      stands in for it today. It is the last stage that still needs a model, and it needs the
-      audit tool it already has (`track_claim`), a baseline that already exists, and a prompt
-      that has never been written.
-
-      The Verify-as-`request_input` plan recorded here is superseded: the run ends at Verify and
-      the stored draft is the pause (`AGENTS.md` §2).
 
 - [x] **Closed-world claims are not a defect to phrase away** — decided Aug 30, 2026, and it
       cancels the item this replaces. `GAM-APP-01` says "Gambit's *only* film appearance is
@@ -2045,26 +2257,7 @@ gets cut to protect it.
       `gcloud components install cloud-firestore-emulator` — neither present as of Aug 23, 2026.
       The emulator does not enforce composite-index requirements, so the due query stays on
       `next_check_at` alone (`AGENTS.md` §6)
-- [ ] **Build the Verify gate — the `FE/` rework plus the publish route.** Since Aug 30, 2026
-      this *is* the Verify stage (§6), not decoration on it, which moves it from cosmetic rework
-      to a critical-path item. The queue already renders a drafted edit as a git-style diff and
-      takes approve/reject over it. Four things are missing. **The bucket split**, with a *still
-      true* view that shows confirmations rather than hiding them and a side-by-side conflict
-      view; `build_demo_state.py` has to emit the bucket per claim. **The flags**, which are
-      computed and invisible — `Draft.payload()` carries `bucket`, `shape` and `flags` and
-      `Review.payload()` carries the idea-level `verdict` and its per-assertion changes, and the
-      queue renders none of it, so an `overreached`, `uncited` or `hidden_by_text` card looks
-      exactly like a clean one. `hidden_by_text` matters most: the diff renders green and the
-      edit reversed what the passage asserted, so the rendering the reviewer trusts is the one
-      misleading them. ~~**An editable draft**~~ and ~~**the publish button**~~ — both built
-      Aug 30, 2026 with the launcher (entry above): the reviewer changes the text in place and
-      approve publishes that text, not the agent's proposal. ~~**The server half**~~ landed the
-      same day (entry above): the route re-reads the section, substitutes the approved text and
-      answers with the revision it created — and the draft it works from is now stored, so the
-      verdicts and the hand-edits survive a reload. What is left of this item is the two
-      rendering gaps above: the bucket split, and the flags. Since fan-out runs after the gate,
-      an approval also *adds* cards, so the queue has to handle growing and not only shrinking.
-      Rework of a passing component, so re-run `node FE/check.js`
+
 - [ ] Before recording, confirm the run actually produced at least one conflict — §9 beat 6
       depends on it. Not a decision, a check: if the week is quiet, widen the research
       objective or close on a different beat
@@ -2074,12 +2267,36 @@ gets cut to protect it.
       localhost with the URL bar cropped — a visible `localhost:8000` reads as unfinished, and
       nothing in the rules requires the video to show the hosted URL. Budget two passes: the
       first run always exposes a beat that does not read on camera
-- [ ] **Move the local wiki into Docker** — after the native install works, not before. Same
-      two services, same `LocalSettings.php`, same seeder pointed at a new endpoint; the value
-      is that the deploy weekend then ships a container that has already been proven locally
-      rather than one written on the day. Nothing on the agent side changes, which is the point
-      — `MEDIAWIKI_API_URL` moves and no code does. Parked deliberately: it is a packaging
-      task, and packaging a thing that does not yet run is how a day disappears
+
+- [ ] *If time permits* — **Fan-out: an approved edit expanding into the claims it
+      implicates.** Designed at length and **removed from the code on Sept 1, 2026** —
+      `Ledger.link_ripple_targets` and `Claim.ripple_targets` are gone, and nothing in the
+      pipeline references it. Parked rather than abandoned, because the design is settled and
+      the reasoning is worth keeping:
+
+      *What it is.* Gambit's *Doomsday* casting lands on `Gambit`, on `Phase Six`, and on the
+      film page's appearances context — one search, three pages. Fan-out turns an **applied**
+      edit into the full set of claims it implicates and hands that widened set back to
+      Research.
+
+      *Three rules it has to keep.* It runs **after the gate and the write**, never before:
+      what implicates other pages is what the wiki now says, and a reviewer may reject an edit
+      or soften it, so drafting dependents from a proposal spends work on a premise that never
+      landed. It is **capped and non-transitive** — one hop, a ceiling on claims added per run,
+      and a fanned-in claim may not fan out again in the same run, or a busy news day turns a
+      tick into a full-wiki rewrite. And **fanned-in claims reschedule as changed**, interval
+      halved, however small their own edit was, because sitting next to a fact that just moved
+      is the best available signal that a claim is about to move too.
+
+      *What its absence costs.* It was one of three things carrying §4's argument that this is
+      an agent rather than a pipeline — the working set decided by a human answer mid-run. Two
+      remain: the ledger deciding which claims a run touches, and the `Classify → Research`
+      edge. It also means the queue only ever shrinks: publishing an edit never adds cards.
+
+      *What its absence does not cost.* Termination. That used to rest on the one-hop rule
+      because `Fan-out → Research` was a real cycle; with the stage gone the only loop is
+      `Classify → Research`, bounded by the per-claim research budget.
+
 - [ ] *If time permits* — **an explicit retrieval-sufficiency criterion.** Gives the "retry: thin
       retrieval" edge a trigger anyone can implement: N sources at or above the claim's tier floor,
       and for a moving claim at least one published after its `as_of`. Fails → broaden the objective
@@ -2147,7 +2364,8 @@ gets cut to protect it.
 
 ### Phase 2 — deploy weekend, Sept 5-6, 2026
 
-Sept 7 is a Monday, so this is the last window. Ordered so the step with an unknown answer comes
+Sept 9 is a Wednesday, so this weekend is still the sane window and there are two working days
+behind it rather than none. Ordered so the step with an unknown answer comes
 first and the metered one comes late. The procedure itself is in `README.md`; this is the order.
 
 - [ ] **Create `continuity-run@` and prove its Gemini role — before anything else.** Grant
@@ -2157,16 +2375,11 @@ first and the metered one comes late. The procedure itself is in `README.md`; th
       whether a three-role service account can call Gemini. Cheap to fix if the role name is
       wrong — Owner on an org-less project grants any role in seconds — but expensive to discover
       after a day spent on the wiki
-- [ ] **Provision** — the eight APIs, Firestore in `us-east1`, the Cloud SQL instance and its
-      `mediawiki` database, and the four Secret Manager entries. Cloud SQL bills from creation
-      rather than from use, which is the whole reason it sits here and not in Phase 1.
+- [ ] **Provision** — the APIs, Firestore in `us-east1`, and the Secret Manager entries. There
+      is no database to stand up for the wiki: it ships with the frontend.
       `--allow-unauthenticated` is already known to be available: the project has no parent
       organisation and no domain-restricted-sharing policy (checked Aug 23, 2026)
-- [ ] **Deploy `mediawiki`, then seed it** — repoint `LocalSettings.php` at the Cloud SQL socket,
-      deploy with `--add-cloudsql-instances` and `--max-instances 1`, create the bot password at
-      `Special:BotPasswords`, and re-run `seed_wiki.py` against the new endpoint. The instance is
-      rebuilt from `snapshots/seed/`, never migrated out of the local database — which is what
-      makes the local-first split free rather than a detour
+
 - [ ] **Deploy `continuity`** — `docker build -t continuity .` first as a pre-flight: local
       Docker is *not* required (Cloud Build builds remotely from `--source .`), but a typo in the
       `Dockerfile` found locally is a two-minute fix instead of a Cloud Build round trip. Then
@@ -2178,29 +2391,31 @@ first and the metered one comes late. The procedure itself is in `README.md`; th
       were wrong
 - [ ] **Submit** — paste the hosted URL into the Devpost form alongside the video and the
       description already finished in Phase 1, and confirm the URL resolves for a logged-out
-      visitor. Deadline **Sept 7, 2:00 PM PT** (= 5 PM ET, §2). This is the only submission
+      visitor. Deadline **Sept 9, 2:00 PM PDT** (= 5 PM EDT, §2). This is the only submission
       step that ever needed the deploy
 
-**8 days left** as of Aug 30, 2026. Both vendor perimeters are built and proven against the real
-thing rather than against a design: Parallel search has made a live call, Gemini classifies a real
-claim through `agent/classify.py`, and the wiki adapters read and write a real MediaWiki that is
-up and seeded. The deterministic core, the seed corpus, the frontend, the service shell and a
-persisting ledger are real, and the baseline pass fills that ledger with no key and no model call.
-**The graph that joins them now exists** — six stages, one backward edge, and a human gate that
-is a stored draft rather than a held invocation. What remains of it is claim proposal, the only
-stage that still needs a model, and Fan-out, which a publish triggers. Then a live recorded run,
-then the video, then the deploy.
+**8 days left** as of Sept 1, 2026 — the deadline is **Sept 9, 2:00 PM PDT**, re-read off the
+live rules page rather than trusted from these notes, which had said Sept 7.
 
-That is a narrower risk than it was a week ago, and a different kind. Nothing left depends on
-an unknown API or an unproven vendor; every external surface has been called and measured, and
-each one has a deterministic replay behind it, so the graph can be built and tested with no key,
-no network and no container. The risk is now assembly, which is the kind you can work through in
-a straight line.
+**The pipeline runs end to end.** A reader presses the corner button on an article; a popup
+opens, starts a run and narrates it stage by stage; the drafted edits arrive as cards; one
+Publish applies the accepted set and the article shows the change. Propose reads the page and
+records what it asserts, Audit hands over what is due, Research buys evidence through Parallel,
+Classify sorts it with Gemini in two sweeps, Draft writes the edit, Diff reads what that edit
+did to the ideas already there, Verify stores the cards. Everything a run decides is in MongoDB
+and every document names the task that wrote it.
 
-The frontend landing first was not the planned order, and it changed what the remaining work
-looks like: the queue and ledger views define the shape the backend has to serve, so
-`/api/state` is now specified by a working consumer rather than designed in the abstract.
-The same JSON that `build_demo_state.py` writes is what Firestore has to produce.
+What is left is not architecture. **Retrieval quality is the open engineering item**: proposal
+anchors on any verbatim substring of a section, including the inside of `{{templates}}` and
+`[[links]]`, so it can hand Draft an anchor whose edit would corrupt the markup rather than the
+prose. That is a deterministic chunking pass in the core and it is the next thing to build.
+After it: the video, the classify benchmark, and the deploy.
+
+The risks that used to dominate are gone. Every external surface has been called and measured,
+each has a deterministic replay behind it, and the run needs no cloud project, no container and
+no wiki. What replaced them is smaller and more ordinary — a rate limit on a burst of model
+calls, a cassette that only replays from the ledger state it was recorded against, and prompts
+that need tuning against cases nobody has committed yet.
 
 ---
 
@@ -2323,17 +2538,34 @@ edit rather than a wrong page — literally so since Aug 30, 2026, when editing 
 became the gate's purpose. Revisit if Draft quality disappoints — the model is named in one
 place. Raw script: `bench_classify.py` (scratchpad, not committed).
 
-**ADK 2.0 = Workflow Runtime.** Graph execution engine; agents, tools and functions are
-*nodes* (`BaseAgent` now subclasses `BaseNode`). `NodeInterruptedError` exists to pause a
-workflow for human-in-the-loop input.
+**Re-read off the live rules page, Sept 1, 2026 — ADK is not required, and the deadline moved.**
+Two things were checked against `agentic-cinema.devpost.com` rather than against these notes.
 
-This is what makes §6 buildable as designed rather than a diagram: the 8-stage flow with two
-backward edges maps onto a workflow graph, and the Verify approval gate onto HITL — twice per
-run, since fan-out follows it. Nothing
-about the product changed — see `AGENTS.md` §7 for the construction rule.
+*The accepted-package list is a disjunction, verbatim:* "Accepted Google Cloud packages/SDKs:
+google-adk, google-genai, google-generativeai, **or** google-cloud-aiplatform." And the clause
+that is actually enforced is about runtime use, not about a named framework: "use of Google
+Cloud and the Partner services at runtime in your code — imported and actually called (a
+library import, an app/backend entry point, or a loaded agent/flow/MCP config), not just named
+in the README." `google-genai` is on that list and is imported and called in
+`agent/model.py`, so the requirement is met with no ADK anywhere. "Powered by Gemini and Google
+Cloud Agent Builder" appears only in the descriptive line about what to build, not in the
+requirement that gets checked — which retires the "open inference" flag below as a *risk*: it
+was never the enforceable text.
+
+*The deadline is **Sept 9, 2026, 2:00 PM PDT**, not Sept 7.* Both the rules page and the
+overview say Sep 9; every document here said Sept 7 until this check. No extension notice is
+shown, so it was either recorded wrong on Aug 11 or moved quietly. Two extra days, and Phase 2
+is re-dated accordingly.
+
+**ADK is not used, and is not required.** It was the orchestrator until Sept 1, 2026, when the
+routing turned out never to have been a judgement — six stages in a fixed order and one `while`
+loop, which is a method rather than a graph engine. The accepted-package requirement is
+satisfied by `google-genai` alone; the rules list the four SDKs with **or** between them, and
+the clause that is actually enforced asks for Google Cloud services "imported and actually
+called", which `agent/model.py` does. See the re-read above.
 
 **Low-code path rejected on evidence.** The "Agent Builder Guide" link resolves to Dialogflow
-CX — the conversational-agent surface. No way to express the graph, and its managed grounding
+CX — the conversational-agent surface. No way to express the flow, and its managed grounding
 means Google Search as provider, which §5 already rules out on the Parallel track.
 
 **Open inference, flagged.** Whether ADK satisfies the rules' "Google Cloud Agent Builder"

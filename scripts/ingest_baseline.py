@@ -5,16 +5,12 @@ own read API. Nothing is judged here — the sections are recorded verbatim so t
 research later finds has something to be measured against.
 
     python3 scripts/ingest_baseline.py                 # from snapshots/, offline, no key
-    python3 scripts/ingest_baseline.py --live          # from our own MediaWiki, needs the key
     python3 scripts/ingest_baseline.py --page Gambit   # one page
 
-`--live` needs `MEDIAWIKI_API_URL` and `MEDIAWIKI_API_KEY` in `.env`. The wiki is treated as
-external even though it is ours, so the agent has no unauthenticated path to it; `snapshots/`
-is a committed corpus rather than a service, which is why the offline path needs nothing.
+Reads `snapshots/seed/`, which is a committed corpus rather than a service — so this needs no
+key, no network and no database beyond the ledger it writes to.
 
-Idempotent: re-running an untouched page reports `unchanged` and rewrites the same bytes. The
-`--live` path is the same call the deployed agent makes; pointing it at our instance rather
-than at Fandom is a profile swap and nothing else.
+Idempotent: re-running an untouched page reports `unchanged` and rewrites the same bytes.
 """
 
 from __future__ import annotations
@@ -30,13 +26,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from backend.agent.ingest import IngestResult, ingest_all, ingest_page  # noqa: E402
-from backend.core.ledger.baseline import (  # noqa: E402
-    DEFAULT_BASELINE_PATH,
-    JsonFileBaselineStore,
-)
 from backend.core.ledger.documents import task_id_for  # noqa: E402
 from backend.core.profile import WikiProfile, local_wiki  # noqa: E402
-from backend.core.wiki import MediaWikiReader, PageSource, SnapshotPageSource  # noqa: E402
+from backend.core.wiki import PageSource, SnapshotPageSource  # noqa: E402
+from backend.mongo import MongoBaselineStore, mongo_db_name  # noqa: E402
 
 
 def load_env(path: Path) -> None:
@@ -51,28 +44,20 @@ def load_env(path: Path) -> None:
         os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
-def build_source(live: bool) -> tuple[PageSource, WikiProfile, str]:
-    """Live reads our own instance; the default reads the frozen corpus with nothing running."""
-    if not live:
-        profile = local_wiki("http://localhost/api.php")
-        return SnapshotPageSource(REPO_ROOT, state="seed"), profile, "snapshots/seed"
+def build_source() -> tuple[PageSource, WikiProfile, str]:
+    """The frozen corpus, read with nothing running.
 
-    load_env(REPO_ROOT / ".env")
-    api_url = os.environ.get("MEDIAWIKI_API_URL")
-    if not api_url:
-        raise SystemExit("MEDIAWIKI_API_URL is not set; run without --live to use snapshots/")
-    api_key = os.environ.get("MEDIAWIKI_API_KEY")
-    if not api_key:
-        raise SystemExit(
-            "MEDIAWIKI_API_KEY is not set. The wiki is treated as external even though it is "
-            "ours, so a read needs a credential; any random string works locally."
-        )
-    profile = local_wiki(api_url)
-    # Never printed: `where` is the endpoint, and the key stays out of every log line.
-    return MediaWikiReader.for_profile(profile, api_key=api_key), profile, api_url
+    There used to be a `--live` mode that read our own MediaWiki over `api.php`. The wiki is
+    simulated in the browser now (`AGENTS.md` §2) and there is no endpoint for Python to read,
+    so the corpus is the only source — which is also what the baseline is *supposed* to be
+    measured against, since `snapshots/seed/` is hash-pinned and the browser's tables are built
+    from the same files.
+    """
+    profile = local_wiki("http://localhost/api.php")
+    return SnapshotPageSource(REPO_ROOT, state="seed"), profile, "snapshots/seed"
 
 
-def report(results: tuple[IngestResult, ...], path: Path) -> None:
+def report(results: tuple[IngestResult, ...], where: str) -> None:
     for result in results:
         if not result.ok:
             print(f"  {result.page:<44} FAILED  {result.error}")
@@ -87,13 +72,13 @@ def report(results: tuple[IngestResult, ...], path: Path) -> None:
     failed = len(results) - len(ok)
     print(f"\n{len(ok)} pages, {sections} sections"
           + (f", {failed} FAILED" if failed else ""))
-    print(f"wrote {path}")
+    print(f"wrote {where}")
 
 
 def run(
     source: PageSource,
     profile: WikiProfile,
-    store: JsonFileBaselineStore,
+    store: MongoBaselineStore,
     page: str | None,
     task_id: str,
 ) -> tuple[IngestResult, ...]:
@@ -109,15 +94,11 @@ def run(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--live", action="store_true",
-                        help="read our own MediaWiki instead of snapshots/")
     parser.add_argument("--page", help="ingest one page rather than the whole profile")
-    parser.add_argument("--path", default=str(DEFAULT_BASELINE_PATH),
-                        help=f"baseline file (default {DEFAULT_BASELINE_PATH})")
     args = parser.parse_args()
 
-    source, profile, where = build_source(args.live)
-    store = JsonFileBaselineStore(REPO_ROOT / args.path)
+    source, profile, where = build_source()
+    store = MongoBaselineStore()
     task_id = task_id_for(datetime.now(timezone.utc))
     print(f"reading {where} as {task_id}\n")
 
@@ -129,7 +110,7 @@ def main() -> int:
     except URLError as exc:
         raise SystemExit(f"cannot reach {where}: {exc.reason}") from exc
 
-    report(results, store.path.relative_to(REPO_ROOT))
+    report(results, f"{mongo_db_name()} (mongodb)")
     return 1 if any(not r.ok for r in results) else 0
 
 

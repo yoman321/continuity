@@ -22,8 +22,7 @@ from backend.agent import classify as classify_stage
 from backend.agent import draft as draft_stage
 from backend.agent import semantic_diff as diff_stage
 from backend.agent.graph import (
-    READY,
-    THIN,
+    STAGES,
     Run,
     Stages,
     after_date_for,
@@ -32,13 +31,14 @@ from backend.agent.graph import (
     keywords,
     objective_for,
     queries_for,
+    run,
     sources_for,
-    straight_through,
     survivors,
 )
 from backend.agent.model import ModelError, ModelRequest
 from backend.agent.tools import Ledger, WebSearch
 from backend.agent.tools.web_search import RawResult, SearchError, SearchOutcome, SearchRequest
+from backend.core.ledger import Claim, ClaimKind, Wave
 from backend.core.ledger.baseline import InMemoryBaselineStore, SectionBaseline
 from backend.core.ledger.baseline import from_document as from_baseline_document
 from backend.core.ledger.baseline import to_document as to_baseline_document
@@ -177,18 +177,23 @@ def build(
     claims: int = 1,
 ) -> tuple[Stages, Ledger, InMemoryDraftStore]:
     """A run's worth of seams, with `claims` tracked and already due."""
-    seeding = Ledger.in_memory(PROFILE, clock=lambda: LONG_AGO)
-    for index in range(claims):
-        seeding.track_claim(
+    # Built directly: there is no `track_claim` and no proposal stage (removed Sept 1, 2026),
+    # so a test states the claims it wants a run to find, the way `seed_claims.py` does.
+    seeded = [
+        Claim(
+            claim_id=f"claim-{index + 1:04d}",
             page="Gambit",
+            entity_ref=PROFILE.entity_ref("Gambit"),
+            kind=ClaimKind.PROSE,
+            wave=Wave.ANNOUNCEMENT_DRIVEN,
             text=f"Gambit appears in Deadpool & Wolverine ({index}).",
             wikitext_anchor=ANCHOR if index == 0 else f"{ANCHOR} {index}",
-            section_heading="",
             section_index=0,
-            kind="prose",
-            wave="announcement_driven",
-        )
-    ledger = Ledger(PROFILE, seeding.store, clock=lambda: NOW)
+            section_heading="",
+        ).seeded(LONG_AGO)
+        for index in range(claims)
+    ]
+    ledger = Ledger.in_memory(PROFILE, seeded, clock=lambda: NOW)
     sections = (
         SectionBaseline(
             page="Gambit",
@@ -362,7 +367,7 @@ class TestResearch(unittest.TestCase):
 
     def test_a_discarded_claim_is_still_due(self) -> None:
         stages, ledger, _ = build(FakeSearch(fails=True))
-        straight_through(stages)
+        run(stages)
         self.assertTrue(only_claim(ledger).is_due(NOW))
 
     def test_the_evidence_reaches_the_ledger(self) -> None:
@@ -379,7 +384,7 @@ class TestClassify(unittest.TestCase):
     def test_a_still_true_claim_produces_no_card(self) -> None:
         """Its citation is refreshed and its interval doubles; there is no diff to show."""
         stages, ledger, drafts = build(model=FakeModel(bucket="still_true"))
-        report = straight_through(stages)
+        report = run(stages)
         self.assertEqual(report.drafted, 0)
         self.assertEqual(drafts.all(), ())
         self.assertGreater(only_claim(ledger).check_interval, timedelta(hours=24))
@@ -388,7 +393,7 @@ class TestClassify(unittest.TestCase):
         """Both sides survived filtering, so the disagreement is about the world. The agent's
         job ends at stating it (`summary.md` §6)."""
         stages, ledger, _ = build(model=FakeModel(bucket="conflicting"))
-        report = straight_through(stages)
+        report = run(stages)
         self.assertEqual(report.rounds, 1)
         self.assertEqual(report.unresolved, ("claim-0001",))
         self.assertTrue(only_claim(ledger).is_contradicted)
@@ -396,7 +401,7 @@ class TestClassify(unittest.TestCase):
     def test_a_claim_with_no_baseline_is_never_judged(self) -> None:
         """Judging it would be judging a claim nobody re-read the page for."""
         stages, _, _ = build(baseline=False)
-        report = straight_through(stages)
+        report = run(stages)
         self.assertEqual(report.skipped, ("claim-0001",))
         self.assertEqual(report.buckets, {})
 
@@ -429,7 +434,7 @@ class TestReclassification(unittest.TestCase):
 
     def test_a_claim_can_change_bucket_within_one_run(self) -> None:
         stages, _ledger, _model = self.stages_where_one_search_names_the_other_subject()
-        report = straight_through(stages)
+        report = run(stages)
         # Only the claim that gained something is re-asked: the other one already held that
         # excerpt, because its own search is where it came from.
         self.assertEqual(report.reclassified, ("claim-0001",))
@@ -439,7 +444,7 @@ class TestReclassification(unittest.TestCase):
         """The revision and what it revised. A conclusion with no trace of the revision is the
         half that explains it."""
         stages, _ledger, _model = self.stages_where_one_search_names_the_other_subject()
-        straight_through(stages)
+        run(stages)
         history = stages.judgements.for_claim("claim-0001")
         self.assertEqual([j.attempt for j in history], [2, 1])  # newest reading first
         self.assertEqual([j.bucket for j in history], ["conflicting", "still_true"])
@@ -448,7 +453,7 @@ class TestReclassification(unittest.TestCase):
         """Settling is what ends the phase, and it happens once — on the verdict the claim
         ended with, never on the one it started with."""
         stages, ledger, _model = self.stages_where_one_search_names_the_other_subject()
-        straight_through(stages)
+        run(stages)
         self.assertTrue(only_claim(ledger).is_contradicted)
 
     def test_a_claim_nothing_new_bears_on_is_not_re_asked(self) -> None:
@@ -456,7 +461,7 @@ class TestReclassification(unittest.TestCase):
         the rest — so a run of unrelated claims pays nothing for the capability."""
         model = FakeModel()
         stages, _, _ = build(FakeSearch(), model, claims=1)
-        straight_through(stages)
+        run(stages)
         self.assertEqual(model.seen.count("classify"), 1)
 
 
@@ -528,14 +533,14 @@ class TestWhatReachesTheReviewer(unittest.TestCase):
 
     def test_a_conflict_becomes_a_card(self) -> None:
         stages, _, drafts = build(model=FakeModel(bucket="conflicting"))
-        report = straight_through(stages)
+        report = run(stages)
         self.assertEqual(report.drafted, 1)
         self.assertEqual(len(drafts.all()[0].changes), 1)
 
     def test_the_card_carries_the_disagreement(self) -> None:
         """Without it the reviewer is being asked to take an edit on trust."""
         stages, _, drafts = build(model=FakeModel(bucket="conflicting"))
-        straight_through(stages)
+        run(stages)
         change = drafts.all()[0].changes[0]
         self.assertEqual(change.bucket, "conflicting")
         self.assertEqual(change.conflict, "sources split")
@@ -546,13 +551,13 @@ class TestWhatReachesTheReviewer(unittest.TestCase):
         contradicted until a human does something about it, and accepting the card publishes an
         edit rather than picking a side (`AGENTS.md` §2)."""
         stages, ledger, _ = build(model=FakeModel(bucket="conflicting"))
-        report = straight_through(stages)
+        report = run(stages)
         self.assertTrue(only_claim(ledger).is_contradicted)
         self.assertEqual(report.unresolved, ("claim-0001",))
 
     def test_a_confirmed_claim_still_produces_nothing(self) -> None:
         stages, _, drafts = build(model=FakeModel(bucket="still_true"))
-        self.assertEqual(straight_through(stages).drafted, 0)
+        self.assertEqual(run(stages).drafted, 0)
         self.assertEqual(drafts.all(), ())
 
 
@@ -561,7 +566,7 @@ class TestDraftAndDiff(unittest.TestCase):
         """A `ModelError` is a domain failure — a refusal, a malformed answer — so it is caught
         per claim. A timeout is not this, and still propagates for ADK to retry."""
         stages, _, drafts = build(model=FakeModel(draft_fails=True), claims=2)
-        report = straight_through(stages)
+        report = run(stages)
         self.assertEqual(len(report.failed), 2)
         self.assertEqual(report.drafted, 0)
         self.assertEqual(drafts.all(), ())
@@ -572,21 +577,21 @@ class TestDraftAndDiff(unittest.TestCase):
         stages, _, drafts = build(
             model=FakeModel(after="|movie = ''[[Avengers: Doomsday]]''", dispositions=("dropped",))
         )
-        straight_through(stages)
+        run(stages)
         change = drafts.all()[0].changes[0]
         self.assertIn("overreached", change.flags)
         self.assertEqual(len(change.flags), len(set(change.flags)))
 
     def test_an_unavailable_diff_model_flags_the_card_rather_than_failing_the_run(self) -> None:
         stages, _, drafts = build(model=FakeModel(diff_fails=True))
-        straight_through(stages)
+        run(stages)
         self.assertIn("text_only", drafts.all()[0].changes[0].flags)
 
 
 class TestVerify(unittest.TestCase):
     def test_the_run_hands_over_one_draft_holding_every_change(self) -> None:
         stages, _, drafts = build(claims=2)
-        report = straight_through(stages)
+        report = run(stages)
         stored = drafts.all()
         self.assertEqual(len(stored), 1)
         self.assertEqual(stored[0].draft_id, report.draft_id)
@@ -594,7 +599,7 @@ class TestVerify(unittest.TestCase):
 
     def test_every_change_arrives_undecided_and_unpublished(self) -> None:
         stages, _, drafts = build()
-        straight_through(stages)
+        run(stages)
         stored = drafts.all()[0]
         self.assertFalse(stored.published)
         self.assertFalse(stored.is_decided)
@@ -603,13 +608,13 @@ class TestVerify(unittest.TestCase):
         """An empty draft is a card set with no cards, and it would sit at the head of the
         gate's unpublished list saying so."""
         stages, _, drafts = build(model=FakeModel(bucket="still_true"))
-        report = straight_through(stages)
+        report = run(stages)
         self.assertEqual(drafts.all(), ())
         self.assertFalse(report.stored)
 
     def test_the_change_is_addressed_at_the_anchor_not_the_section(self) -> None:
         stages, _, drafts = build()
-        straight_through(stages)
+        run(stages)
         change = drafts.all()[0].changes[0]
         self.assertEqual(change.before, ANCHOR)
         self.assertIn(ANCHOR, change.after)
@@ -642,7 +647,7 @@ class TestProvenance(unittest.TestCase):
 
     def run_one(self) -> tuple[Any, Ledger, InMemoryDraftStore, InMemoryJudgementStore]:
         stages, ledger, drafts = build()
-        report = straight_through(stages)
+        report = run(stages)
         judgements = stages.judgements
         assert isinstance(judgements, InMemoryJudgementStore)
         return report, ledger, drafts, judgements
@@ -661,7 +666,7 @@ class TestProvenance(unittest.TestCase):
 
     def test_a_judgement_is_stored_for_every_claim_classified(self) -> None:
         stages, _, _ = build(claims=2)
-        report = straight_through(stages)
+        report = run(stages)
         stored = stages.judgements.for_task(report.task_id)
         self.assertEqual(len(stored), 2)
         self.assertEqual({j.bucket for j in stored}, {"new"})
@@ -680,13 +685,13 @@ class TestProvenance(unittest.TestCase):
     def test_a_second_run_adds_a_row_rather_than_replacing_one(self) -> None:
         """Two tasks, one claim, two records — which is what makes the collection a history."""
         stages, ledger, _ = build()
-        first = straight_through(stages)
+        first = run(stages)
         later = replace(
             stages, clock=lambda: NOW + timedelta(days=1), ledger=Ledger(
                 PROFILE, ledger.store, clock=lambda: NOW + timedelta(days=1)
             )
         )
-        second = straight_through(later)
+        second = run(later)
         self.assertNotEqual(first.task_id, second.task_id)
         self.assertEqual(len(stages.judgements.for_claim("claim-0001")), 2)
 
@@ -712,93 +717,53 @@ class TestProvenance(unittest.TestCase):
         self.assertEqual(from_baseline_document(to_baseline_document(section)).task_id, "task-x")
 
 
-# -- the graph ----------------------------------------------------------------------------
+# -- the run ------------------------------------------------------------------------------
 
 
-class TestTheGraph(unittest.TestCase):
-    """What only the assembled graph can be asked. Needs the venv for ADK."""
+class TestTheRun(unittest.TestCase):
+    """What only the assembled run can be asked.
 
-    def workflow(self, stages: Stages) -> Any:
-        try:
-            from backend.agent.graph import build as build_graph
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
-        try:
-            return build_graph(Run(stages))
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
-
-    def test_it_starts_at_audit(self) -> None:
-        """A `Workflow` with no `START` edge does not construct — the entry point is not
-        inferred from the first edge (`AGENTS.md` §6)."""
-        graph = self.workflow(build()[0]).graph
-        first = graph.edges[0]
-        self.assertEqual(first.from_node.name, "__START__")
-        self.assertEqual(first.to_node.name, "audit")
+    These used to inspect an ADK `Workflow` — its START edge, its forward edges, its routing
+    map. The orchestrator is a plain method now (`Run.execute`), so the questions are the same
+    and the answers come from behaviour rather than from a graph object: does it visit the
+    stages in order, does the backward edge fire, does it stop, and is Publish still absent.
+    They need no SDK, so unlike the old ones they run on a bare interpreter.
+    """
 
     def test_the_stages_run_in_the_order_the_architecture_draws_them(self) -> None:
-        graph = self.workflow(build()[0]).graph
-        forward = [
-            (edge.from_node.name, edge.to_node.name)
-            for edge in graph.edges
-            if edge.route is None and edge.from_node.name != "__START__"
-        ]
-        self.assertEqual(
-            forward,
-            [
-                ("audit", "research"),
-                ("research", "classify"),
-                ("draft", "diff"),
-                ("diff", "verify"),
-            ],
-        )
+        stages, _, _ = build()
+        report = run(stages)
+        self.assertEqual(report.stages, STAGES)
 
-    def test_classify_is_the_only_node_that_branches(self) -> None:
-        graph = self.workflow(build()[0]).graph
-        routed = {
-            (edge.from_node.name, edge.route): edge.to_node.name
-            for edge in graph.edges
-            if edge.route is not None
-        }
-        self.assertEqual(
-            routed, {("classify", THIN): "research", ("classify", READY): "draft"}
-        )
-
-    def test_publishing_is_not_a_node(self) -> None:
+    def test_publishing_is_not_a_stage(self) -> None:
         """Publish is a button on a route and Fan-out needs an applied edit, so neither can be
-        reached from here. A node that wrote to the wiki would make the gate optional."""
-        names = {node.name for node in self.workflow(build()[0]).graph.nodes}
-        self.assertNotIn("publish", names)
-        self.assertNotIn("fanout", names)
+        reached from here. A stage that wrote to the wiki would make the gate optional."""
+        self.assertNotIn("publish", STAGES)
+        self.assertNotIn("fanout", STAGES)
+        stages, _, _ = build()
+        self.assertNotIn("publish", run(stages).stages)
 
-    def test_a_run_through_adk_reaches_the_same_place(self) -> None:
-        try:
-            from backend.agent.graph import run as run_graph
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+    def test_a_run_reaches_the_stored_draft(self) -> None:
         stages, _, drafts = build()
-        try:
-            report = run_graph(stages)
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+        report = run(stages)
         self.assertEqual(report.drafted, 1)
         self.assertEqual(drafts.all()[0].draft_id, report.draft_id)
 
     def test_the_backward_edge_fires_and_stops(self) -> None:
         """The one thing a straight line cannot express, and the one thing that could hang a
-        tick if the budget check were ever moved out of the Research node."""
-        try:
-            from backend.agent.graph import run as run_graph
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+        tick if the budget check were ever moved out of the Research node. The loop is bounded
+        by the per-claim research budget, not by the backstop constant."""
         search = FakeSearch()
         stages, _, _ = build(search, FakeModel(bucket="conflicting", off_entity=(URL,)))
-        try:
-            report = run_graph(stages)
-        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
-            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+        report = run(stages)
         self.assertEqual(report.rounds, MAX_RESEARCH_ROUNDS)
         self.assertEqual(len(search.calls), MAX_RESEARCH_ROUNDS)
+
+    def test_a_run_that_never_needs_a_second_round_researches_once(self) -> None:
+        search = FakeSearch()
+        stages, _, _ = build(search)
+        self.assertEqual(run(stages).rounds, 1)
+        self.assertEqual(len(search.calls), 1)
 
 
 if __name__ == "__main__":  # pragma: no cover

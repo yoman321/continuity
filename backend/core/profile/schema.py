@@ -48,6 +48,11 @@ class WikiProfile:
 
     licence: str
     licence_url: str
+    #: Where an article lives for a reader, so a wikilink can be rendered as a real link. Per
+    #: wiki because it does not follow from `api_url`: Fandom serves `api.php` from the root
+    #: and articles from `/wiki/`, while Wikipedia serves the API from `/w/`. Deriving it would
+    #: be a guess about a convention the profile exists to state.
+    article_base: str
 
     # Fandom throttles anonymous User-Agents (`AGENTS.md` §6), so every profile carries one.
     user_agent: str

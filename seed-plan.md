@@ -1,7 +1,7 @@
 # Seed plan — Deadpool & Wolverine
 
-Demo subject for the wiki maintainer agent. Defines what goes into the seeded MediaWiki
-instance and what the claim ledger tracks.
+Demo subject for the wiki maintainer agent. Defines what goes into the simulated wiki and what
+the claim ledger tracks.
 
 **Settled:** MCU Wiki as the single source · 8 pages · freeze at 2024-08-09.
 
@@ -27,8 +27,9 @@ Two states of the same wiki, and the agent produces the second from the first.
 
 ```
 MCU Wiki revision              your seeded              agent runs             diff view
-as of 2024-08-09       ──→     MediaWiki        ──→     live, today    ──→     (the demo)
-(real historical text)         (Cloud Run)              (Parallel + Gemini)
+as of 2024-08-09       ──→   the simulated    ──→     live, today    ──→     (the demo)
+(real historical text)         wiki, in the             (Parallel + Gemini)
+                               browser
 ```
 
 **Seed frozen, run live.** The base is the page as it actually stood two weeks after
@@ -209,7 +210,8 @@ The ledger schema — both halves of it. The **section baseline** falls straight
 of it — with the fields now derivable from the claim set above rather than guessed:
 
 - `as_of` / source publication date, for recency-based adjudication (§1)
-- `ripple_targets[]`, for the Gambit → `Phase Six` cascade (§4.1)
+- `ripple_targets[]`, for the Gambit → `Phase Six` cascade (§4.1) — *removed Sept 1, 2026
+  with the fan-out stage; parked in `summary.md` §10*
 - `contradicts[]` and `status: unresolved`, for the conflicting bucket (§4.5)
 - `wave`, seeding the initial `next_check_at` (§3)
 
@@ -229,10 +231,8 @@ Two fields the *revised* claim set forces that the old one did not:
 ## 7. Pulling the seed — verified mechanics
 
 MCU Wiki runs MediaWiki 1.43.9 with the action API open and unauthenticated — which is why
-the puller needs no credential. Our own seeded instance is the opposite by choice: the agent
-treats it as an external service and will not read it without `MEDIAWIKI_API_KEY`
-(`AGENTS.md` §2). Two calls:
-find the revision at the freeze date, then fetch its content by id.
+the puller needs no credential. Two calls: find the revision at the freeze date, then fetch its
+content by id.
 
 ```bash
 BASE='https://marvelcinematicuniverse.fandom.com/api.php'
@@ -254,7 +254,7 @@ worry about heavy templating is closed.
 **CC-BY-SA** and points at the JS-rendered `fandom.com/licensing`, so it cannot separate 3.0
 from 4.0. The wiki's own `Project:Copyrights` (revision 3728) states 3.0 Unported outright,
 and the puller re-reads that page every run rather than hardcoding the answer. Share-alike
-with attribution, so seeding our own instance is fine provided the MCU Wiki is attributed and
+with attribution, so redistributing the seed is fine provided the MCU Wiki is attributed and
 the licence carries forward — including onto the agent's own edits, which are derivative
 works. The notice is `snapshots/ATTRIBUTION.md`.
 

@@ -31,11 +31,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from backend.core.ledger.drafts import (  # noqa: E402  - after the path insert, deliberately
-    DEFAULT_DRAFTS_PATH,
     Change,
     Decision,
     DraftStore,
-    JsonFileDraftStore,
     ReviewDraft,
 )
 
@@ -48,11 +46,13 @@ DEMO_DRAFT_ID = "draft-demo-0001"
 
 def store() -> DraftStore:
     """Same switch `backend/app.py` reads, so the seeder and the server never disagree."""
-    if os.environ.get("DRAFT_STORE", "file").strip().lower() == "firestore":
+    if os.environ.get("DRAFT_STORE", "mongo").strip().lower() == "firestore":
         from backend.firestore import FirestoreDraftStore
 
         return FirestoreDraftStore(project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None)
-    return JsonFileDraftStore(os.environ.get("DRAFT_STORE_PATH") or REPO_ROOT / DEFAULT_DRAFTS_PATH)
+    from backend.mongo import MongoDraftStore
+
+    return MongoDraftStore()
 
 
 def build(fixture: dict[str, Any]) -> ReviewDraft:
