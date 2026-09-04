@@ -1,11 +1,10 @@
 """The graph — the stages as ADK nodes, joined, with the one backward edge that matters here.
 
-Six of the eight stages run inside one ADK `Workflow`: Audit hands over what is due, Research
+Six of the seven stages run inside one ADK `Workflow`: Audit hands over what is due, Research
 buys evidence, Classify sorts it, Draft writes the edit, Diff reads what the edit did to the
-ideas, and Verify puts the result where a person can decide. The seventh and eighth — Publish
-and Fan-out — are not nodes in this graph and must not become them: Publish is a button on a
-route (`backend/app.py`), and Fan-out only has an *applied* edit to expand once that button has
-been pressed (`summary.md` §6).
+ideas, and Verify puts the result where a person can decide. The seventh — Publish — is not a
+node in this graph and must not become one: it is a button on a route (`backend/app.py`), and a
+stage that wrote to the wiki would make the gate optional.
 
 **The run ends at Verify rather than pausing inside it.** ADK can hold a node open for a human
 through `request_input`, and an earlier plan said Verify would. The draft store made that the
@@ -56,8 +55,8 @@ from .model import ModelError
 from .semantic_diff import Review, Reviewer
 from .tools import DEFAULT_DUE_LIMIT, Ledger, WebSearch, utcnow
 
-#: The stages a run visits, in order. Seven and eight are deliberately absent: Publish is a
-#: button on a route and Fan-out has nothing to expand until an edit has been applied.
+#: The stages a run visits, in order. The seventh is deliberately absent: Publish is a button
+#: on a route, pressed by a person, and never something a run can reach on its own.
 STAGES = ("audit", "research", "classify", "draft", "diff", "verify")
 
 #: Every bucket that carried something the page does not say. `still_true` is the only one that

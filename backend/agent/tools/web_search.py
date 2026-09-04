@@ -6,7 +6,7 @@ decisions are baked into the signature rather than left to the caller:
 * **One call carries every query for a claim.** Parallel bills one `sku_search` per *call*,
   not per query (`summary.md` §12), so `search_queries` is a list and always was — batching a
   claim's angles into one call costs exactly what asking one question costs. A tool taking a
-  single query would have made fan-out cost four times as much for no extra evidence.
+  single query would have cost four times as much for no extra evidence.
 * **The tier table is the retrieval policy, not a scoring function.** `include_domains` comes
   from the profile on every call and is never a parameter. Measured Aug 22, 2026 on the Human
   Torch precision case: unfiltered returned two Tumblr posts and a scraped cast table whose

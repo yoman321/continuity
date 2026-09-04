@@ -425,10 +425,11 @@ Its rules are reasoned rather than measured, which is the difference between thi
 Classify — the classify prompt's four rules each came from a benchmark. The harness that
 produces those numbers is the open item in Phase 1, and it now has a second stage to cover.
 
-### The fan-out stage — designed Aug 22, 2026; **parked Sept 1, 2026**
+### The fan-out stage — designed Aug 22, 2026; **not pending work as of Sept 3, 2026**
 
-> **Not built, and its code is removed.** This section is the design, kept because it is
-> settled and worth resuming from — `summary.md` §10 carries it as an *if time permits* item.
+> **Not built, its code is removed, and it is not scheduled.** This section is the design,
+> kept because it is settled and worth resuming from — §10 carries it as a note rather than a
+> roadmap item, to be picked up only if the week ends with time to spare.
 > Nothing in the pipeline references it: `Ledger.link_ripple_targets` and
 > `Claim.ripple_targets` are gone. Read the rest of this section as a plan, not as a
 > description of what runs.
@@ -491,18 +492,22 @@ steps with a human gate between each. The pull-forward is a rule rather than an 
 a fanned-in claim left to decay like a quiet one would double its interval and put the second hop
 weeks away, which silently converts a cascade into an unrelated edit much later.
 
-**What keeps this agentic (§4).** Fetch → classify → human is a linear pipeline on its own,
-and §4's litmus test would fail it. **Three** things keep it from being one, and all three have
-to survive implementation: the ledger decides *which* claims are fetched and when
-(`next_check_at` is agent-chosen, §7); fan-out lets an approved edit widen the run; and a thin
-or off-target retrieval sends the graph back to Research with a broadened objective rather than
-forward to a bad classification.
+**What keeps this agentic (§4) — and what dropping fan-out cost.** Fetch → classify → human is
+a linear pipeline on its own, and §4's litmus test would fail it. Three things were supposed to
+keep it from being one: the ledger decides *which* claims are fetched and when (`next_check_at`
+is agent-chosen, §7); fan-out lets an approved edit widen the run; and a thin or off-target
+retrieval sends the graph back to Research with a broadened objective rather than forward to a
+bad classification. A fourth had already been cut on Aug 30, 2026 — a draft that introduced a
+conflict elsewhere on the page used to go back to Draft.
 
-A fourth was cut on Aug 30, 2026 — a draft that introduced a conflict elsewhere on the page used
-to go back to Draft — so the remaining three now carry this argument alone. Fan-out is the
-strongest of them: after the gate move the working set is decided by a human answer mid-run,
-which is a plan chosen at runtime in the least arguable way available. Cut these three as well
-and this becomes RAG with a review screen — the exact quiet failure §4 names.
+**As built today only two of them exist, and the missing one was the strongest.** Fan-out is
+the only place the working set would be decided by a human answer *mid-run* — a plan chosen at
+runtime in the least arguable way available — and it is not implemented. What carries the
+argument as it stands is the ledger choosing its own schedule and Research looping on its own
+judgement of the evidence: both real, both bounded, neither as vivid. Worth stating plainly
+rather than leaving to be discovered in §4, because it is what the demo has to argue from. If
+fan-out is ever picked back up this is the reason to. Lose these two as well and this becomes
+RAG with a review screen, the exact quiet failure §4 names.
 
 ### The claim ledger (central state)
 
@@ -2254,6 +2259,179 @@ is pasting a URL into a form.
 
       Measured after the change: 0 of 284 sections leak, 0 unbalanced tag pairs.
 
+- [x] **The article was pre-annotated with the agent's conclusions, which gave the answer away
+      before the button was pressed** — found and fixed Sept 3, 2026. The "no tool chrome on an
+      article" rule was written down in three places and implemented for the *bars* — `route()`
+      hid the topbar and the nav on `#/wiki/…` — while `renderWiki` went on printing the agent's
+      state into the article's body: every tracked claim highlighted in the prose, claim ids
+      stamped into the infobox, a "Claims on this page" rail with status pills and rationales, a
+      revision line, and the fixture banner.
+
+      **The rule was right and its scope was too narrow.** A toolbar is the obvious way an agent
+      annexes a page; a highlight is the quiet one. Both say the same thing to a reader — this
+      page belongs to the tool — and the highlight is worse, because it also spoils the demo:
+      an article that arrives with four claims already marked verified has answered the question
+      the button exists to ask, and the run that follows is theatre. A reader is supposed to
+      arrive at an ordinary wiki page, notice one button, and learn everything else afterwards.
+
+      The scope is now stated as *no agent detail*, not *no tool chrome*, in `AGENTS.md` §2. The
+      check that was supposed to protect this asserted the opposite — `highlights every claim`,
+      one per page — so it is inverted rather than deleted: `FE/check.js` now walks all twelve
+      pages looking for six kinds of leak, and requires exactly one Continuity button.
+
+- [x] **The button answered before it asked: the popup was serving cached verdicts three ways**
+      — found and fixed Sept 3, 2026, while testing whether the agent catches a defect planted
+      in an article. It did catch it — but the card was on screen before the run finished, which
+      is how the caching surfaced at all.
+
+      **Three layers, and each one is invisible on screen.** A card produced a second ago and a
+      card produced yesterday render identically, so none of these announced itself:
+
+      1. *The run replayed.* The launcher opened `#/verify?…&start=1` with no `live=1`, so the
+         backend built `RecordedSearch` + `RecordedModel` and answered from `fixtures/`. The
+         cassette had been recorded against these very claims, so the press re-served a verdict
+         about text the agent never re-read.
+      2. *The popup adopted a stored draft.* `boot()` called `loadDraft()` with no id, which
+         picks the newest unpublished draft — right for the queue, whose job is to show what is
+         waiting, and wrong for a window that has just started a run of its own.
+      3. *Run again kept the last run's cards up* while the new one ran underneath them.
+
+      **The fix is that a press must be able to come back empty.** The button now opens with
+      `live=1`; a starting run adopts no stored draft, and `startRun` clears the board before it
+      asks. Replay is still reachable at `&live=0` and still the default for
+      `scripts/run_once.py`, where determinism is the point — the deterministic fallback
+      `CLAUDE.md` §3 asks for is a thing the demo can fall back *to*, not the thing the gate
+      does by default.
+
+      **The reversal is deliberate.** "A corner button that bills on every press is one a
+      refresh loop can drain" was the reason for opt-in, and it is still true; it was the wrong
+      trade. A gate whose answer is prepared in advance is not verifying anything, and the cost
+      of finding that out late — on camera, or in a judged demo — is worse than the cost of the
+      searches. `FE/check.js` now asserts all four properties, because every one of them is a
+      one-character edit away from silently coming back.
+
+      **Running live for real immediately exposed what replay had been hiding: a 429 killed the
+      whole run.** A propose pass calls Gemini once per section, which reaches the quota as a
+      burst, and the SDK raises `ClientError` — not `ModelError` — so it went straight past every
+      handler a stage has. Replay never saw it because replay never calls anything. The
+      perimeter now waits a rate limit out and translates an exhausted one into `ModelError`, the
+      exception the callers already skip a section on (`AGENTS.md` §6). This is the general
+      hazard of a deterministic fallback: it hides the failures of the thing it stands in for,
+      so every failure mode of the live path has to be found *on* the live path.
+
+- [x] **Fan-out stops being pending work, and the product stops advertising it** — Sept 3, 2026.
+      Its code had already been deleted, but it still occupied an eighth cell in the run stepper,
+      a `ripples` counter that was always zero, a "fan-out queues the claims they implicate next"
+      line in the publish bar, and a promise in four documents. A stage that can never light up
+      is a stage that says the run is unfinished every time it ends. The stepper is seven stages
+      now and the queue only ever shrinks: publishing is where a run stops.
+
+      **The design is kept; the commitment is not.** §10 carries it as a note with no checkbox
+      rather than a roadmap item — nothing is scheduled against it and no other work waits on
+      it — and it is the first thing to pick up if the week ends with time to spare. What that
+      costs today is recorded honestly in §6: of the three things that make this more than a
+      linear pipeline, fan-out was the strongest, and only two are built.
+
+- [x] **Publish wrote into the popup's own copy of the wiki, so the article never changed** —
+      found and fixed Sept 3, 2026. Accepting five cards and pressing publish reported five
+      writes and left the article exactly as it was.
+
+      **Nothing was broken in the publish path.** All five anchors resolved to exactly one
+      occurrence in the right section; the writes succeeded. They succeeded *in the popup*. The
+      browser wiki keeps its tables in module state, and `window.open` gives the gate its own
+      browsing context — its own `wiki-api.js`, its own tables — so the edits landed in a copy
+      the reader was not looking at and were discarded when the popup closed.
+
+      The wiki's own docstring had the assumption written down and it had quietly expired:
+      *"an edit lives as long as the tab does, which is long enough, because the article and the
+      review gate are two routes in one app"*. True when it was written; false from the moment
+      the gate became a popup, and nothing failed loudly when it changed.
+
+      A write is now announced on a `BroadcastChannel` and adopted by every other window, with
+      the article view dropping its page cache and repainting. Reload is still the reset — this
+      shares an edit between live windows rather than persisting one. The check loads the module
+      into two isolated globals and edits across the bus, because the bug is invisible to any
+      test that only ever has one copy of it.
+
+- [x] **The gate opens idle, with its own button** — Sept 3, 2026. The launcher passed
+      `start=1` and the run view fired a run the moment it rendered, which conflated two
+      different acts: *look at this page's gate* and *spend money checking this page*. Every
+      open paid — a reopen, a refresh, a second look at a run that had already finished — and
+      rereading a finished run without starting another one was impossible.
+
+      Now the corner button opens the popup and the popup's **Run Continuity** button starts the
+      run, with what the press costs written beside it. A `runagain` handler had been sitting in
+      `bind()` for days with nothing rendering the button it listened for; this is that button,
+      finally on screen.
+
+      **An idle gate has to look idle.** The rail inferred its stages from the queue, so an
+      untouched gate showed five ticks and Verify active — narrating a run that had not
+      happened, which is the exact thing the rail's own comment forbids. Stages are pending
+      until there is a run or a stored draft to describe. And the cards no longer fall back to
+      `state.queue`: with the backend unreachable that is the *fixture's* queue, so opening the
+      gate offline greeted the reader with three findings about nothing. `#/queue` still shows
+      those, because showing what is on file is that view's whole purpose.
+
+- [x] **The claim ledger view is removed** — Sept 3, 2026. `#/ledger` printed every tracked
+      claim with its status, wave, confidence, recheck interval and next check. The table was
+      honest about what the store holds; the trouble is that nothing enforces what it displays.
+      A reader cannot act on any row of it — there is no control there, no decision it feeds —
+      and a screen full of numbers nobody can check or change is a claim about rigour rather
+      than rigour itself. The ledger is still the agent's memory and still what runs read and
+      write; it just no longer has a page asserting things about itself. Gone with it:
+      `renderLedger`, `statusPill`, `WAVE_LABEL`, `interval`, the table's CSS and the nav link.
+
+- [x] **The gate is two tabs — Process and Changes** — Sept 3, 2026. The stepper and the cards
+      were stacked, so a run with a few findings pushed the stepper off the top with no way
+      back: the one thing worth watching *while* a run goes was the one thing that could not be
+      got back to. They are tabs now, because they are two views of one run rather than two
+      steps of a task — Process is where it is, Changes is what it found.
+
+      **The tab lives in a variable, not the hash.** Where the reader is looking is not what the
+      window is about, and putting it in the URL would make every switch a navigation, with the
+      scroll reset and history entry that implies. `?tab=` seeds the opening one, which is what
+      lets a link point at a stored run's stepper and what lets `check.js` render either half.
+
+      Unset, the default is whichever tab has something to say: the stepper until a run finishes,
+      the findings after. A click sticks until the next run, because a reader who chose Process
+      meant it. And a mid-run tick paints nothing at all on the Changes tab — falling through to
+      a full render there would rebuild the card list once a second, which is the strobe from
+      earlier today wearing a different hat.
+
+- [x] **The review queue is removed; the popup is one page** — Sept 3, 2026. `#/queue` rendered
+      every drafted edit in the store, unfiltered, as a second way to reach the same cards the
+      gate already shows. It made sense when a run swept every monitored page at once. A run is
+      started from one article now and drafts against that page, so the queue was one run's
+      cards seen twice — reached through a nav bar that the popup, which is the only place those
+      cards are acted on, had no use for.
+
+      With it and the claim ledger gone the frontend is two views: the article, and the gate
+      beside it. `renderQueue`, the `nav.main` bar, `.lede`, and the "review all in this run"
+      link went with it; the card checks moved to the gate rather than being deleted, because
+      what they assert — one card per edit, every diff showing its addition, tier badges,
+      wikitext escaped — is about the cards and not about the route that used to show them.
+
+- [x] **The stepper's connectors ran through its circles** — fixed Sept 3, 2026. `.stage::before`
+      spanned centre-to-centre with `right: 50%; width: 100%`, so the line passed under every
+      dot. An opaque fill hid it inside the pending circles, but it crossed the 4px halo an
+      active dot carries and sat against each ring, which read as skewered rather than
+      connected. It now stops 20px from each centre — 12px of dot radius, 4px of halo, 4px of
+      clearance — so it draws only in the gap between circles.
+
+- [x] **The run stepper strobed for the length of every run** — fixed Sept 3, 2026.
+      `watchRun` polls once a second and called `route()`, which replaces the view's
+      `innerHTML`: all seven `.stage` nodes destroyed and rebuilt, so their `stage-in` entrance
+      animation replayed from `opacity: 0` every tick, staggered across 630ms. The same
+      `route()` also called `scrollTo(0, 0)`, so the popup jumped to the top once a second — and
+      deciding a card low in the queue threw the reader away from it.
+
+      Both are one mistake: treating a redraw as a page load. `paintRail` now mutates the eight
+      existing nodes in place — className, tick, note — so nothing is destroyed and no animation
+      restarts, and the reveal still plays once when the rail first appears, which is when it
+      means something. `route()` scrolls only when `location.hash` actually changed. The rule is
+      in `AGENTS.md` §6: **state that arrives on a timer needs a repaint path that is not the
+      render path**, or every CSS entrance animation under it becomes a strobe.
+
 ### Phase 1 — local; nothing in the cloud has to exist
 
 Ordered by dependency, with one deliberate exception: the last two items are writing, parked for
@@ -2318,11 +2496,13 @@ gets cut to protect it.
       nothing in the rules requires the video to show the hosted URL. Budget two passes: the
       first run always exposes a beat that does not read on camera
 
-- [ ] *If time permits* — **Fan-out: an approved edit expanding into the claims it
-      implicates.** Designed at length and **removed from the code on Sept 1, 2026** —
-      `Ledger.link_ripple_targets` and `Claim.ripple_targets` are gone, and nothing in the
-      pipeline references it. Parked rather than abandoned, because the design is settled and
-      the reasoning is worth keeping:
+- **Not pending work — Fan-out: an approved edit expanding into the claims it implicates.**
+      Deliberately carries no checkbox: a ticked one would claim it was built and an empty one
+      would put it back on the roadmap, and it is neither. Its code went on Sept 1, 2026 and its
+      last traces went on Sept 3 — a stepper cell that could never light, an always-zero
+      `ripples` counter, a publish-bar promise and four documents saying it was coming. Nothing
+      is scheduled against it and no other item waits on it. The design below is kept intact and
+      is the first thing to pick up if the week ends with time to spare:
 
       *What it is.* Gambit's *Doomsday* casting lands on `Gambit`, on `Phase Six`, and on the
       film page's appearances context — one search, three pages. Fan-out turns an **applied**

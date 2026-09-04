@@ -276,6 +276,9 @@
     db.next_text_id = textId + 1;
     db.next_rev_id = revId + 1;
 
+    // Tell the other window. `adopted` marks a write that arrived *from* one, so it stops here.
+    if (!params.adopted) announce(found.page.page_title, updated, params);
+
     return {
       edit: {
         result: "Success",
@@ -342,10 +345,69 @@
     return load().then(function () { return dispatch(params); });
   }
 
+  /* -- one wiki across two windows -------------------------------------------------------
+   *
+   * The docstring above says an edit lives as long as the tab does, and that this is long
+   * enough "because the article and the review gate are two routes in one app". That stopped
+   * being true when the gate moved into a `window.open` popup: a popup is its own browsing
+   * context with its own copy of this module and its own `db`, so publishing wrote revisions
+   * into the popup's tables and the article window — the one the reader is actually looking
+   * at — never saw them, and the edit died when the popup closed. It looked exactly like
+   * publish silently doing nothing.
+   *
+   * So a write is announced, and every other window applies it to its own tables. The channel
+   * carries the resulting page text rather than the row ids: each window keeps allocating its
+   * own `rev_id`, which is the only part that cannot be shared safely, and nothing renders a
+   * revision number. `BroadcastChannel` does not echo to the sender, so the writer does not
+   * re-apply its own edit. Where it is unavailable the app is exactly as it was — one window
+   * still works, which is also the popup-blocked fallback path.
+   *
+   * Still no persistence: reload is still the reset (see the module docstring). This shares an
+   * edit *between live windows*, it does not outlive them.
+   */
+  var CHANNEL = "continuity-wiki";
+  var channel = null;
+  var watchers = [];
+
+  try {
+    if (typeof global.BroadcastChannel === "function") channel = new global.BroadcastChannel(CHANNEL);
+  } catch (e) {
+    channel = null;   // a browser that refuses it is a browser that gets the old behaviour
+  }
+
+  if (channel) {
+    channel.onmessage = function (event) {
+      var message = (event && event.data) || {};
+      if (!message.title || typeof message.text !== "string") return;
+      load().then(function () {
+        // `adopted` keeps this from bouncing back out and round-tripping forever.
+        var answer = edit({
+          title: message.title, text: message.text,
+          summary: message.summary, user: message.user, adopted: true
+        });
+        if (answer.error) return;
+        watchers.forEach(function (fn) { fn(displayTitle(normalise(message.title))); });
+      });
+    };
+  }
+
+  function announce(title, text, params) {
+    if (!channel) return;
+    try {
+      channel.postMessage({
+        title: title, text: text, summary: params.summary, user: params.user
+      });
+    } catch (e) { /* a closed channel is not the writer's problem */ }
+  }
+
   global.WikiAPI = {
     request: request,
     reset: reset,
     splitSections: splitSections,
-    loaded: function () { return db !== null; }
+    loaded: function () { return db !== null; },
+    /* Called with the page title when another window edits it. The article view uses this to
+       drop its cached copy and re-render, which is what makes a publish visible where the
+       reader is looking rather than only inside the popup that made it. */
+    onExternalEdit: function (fn) { watchers.push(fn); }
   };
 })(window);

@@ -25,7 +25,7 @@ They are constants in this module so a change to any of them shows up in a diff:
    asked for a judgement it has no input for, which is a missing-information bug and not a
    prompting one.
 4. **Filter, then classify — two operations, in that order.** An off-entity excerpt is not weak
-   evidence, it is not evidence; routing it to `conflicting` per-excerpt fills the review queue
+   evidence, it is not evidence; routing it to `conflicting` per-excerpt fills the gate
    with noise. `conflicting` is reserved for a real disagreement, or for filtering emptying the
    batch — which is the honest signal that retrieval went off-target.
 

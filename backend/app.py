@@ -23,8 +23,8 @@ changes to our own MediaWiki and stamps the draft published. `DRAFT_STORE` selec
 MongoDB or Firestore; both hold the same documents.
 
 STUB: there is no graph and no claim-store adapter behind `/api/state`, so it answers 503 — and
-that 503 is what makes the frontend fall back to `FE/data/demo-state.json` for the ledger and
-page views and label itself *fixture*. Serving that file from `/api/state` would make the header
+that 503 is what makes the frontend fall back to `FE/data/demo-state.json` for the page view
+and label itself *fixture*. Serving that file from `/api/state` would make the header
 pill read *live*, which would be a lie. The queue is the exception: it comes from the draft
 store, so what the gate shows and decides is real state, not a fixture.
 """
@@ -251,7 +251,7 @@ def profiles_payload() -> list[dict[str, Any]]:
 
 
 def claim_payload(claim: Any) -> dict[str, Any]:
-    """One claim as the ledger view reads it.
+    """One claim as `/api/state` reports it.
 
     A *view* payload, not the stored document — `core/ledger/documents.to_document` owns that
     and is Firestore-shaped. This one carries derived fields the browser should not compute
@@ -363,9 +363,13 @@ class StartRun(BaseModel):
 
     Deliberately two fields. `page` is the article they were reading and is required: a run is
     named for its page and its number on that page (`core/ledger/pages.py`), so a run with no
-    page has no id and nothing to propose against. `live` is opt-in because a live run spends a
-    Parallel search per due claim and several model calls, and a button that bills by default
-    is one a page-refresh loop can drain.
+    page has no id and nothing to propose against.
+
+    `live` decides whether the run calls Parallel and Gemini or replays `fixtures/`. **The
+    corner button sends `true`** — a replayed run answers from a cassette recorded against
+    claims it is not re-examining, and a gate that cannot come back empty is not a gate
+    (`FE/README.md`). The default here stays `false` all the same: this is the field's value for
+    a caller that did not say, and an unattended POST should not bill.
     """
 
     model_config = ConfigDict(extra="forbid")

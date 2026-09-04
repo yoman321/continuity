@@ -37,8 +37,7 @@ at 2024-08-09.
 > is `run-Gambit-0003`. The wiki it edits is *not* real state: it lives in the browser and
 > resets on reload.
 >
-> **Not built:** Fan-out (an approved edit should add cards for the pages it implicates) and
-> `/internal/tick`, so nothing runs on a schedule. Retrieval and model calls replay from
+> **Not built:** `/internal/tick`, so nothing runs on a schedule. Retrieval and model calls replay from
 > cassettes, which are gitignored — a fresh clone records its own with `--live --record`.
 
 ---
@@ -57,13 +56,12 @@ Open <http://localhost:8000>. No install and no build step — it is static HTML
 JavaScript with no dependencies. Serve it rather than opening `index.html` directly; `file://`
 blocks the fetch that loads state.
 
-Three views:
+Two views:
 
 | Route | Shows |
 |---|---|
-| `#/queue` | Drafted edits — diff, rationale, citations with authority tiers, confidence. The Verify gate: approve, edit in place, or reject |
-| `#/ledger` | Every tracked claim — status, volatility wave, confidence, recheck interval, next check |
-| `#/wiki/<slug>` | The seeded wiki page, with each claim's anchor highlighted in place |
+| `#/wiki/<slug>` | The wiki page as a reader sees it — no agent detail, just the **Continuity** button |
+| `#/verify?page=…` | The gate the button opens, in a popup. Opens idle; **Run Continuity** starts the agent. Two tabs: **Process** (which stage the run is on) and **Changes** (each drafted edit as a diff, with rationale, citations and confidence — approve, edit in place, or reject, then publish) |
 
 The header pill reads **fixture** when no backend is running and **live** when `/api/state`
 answers. The wiki picker beside it is the plug-and-play surface.

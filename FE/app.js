@@ -1,19 +1,18 @@
-/* Review queue, ledger and page views.
+/* The gate and the article view.
  *
- * No framework and no build step by design (`AGENTS.md` §5): this is three views over one
- * JSON document, and the deploy is `StaticFiles` on this directory from the same container
- * that runs the agent.
+ * No framework and no build step by design (`AGENTS.md` §5): two views over one JSON
+ * document — the article, and the gate the corner button opens beside it — and the deploy is
+ * `StaticFiles` on this directory from the same container that runs the agent.
  *
  * State comes from `/api/state` when the backend is up and from `data/demo-state.json` when
  * it is not — the deterministic fallback `CLAUDE.md` §3 requires, so the page never breaks
  * because a key expired. The two payloads are the same shape on purpose; the pill in the
  * header says which one is live, and the FE never guesses.
  *
- * The *queue* is the exception: it comes from `/api/drafts`, a real store. Every verdict and
- * every hand-edit is written back as it is made, so reloading the popup finds the run where it
- * was left. When no draft is reachable the fixture's queue still renders — the cards are worth
- * showing — but the publish bar says it has nothing to publish rather than offering a button
- * that would post into the void.
+ * The *cards* are the exception: they come from `/api/drafts`, a real store. Every verdict and
+ * every hand-edit is written back as it is made, so reopening the gate on a draft finds the run
+ * where it was left. With no draft there are no cards — the gate shows its stepper and waits to
+ * be asked, rather than offering findings it has not made.
  */
 (function () {
   "use strict";
@@ -41,13 +40,6 @@
   var TIER_LABEL = {
     1: "primary", 2: "trade press", 3: "database",
     4: "general press", 5: "social", 6: "fan wiki",
-  };
-
-  var WAVE_LABEL = {
-    settled: "settled",
-    in_universe_slow: "in-universe",
-    release_driven: "release-driven",
-    announcement_driven: "announcement-driven",
   };
 
   // -- helpers -----------------------------------------------------------------
@@ -80,22 +72,11 @@
     try { return new URL(url).hostname.replace(/^www\./, ""); } catch (e) { return url; }
   }
 
-  function interval(hours) {
-    if (!hours) return "—";
-    if (hours < 48) return hours + "h";
-    var days = Math.round(hours / 24);
-    return days < 60 ? days + "d" : Math.round(days / 30) + "mo";
-  }
-
   function confidenceBar(value) {
     var pct = Math.round(value * 100);
     var band = value >= 0.75 ? "high" : value >= 0.5 ? "mid" : "low";
     return '<div class="conf"><div class="conf-track"><div class="conf-fill ' + band +
       '" style="width:' + pct + '%"></div></div><span class="conf-num">' + pct + "%</span></div>";
-  }
-
-  function statusPill(status) {
-    return '<span class="pill status-' + esc(status) + '">' + esc(status) + "</span>";
   }
 
   function sourceList(sources) {
@@ -115,22 +96,12 @@
 
   // -- views -------------------------------------------------------------------
 
-  function renderQueue() {
-    var intro = '<div class="lede"><h1>Review queue</h1><p>Every edit the agent drafted, ' +
-      'with the sources behind it. This is the Verify gate: read the diff, change the text if ' +
-      'it needs changing, then accept or reject each one. Nothing is written until the final ' +
-      'publish at the bottom.</p></div>';
-
-    return intro + renderGate(state.queue.slice());
-  }
-
   // -- verify: the run, and the gate at the end of it --------------------------
 
   /* Opened from the article view, which passes the page
      the reader was on. Two things stacked: the run that produced the queue, and the queue
-     itself scoped to that page. The cards are the same ones `#/queue` renders — what differs
-     is the filter, the rail above them, and the site chrome being gone, because this runs in a
-     popup beside the article rather than as a page of this site. */
+     itself scoped to that page. This is the only tool view there is: the run and its findings
+     are two tabs of one page, in a popup beside the article rather than a page of this site. */
 
   function pageTitle(param) {
     return (param || "").replace(/_/g, " ").trim();
@@ -156,26 +127,85 @@
     return parseRoute().params.page || "";
   }
 
-  function renderVerify(params) {
-    /* `start=1` is the launcher saying "and run it". Fired once — `liveRun` is set
-       synchronously by `startRun`, so a re-render while the run is going does not restart it. */
-    if (params.start && !liveRun) {
-      // `live=1` spends real Parallel searches and model calls, so it is opt-in in the URL
-      // rather than the button's default — a corner button that bills on every press is one
-      // a page-refresh loop can drain (`AGENTS.md` §2).
-      startRun(params.page || "", params.live === "1");
+  /* Whether this run bills. `live=0` in the URL is the replay escape hatch; anything else,
+     including the launcher's own `live=1`, calls Parallel and Gemini for real (`AGENTS.md` §2). */
+  function wantsLive() {
+    return parseRoute().params.live !== "0";
+  }
+
+  /* The button that starts the agent.
+   *
+   * **Opening the gate is not asking a question.** It used to be: the launcher passed `start=1`
+   * and `renderVerify` fired a run on sight, so every open — including a reopen, a refresh, or a
+   * second look at a finished run — spent a search per claim and several model calls before the
+   * reader had decided they wanted one. Now the popup opens idle and waits to be asked, which is
+   * also the only way a reader can read a finished run without starting another.
+   */
+  function runButton() {
+    if (liveRun && !liveRun.finished) {
+      return '<button class="runagain" disabled>Running…</button>';
     }
+    return '<button class="runagain">' + (liveRun ? "Run again" : "Run Continuity") +
+      "</button>" +
+      '<span class="run-cost">' +
+      (wantsLive() ? "checks this page against the web — this run bills"
+                   : "replayed from recordings") + "</span>";
+  }
+
+  /* The two halves of the gate, and which one is on screen.
+   *
+   * They used to be stacked, so a run with a few cards pushed the stepper off the top and there
+   * was no way back to it — the one thing worth watching while a run is going became the one
+   * thing you could not see. Tabs, because these are two views of the same run rather than two
+   * steps of a task: Process is where it *is*, Changes is what it *found*.
+   *
+   * Not in the URL. A tab is where the reader is looking, not what the window is about, and
+   * putting it in the hash would make every switch a navigation — with the scroll reset and the
+   * history entry that implies.
+   *
+   * `null` means the reader has not chosen, and the right tab is then whichever one has
+   * something to say: the stepper while there is no run to read, the findings once there are. A
+   * choice sticks until the next run, because a reader who clicked Process meant it. */
+  var gateTab = null;
+
+  function currentTab() {
+    if (gateTab) return gateTab;
+    // `?tab=` seeds which one opens, so a link can point at the stepper of a stored run.
+    var asked = parseRoute().params.tab;
+    if (asked === "process" || asked === "changes") return asked;
+    var running = liveRun && !liveRun.finished;
+    return draftId && !running ? "changes" : "process";
+  }
+
+  function gateTabs(items) {
+    var tab = currentTab();
+    return '<nav class="gate-tabs">' +
+      ['<button class="gate-tab' + (tab === "process" ? " on" : "") +
+        '" data-tab="process">Process</button>',
+       '<button class="gate-tab' + (tab === "changes" ? " on" : "") +
+        '" data-tab="changes">Changes' +
+        (items.length ? '<span class="tab-count">' + items.length + "</span>" : "") +
+        "</button>"].join("") +
+      "</nav>";
+  }
+
+  function renderVerify(params) {
     var title = pageTitle(params.page);
-    var items = scopedItems(params);
+    /* Cards belong to a draft — this run's, or one named in the URL. Without one there is
+       nothing to show, and `state.queue` is the wrong thing to fall back on: when `/api/state`
+       is unreachable it holds the *fixture's* cards, which would greet a reader opening the
+       gate with three findings about a run that never happened. */
+    var items = draftId ? scopedItems(params) : [];
     var run = runSummary(scopedClaims(params), items);
 
     return '<div class="verify-head"><p class="eyebrow">Continuity — run on this page</p>' +
       "<h1>" + esc(title || "All pages") + "</h1>" +
       '<p class="verify-sub">' + run.claims + (run.claims === 1 ? " claim" : " claims") +
       " tracked · " + run.edits + (run.edits === 1 ? " edit" : " edits") + " drafted" +
-      (params.rev ? " · against revision " + esc(params.rev) : "") + "</p></div>" +
-      renderRail(run) +
-      renderGate(items);
+      (params.rev ? " · against revision " + esc(params.rev) : "") + "</p>" +
+      '<div class="run-action">' + runButton() + "</div></div>" +
+      gateTabs(items) +
+      (currentTab() === "process" ? renderRail(run) : renderGate(items));
   }
 
   // -- the run rail ------------------------------------------------------------
@@ -185,7 +215,7 @@
      screen rather than animating a fiction. The stagger is a CSS delay (`styles.css`), not a
      timer driving a fake state machine — there is no live run to narrate yet, and a rail that
      invented one would be the most convincing lie on the page. */
-  var STAGES = ["Audit", "Research", "Classify", "Draft", "Diff", "Verify", "Publish", "Fan-out"];
+  var STAGES = ["Audit", "Research", "Classify", "Draft", "Diff", "Verify", "Publish"];
 
   function plural(n, word) {
     return n + " " + word + (n === 1 ? "" : "s");
@@ -194,7 +224,6 @@
   function runSummary(claims, items) {
     var sources = 0;
     var conflicting = 0;
-    var ripples = 0;
     claims.forEach(function (claim) {
       sources += claim.sources.length;
       if (claim.conflict_note) conflicting += 1;
@@ -210,7 +239,7 @@
     });
 
     return {
-      claims: claims.length, sources: sources, conflicting: conflicting, ripples: ripples,
+      claims: claims.length, sources: sources, conflicting: conflicting,
       edits: items.length, decided: decided, approved: approved, written: written,
       notes: [
         plural(claims.length, "claim"),
@@ -220,7 +249,6 @@
         items.length ? plural(items.length, "check") : "nothing to read",
         items.length ? decided + " of " + items.length + " decided" : "nothing to review",
         written ? plural(written, "write") : "not written",
-        ripples ? plural(ripples, "claim") + " to queue" : "nothing to ripple",
       ],
     };
   }
@@ -236,6 +264,8 @@
    * that one, and falls back to describing the stored draft when there is not. */
   var liveRun = null;
   var runPoll = null;
+  /* The hash `route()` last painted, so it can tell a navigation from a redraw. */
+  var lastRoute = null;
 
   function startRun(page, live) {
     if (liveRun && !liveRun.finished) return;
@@ -247,6 +277,19 @@
       route();
       return;
     }
+    /* Clear the board before asking. Whatever is on screen belongs to a run that already
+       happened — pressing the button again must not leave its cards up as if they were this
+       run's findings, and "Run again" is exactly the press where that is easiest to miss.
+       The store still has that draft; this drops it from the view, not from the ledger. */
+    draftId = null;
+    draftPublished = false;
+    gateTab = "process";
+    state.queue = [];
+    decisions = {};
+    drafts = {};
+    published = {};
+    publishError = "";
+
     liveRun = { stages_done: [], current: "audit", finished: false, error: "", starting: true };
     route();
     fetch("/api/runs", {
@@ -279,33 +322,48 @@
             clearInterval(runPoll);
             runPoll = null;
             // The run ends by storing a draft; load it so the cards below the rail are the
-            // ones this run just produced.
+            // ones this run just produced. A finished run earns the one full render — cards
+            // arrive, the head line settles, and there is nothing left to strobe.
             if (payload.draft_id) {
-              loadDraft(payload.draft_id).then(route);
+              // The run is over and the cards are the answer — show them rather than leaving
+              // the reader on a stepper with every stage ticked. Process stays one click away.
+              loadDraft(payload.draft_id).then(function () {
+                gateTab = null;   // back to the default, which is now "the findings"
+                route();
+              });
               return;
             }
+            route();
+            return;
           }
-          route();
+          /* Mid-run: touch the stages and nothing else (see `paintRail`). On the Changes
+             tab there is no rail on screen and nothing else changes until the run ends, so a
+             tick paints nothing — falling back to `route()` there would rebuild the card list
+             once a second, which is the strobe again wearing a different hat. */
+          if (currentTab() === "process" && !paintRail()) route();
         })
         .catch(function () { clearInterval(runPoll); runPoll = null; });
     }, 1000);
   }
 
   function stageStates(run) {
-    var states = ["done", "done", "done", "done", "done", "active", "pending", "pending"];
+    var states = ["done", "done", "done", "done", "done", "active", "pending"];
     if (!run.edits || (run.decided === run.edits && run.edits)) {
       states[5] = "done";
       states[6] = run.edits ? "active" : "done";
     }
-    if (run.written) {
-      states[6] = "done";
-      states[7] = "active";
-    }
+    if (run.written) states[6] = "done";
     return states;
   }
 
   function renderRail(run) {
-    var states = liveRun ? liveStageStates() : stageStates(run);
+    /* Three cases, and the third one is new. A live run reads its own `stages_done`. A stored
+       draft is the record of a run that finished, so its stages are inferred from what it
+       produced. **And a gate nobody has pressed yet has no stages at all** — inferring "five
+       done, Verify active" from an empty queue would be the rail narrating a run that has not
+       happened, which is the one thing its own comment says it must never do. */
+    var states = liveRun ? liveStageStates()
+      : (draftId ? stageStates(run) : STAGES.map(function () { return "pending"; }));
     var nodes = STAGES.map(function (name, index) {
       return '<li class="stage ' + states[index] + '" style="animation-delay:' +
         (index * 90) + 'ms">' +
@@ -316,6 +374,46 @@
     }).join("");
 
     return '<ol class="rail">' + nodes + "</ol>" + railNote();
+  }
+
+  /* Repaint the stepper without rebuilding it, and answer whether that worked.
+   *
+   * `route()` replaces the whole view's `innerHTML`, which destroys all eight `<li>` and builds
+   * them again — so the `stage-in` entrance animation replays from `opacity: 0`, staggered
+   * across 630ms, *every time*. At one poll a second for the length of a run that is not a
+   * progress bar, it is a strobe: the thing meant to say "still working" was the thing making
+   * the window look broken.
+   *
+   * The eight stages are the same eight nodes from the first paint to the last. Only their
+   * state changes, so change only that — no node is destroyed, so no animation restarts, and
+   * the reveal still plays once when the rail first appears, which is when it means something.
+   * Returns false if the rail is not on screen yet, and the caller falls back to a full render.
+   */
+  function paintRail() {
+    var rail = document.querySelector("ol.rail");
+    if (!rail || rail.children.length !== STAGES.length) return false;
+
+    var states = liveStageStates();
+    var run = runSummary(scopedClaims(parseRoute().params), currentItems());
+    for (var i = 0; i < STAGES.length; i++) {
+      var li = rail.children[i];
+      var name = "stage " + states[i];
+      if (li.className !== name) li.className = name;
+      var dot = li.querySelector(".dot");
+      var tick = states[i] === "done" ? "✓" : "";
+      if (dot.textContent !== tick) dot.textContent = tick;
+      var note = li.querySelector(".stage-note");
+      if (note.textContent !== run.notes[i]) note.textContent = run.notes[i];
+    }
+
+    // The line under the rail is one small node with no animation on it, so swapping it
+    // outright costs nothing and keeps `railNote()` the single author of what it says.
+    var current = document.querySelector(".rail-note");
+    if (current) {
+      var next = railNote();
+      if (current.outerHTML !== next) current.outerHTML = next;
+    }
+    return true;
   }
 
   /* The rail from a run that is actually happening. `stages_done` is what the run itself
@@ -354,6 +452,9 @@
         ((r.unjudged && r.unjudged.length)
           ? " " + r.unjudged.length + " claim(s) lost their judgement to an unreadable answer."
           : "") + "</p>";
+    }
+    if (!draftId) {
+      return '<p class="rail-note">Nothing has run on this page yet.</p>';
     }
     return '<p class="rail-note">' + (live
       ? "Live run state."
@@ -455,7 +556,7 @@
     var rejected = scope.length - approved - pending;
     var elsewhere = scope.length - items.length;
     var rest = elsewhere > 0
-      ? ' <a href="#/queue">Review all ' + scope.length + " in this run</a>."
+      ? " " + elsewhere + " more in this run are on other pages."
       : "";
 
     if (!draftId) {
@@ -465,8 +566,7 @@
     }
     if (draftPublished) {
       return '<div class="publish-bar written"><span><strong>' + plural(written, "edit") +
-        " written to the wiki.</strong> This draft is published; fan-out queues the claims " +
-        "they implicate next.</span></div>";
+        " written to the wiki.</strong> This draft is published.</span></div>";
     }
     if (pending) {
       return '<div class="publish-bar waiting"><span>' + pending + " of " + scope.length +
@@ -536,37 +636,6 @@
     return { sources: [] };
   }
 
-  function renderLedger() {
-    var intro = '<div class="lede"><h1>Claim ledger</h1><p>The agent\'s memory. Each claim ' +
-      'carries its own recheck interval, which doubles when nothing changed and halves when ' +
-      'something did — so the schedule is something the agent decides, not a cron table. ' +
-      "The ledger holds what runs have written to it — " + state.counts.claims +
-      " claims right now.</p></div>";
-
-    var rows = state.claims.map(function (c) {
-      return "<tr>" +
-        '<td class="mono">' + esc(c.claim_id) + "</td>" +
-        "<td>" + esc(c.page) +
-          (c.entity_ref.variant ? '<span class="variant">variant</span>' : "") + "</td>" +
-        '<td class="claim-text">' + esc(c.text) +
-          (c.conflict_note ? '<span class="conflict">' + esc(c.conflict_note) + "</span>" : "") +
-        "</td>" +
-        "<td>" + esc(c.kind) + "</td>" +
-        '<td class="nowrap">' + esc(WAVE_LABEL[c.wave] || c.wave) + "</td>" +
-        "<td>" + statusPill(c.status) + "</td>" +
-        '<td class="nowrap">' + confidenceBar(c.confidence) + "</td>" +
-        '<td class="nowrap">' + interval(c.check_interval_hours) + "</td>" +
-        '<td class="nowrap">' + shortDate(c.next_check_at) + "</td>" +
-        "</tr>";
-    }).join("");
-
-    return intro +
-      '<div class="table-wrap"><table class="ledger"><thead><tr>' +
-      "<th>Claim</th><th>Page</th><th>Assertion</th><th>Kind</th><th>Wave</th>" +
-      "<th>Status</th><th>Confidence</th><th>Interval</th><th>Next check</th>" +
-      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
-  }
-
   /* Page text comes from the wiki itself, not from the fixture.
    *
    * `action=query` is public on this wiki exactly as it is on a real one, so the browser reads
@@ -620,7 +689,6 @@
         'rebuild them with <code>python3 scripts/build_wiki_db.py</code>.</p>';
     }
 
-    var claims = state.claims.filter(function (c) { return c.page_slug === slug; });
     var base = articleBase();
 
     var nav = '<nav class="page-switch">' + Object.keys(state.pages).map(function (key) {
@@ -628,62 +696,25 @@
         esc(state.pages[key].title) + "</a>";
     }).join("") + "</nav>";
 
-    var lead = live.sections[0];
-    var box = W.infobox(lead.text);
-    var boxKeys = {};
-    claims.forEach(function (c) {
-      var key = W.infoboxKey(c.wikitext_anchor);
-      if (key) boxKeys[key] = c;
-    });
-
-    var infoboxHtml = "";
-    if (box) {
-      infoboxHtml = '<aside class="infobox"><h3>' + esc(box.name) + "</h3><dl>" +
-        box.fields.map(function (f) {
-          var hit = boxKeys[f.key];
-          return '<div class="' + (hit ? "ib-hit" : "") + '">' +
-            "<dt>" + esc(f.key) + "</dt><dd>" + W.inline(f.value, { articleBase: base }) +
-            (hit ? '<span class="ib-claim">' + esc(hit.claim_id) + "</span>" : "") +
-            "</dd></div>";
-        }).join("") + "</dl></aside>";
-    }
+    var box = W.infobox(live.sections[0].text);
+    var infoboxHtml = box ? '<aside class="infobox"><h3>' + esc(box.name) + "</h3><dl>" +
+      box.fields.map(function (f) {
+        return "<div><dt>" + esc(f.key) + "</dt><dd>" +
+          W.inline(f.value, { articleBase: base }) + "</dd></div>";
+      }).join("") + "</dl></aside>" : "";
 
     var body = live.sections.map(function (section) {
-      var text = section.text;
-      claims.forEach(function (c) {
-        if (c.section_index === section.index && !W.infoboxKey(c.wikitext_anchor)) {
-          text = W.markAnchor(text, c.wikitext_anchor);
-        }
-      });
-      return W.render(text, { articleBase: base });
+      return W.render(section.text, { articleBase: base });
     }).join("\n");
 
-    var sidebar = '<aside class="claim-rail"><h3>Claims on this page</h3>' +
-      (claims.length ? claims.map(function (c) {
-        return '<div class="rail-claim">' + statusPill(c.status) +
-          "<p>" + esc(c.text) + "</p>" +
-          '<p class="rail-meta">' + esc(c.claim_id) + " · §" + c.section_index + " " +
-          esc(c.section_heading) + "</p>" +
-          // Only when there is something to say: a live claim has no hand-written rationale,
-          // and an empty paragraph reads as a missing value rather than an absent one.
-          (c.rationale ? '<p class="rail-why">' + esc(c.rationale) + "</p>" : "") +
-          "</div>";
-      }).join("") : '<p class="muted">None seeded.</p>') + "</aside>";
-
     return nav +
-      '<div class="page-meta">Live from the wiki · revision ' + live.revid + " · " +
-        shortDate(live.timestamp) + " · " + live.bytes.toLocaleString() + " bytes · " +
-        live.sections.length + " sections" +
-        (live.revid === page.revid ? " · unedited since seeding" :
-          ' · <strong>edited since seeding</strong> (seed was ' + page.revid + ")") +
-        "</div>" +
       '<div class="article-grid"><article class="article"><h1>' + esc(page.title) + "</h1>" +
       infoboxHtml + body +
       '<p class="attrib">Text from the Marvel Cinematic Universe Wiki, seeded at revision ' +
       page.revid + ', licensed <a href="https://creativecommons.org/licenses/by-sa/3.0/" ' +
       'target="_blank" rel="noopener noreferrer">CC BY-SA 3.0</a>. Rendered by a deliberately ' +
       "partial parser; templates are not expanded.</p>" +
-      "</article>" + sidebar + "</div>" + launcher(page.title);
+      "</article></div>" + launcher(page.title);
   }
 
   /* The button a reader presses to run the agent on the article they are looking at.
@@ -693,7 +724,8 @@
    * else is watching this page" — and because it survives a layout change. It opens the gate
    * in a popup on this same origin, which is what keeps `/api/*` same-origin with no CORS
    * (`AGENTS.md` §2), and the popup starts the run itself so the whole lifecycle has one
-   * owner. */
+   * owner. The press bills: it opens the run with `live=1`, because the point of pressing it
+   * is to find out what is wrong with this page *now*. */
   function launcher(title) {
     return '<button class="continuity-launch" data-launch="' + esc(title) + '" ' +
       'title="Run Continuity on this page">' +
@@ -754,21 +786,19 @@
        A reader on `#/wiki/…` is looking at a wiki page, and a toolbar belonging to the agent
        sitting on top of it would say this is the agent's site — it is not. The only thing the
        agent puts on an article is the corner button. Everything that is the *tool* — the run
-       rail, the review queue, the claim ledger, the wiki picker and the live/fixture pill —
+       rail, the review queue, the wiki picker and the live/fixture pill —
        lives in the window the button opens.
        The footer stays on both: it carries the CC BY-SA attribution the wiki text is
-       reproduced under (`snapshots/ATTRIBUTION.md`), which is not ours to drop for layout. */
+       reproduced under (`snapshots/ATTRIBUTION.md`), which is not ours to drop for layout.
+       The fixture banner is tool chrome too — where the agent's state came from is the
+       popup's business, and a reader on an article has no use for the answer. */
     var article = view === "wiki";
     el("topbar").hidden = article;
-    el("mainnav").hidden = article;
-
-    Array.prototype.forEach.call(document.querySelectorAll("nav.main a"), function (a) {
-      a.classList.toggle("on", a.getAttribute("href").indexOf("#/" + view) === 0);
-    });
+    el("stub-banner").hidden = article || !state.stub;
 
     if (view === "verify") el("view").innerHTML = renderVerify(parsed.params);
-    else if (view === "ledger") el("view").innerHTML = renderLedger();
-    else if (view === "wiki") {
+    else {
+      // The article, and anything unrecognised — there is nowhere else to be.
       var slug = parts[1] || Object.keys(state.pages)[0];
       el("view").innerHTML = renderWiki(slug);
       /* Not yet read: paint the placeholder above, fetch, and re-route once. `loadWikiPage`
@@ -777,9 +807,15 @@
         loadWikiPage(slug, state.pages[slug].title).then(route);
       }
     }
-    else el("view").innerHTML = renderQueue();
 
-    window.scrollTo(0, 0);
+    /* Scroll on *navigation*, not on repaint. `route()` is also how this app redraws after a
+       verdict, a hand-edit and a poll tick, and yanking the reader back to the top each time
+       is its own kind of flicker — worst on a long queue, where deciding a card near the
+       bottom threw the page away from what was just decided. */
+    if (location.hash !== lastRoute) {
+      lastRoute = location.hash;
+      window.scrollTo(0, 0);
+    }
   }
 
   /* Accepting a card writes nothing *to the wiki*. It is a verdict, and it goes to the draft
@@ -987,12 +1023,34 @@
          the page; the popup starts the run, so the run and the review it produces have one
          owner and one window. */
       if (button.dataset.launch) {
-        var url = "#/verify?page=" + encodeURIComponent(button.dataset.launch) + "&start=1";
+        var url = "#/verify?page=" + encodeURIComponent(button.dataset.launch) + "&live=1";
         var popup = window.open(url, "continuity-gate", "width=960,height=980");
-        if (!popup) window.location.hash = url.slice(1);  // popups blocked: run here instead
+        if (!popup) {
+          window.location.hash = url.slice(1);   // popups blocked: run here instead
+          return;
+        }
+        /* **A reused popup is running the code it was opened with.** The window is named, so a
+           second press hands back the *same* window — and since only the fragment differs, that
+           is a same-document navigation: no reload, no scripts re-run. The gate then keeps
+           serving whatever version of `app.js` it loaded the first time, for as long as it
+           stays open, which reads as a fix that did not ship.
+
+           So reuse means reload. Pressing the corner button says "open the gate on this page",
+           and a fresh gate is the honest answer to that: it starts no run on its own, and every
+           verdict is already written through to the store as it is made, so there is nothing in
+           that window to lose. Presence of our own `#view` is what distinguishes a window that
+           already has the app from one still on `about:blank`. */
+        try {
+          if (popup.document && popup.document.getElementById("view")) popup.location.reload();
+        } catch (e) { /* cross-origin or not ready: it is loading fresh anyway */ }
+        popup.focus();
         return;
       }
-      if (button.classList.contains("runagain")) return startRun(currentPage(), false);
+      if (button.dataset.tab) {
+        gateTab = button.dataset.tab;
+        return route();
+      }
+      if (button.classList.contains("runagain")) return startRun(currentPage(), wantsLive());
       if (!button.dataset.edit) return;
       if (button.classList.contains("undo")) return decide(button.dataset.edit, null);
       decide(button.dataset.edit, button.classList.contains("approve") ? "approve" : "reject");
@@ -1084,8 +1142,25 @@
     el("stub-banner").hidden = !state.stub;
     renderHeader();
     bind();
+    /* A publish happens in the popup and lands in the *article* window's wiki through
+       `wiki-api.js`'s channel. This window is holding a rendered copy of the old text, so
+       drop it and repaint — otherwise the tables are right, the screen is stale, and it
+       reads as publish having done nothing. */
+    Wiki.onExternalEdit(function () {
+      wikiPages = {};
+      route();
+    });
     route();
-    loadDraft().then(route);
+    /* **The gate opens with no cards, and the run it starts owns the ones that appear.**
+       Booting straight into "newest unpublished draft" put an *earlier* run's answer on screen
+       in the window the reader had just opened to ask a new question, and the cards look
+       identical either way — there is no way to tell a finding from a leftover. So the only
+       draft this window adopts is the one it writes itself, loaded by id when the run finishes
+       (`watchRun`). An explicit `?draft=` still wins — that is a reader naming a run to
+       reopen, not a stale answer arriving uninvited. The queue is the other side of this: its
+       whole job is to show what is waiting, so it still adopts the newest one. */
+    var opened = parseRoute();
+    if (opened.params.draft || opened.parts[0] !== "verify") loadDraft().then(route);
   }
 
   fetch("/api/state")

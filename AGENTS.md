@@ -126,7 +126,7 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   assumption, not a property of the system.** Nobody else edits a page between the read that
   drafts an edit and the write that publishes it. What that buys: the page at publish time *is*
   the revision the draft was taken against, so there is no third side to reconcile and the
-  review queue never has to ask a human to resolve a text conflict. The diff is two-way
+  gate never has to ask a human to resolve a text conflict. The diff is two-way
   (`core/wiki/diff.py`), and "publish all approved edits" needs no atomicity story — MediaWiki
   has no transaction across pages, and under this assumption it does not need one. What it
   costs, if the assumption is wrong: `WikiWrite.write_section` still sends `basetimestamp` and
@@ -162,22 +162,65 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   `MAX_ROUNDS` constant beside it is a backstop against a future edit breaking that, never the
   mechanism. **Publish is not a stage and must not become one:** it is a button on a route, and
   a stage that wrote to the wiki would make the gate optional, which is the one thing the whole
-  publish path rests on. *Fan-out — an approved edit expanding into the claims it implicates on
-  other pages — was designed as a ninth stage and its code was removed on Sept 1, 2026; it is an
-  "if time permits" item in `summary.md` §10 and nothing here depends on it.* Verify does not *pause*
+  publish path rests on. Publishing is where a run ends: nothing downstream of it adds claims,
+  cards or work of any kind, so the queue only ever shrinks. Verify does not *pause*
   the run either: Cloud Run scales to zero and the tick is hourly, so a coroutine waiting on a
   reviewer dies at the first idle timeout while a stored `ReviewDraft` survives the container,
   the reload and the week. Verify writes the draft and the run finishes — the pause is the
   store, and the resume is the publish route.
-- **The gate renders on our own origin, and the article carries no tool chrome.** The reader
-  presses a floating **Continuity** button in the article's corner; it opens `#/verify?page=…`
-  in a popup on this same origin, which is what keeps `/api/*` same-origin with no CORS and no
-  second deploy. Everything that is the *tool* — the run rail, the queue, the ledger, the wiki
-  picker, the live/fixture pill — lives in that popup; the article gets the button and nothing
-  else, because a toolbar on an article says the agent owns the page and it does not. Anything
+- **The gate renders on our own origin, and the article carries no agent detail whatsoever.**
+  The reader presses a floating **Continuity** button in the article's corner; it opens
+  `#/verify?page=…` in a popup on this same origin, which is what keeps `/api/*` same-origin
+  with no CORS and no second deploy. Everything that is the *tool* — the run rail, the queue,
+  the ledger, the wiki picker, the live/fixture pill — lives in that popup; the article gets
+  the button and nothing else, because a toolbar on an article says the agent owns the page and
+  it does not. **This binds the article's own body too, not just the bars around it**: no claim
+  highlighting, no claim ids in the infobox, no "Claims on this page" rail, no revision line, no
+  fixture banner. What the agent tracks and what it concluded are things a reader learns *after*
+  pressing the button, never before — an article that arrives pre-annotated has told them the
+  answer and made the button a formality (decided Sept 3, 2026). `FE/check.js` asserts the
+  absence on every page. Anything
   that would split the two across origins — an extension, an injected panel, a second host —
   brings CORS and a second deploy back and is a deployment change wearing a frontend change's
   clothes. `#/verify?page=…` is the contract, and it works from a bookmarklet too.
+- **A press of the button must be able to come back empty — decided Sept 3, 2026.** The gate
+  exists to answer "is anything wrong with this page *now*", so nothing may prepare that answer
+  in advance. Three things did, and each is invisible on screen because a fresh card and a
+  stored one render identically: the launcher ran replayed, so the verdict came from a cassette
+  recorded against claims it was not re-examining; `boot()` adopted the newest unpublished draft
+  on the way in; and *Run again* left the previous run's cards up. The gate now opens with
+  `live=1`, adopts no stored draft, and clears the board before it asks. Replay stays reachable
+  at `&live=0` and stays the default for `scripts/run_once.py` — it is what the demo falls back
+  *to* when a key expires (`CLAUDE.md` §3), never what the gate does by default. Yes, this means
+  every run bills; a gate whose answer was ready before the question is worth less than the
+  searches. `FE/check.js` asserts all of it.
+- **Opening the gate is not running the agent — decided Sept 3, 2026.** Two presses, two
+  meanings: the article's corner button *opens* the popup, and the popup's **Run Continuity**
+  button *starts the run*. The launcher used to pass `start=1` and `renderVerify` fired on
+  sight, which billed a search per claim on every open — including a reopen, a refresh, or
+  coming back to reread a finished run, which was simply not possible without starting another
+  one. A window that spends money by being looked at is one no reader can explore. The idle gate
+  must also *look* idle: no cards, seven pending stages, and "nothing has run on this page yet"
+  — an inferred "five done, Verify active" is the rail narrating a run that never happened.
+- **The popup is one page — decided Sept 3, 2026.** `#/queue` listed every drafted edit across
+  every page; it is removed, and with the claim ledger gone too the frontend is two views: the
+  article, and the gate the corner button opens. A run is started from one article and drafts
+  against that page, so an unfiltered list of "everything" was a view of one run's cards seen
+  twice, reachable by a nav bar the popup had no use for. The gate's own tabs are the only
+  navigation the tool has.
+- **The gate is two tabs, and the tab is not in the URL — decided Sept 3, 2026.** Process
+  carries the stepper, Changes carries the cards and the publish bar; stacked, the stepper
+  scrolled away and a running run became unwatchable. The tab is view state, so it lives in a
+  variable and a switch is a repaint rather than a navigation; `?tab=process|changes` seeds
+  which one opens. Unset, the default is whichever has something to say — stepper until a run
+  finishes, findings after. **A poll tick must paint nothing while the Changes tab is up**: the
+  rail is not on screen and nothing else changes mid-run, so falling back to a full render there
+  rebuilds every card once a second.
+- **There is no claim-ledger view — removed Sept 3, 2026.** `#/ledger` listed every claim with
+  its status, wave, confidence and schedule. Nothing on it was actionable and nothing enforces
+  what it showed, which makes it a display of rigour rather than rigour. The ledger itself is
+  unchanged — it is still what runs read and write, and `/api/state` still reports claim counts
+  and page provenance. Do not rebuild the view without something a reader can *do* on it.
 - **Accepting a card writes nothing; the publish bar is the only writer — decided Aug 30,
   2026.** The gate has two levels on purpose. Per-card **Accept / Reject** decides *what* would
   go and is held in the browser; one **Publish** button at the foot of the run then writes the
@@ -271,7 +314,7 @@ Violating one of these means a rewrite, a ban, or a disqualification — not a p
   screen is indistinguishable from a button that did nothing. Two things stay unsealed on
   purpose: `next_claim_id` scans every run, because `_id` is the claim id and two runs handing
   out `claim-0001` would have one overwrite the other; and `/api/state` reads unscoped, because
-  the ledger view is *about* the whole ledger. The scheduled tick, when it exists, should run
+  it answers for the whole ledger rather than for one run. The scheduled tick, when it exists, should run
   unscoped — it is the thing the ladder was built for.
 - **A run is numbered per page, from a document the page owns — decided Sept 2, 2026.** The
   first run on a page creates its record in `pages`; every run takes the next number from it,
@@ -557,7 +600,7 @@ Three rules keep it from eroding, all asserted in `tests/test_profile.py` and
 - `app.py` defers every vendor import into a handler, so a cold container serves
   `index.html` without paying for the SDKs.
 
-Not yet written: Fan-out (parked, `summary.md` §10) and the claim/section stores' Firestore
+Not yet written: the claim/section stores' Firestore
 adapter — so `/api/state` and `/internal/tick` are still guarded shells answering 503/501, and
 `scripts/propose_claims.py` fills the ledger by reading the pages.
 Built: the six stages that run before the human, called in order by `Run.execute` in
@@ -1040,8 +1083,8 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **`result` is what a call did; `status` is what the claim *is*.** Every ledger tool call
   returns the claim's own view, so the two would collide on one key — and the collision is
   silent, because both values are plausible strings. The claim keeps `status`
-  (`verified` or `unresolved`), which is the name the stored document and the ledger view
-  already use; the call's outcome goes under `result`. The wiki tools have no such clash and
+  (`verified` or `unresolved`), which is the name the stored document already uses; the call's
+  outcome goes under `result`. The wiki tools have no such clash and
   keep using `status` for the outcome.
 - **A diff is computed and never stored — `core/wiki/diff.py`.** Git holds snapshots and
   computes `git diff` on demand, and the reason applies here with more force: a stored diff is
@@ -1085,7 +1128,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   edit already on the page come back as that change's outcome, in the tool's own words, which the
   gate prints verbatim.
 - **An edit conflict is a return value, not an exception — and under §2's single-editor
-  assumption it is a guard, not a flow.** Nothing in the review queue asks a human to resolve
+  assumption it is a guard, not a flow.** Nothing in the gate asks a human to resolve
   one; the write is simply refused and the claim re-drafted. It means "re-read and re-draft",
   which is an instruction; raising it invites a retry of the identical stale text against a
   page that has already moved, which cannot succeed. Match on `WikiError.code == "editconflict"`,
@@ -1125,7 +1168,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **Ledger claims are positive assertions, never closed-world ones.** Store "Gambit appears in
   *Deadpool & Wolverine*", never "Gambit's appearances are limited to *Deadpool & Wolverine*".
   A claim that asserts an absence is contradicted by every new fact, so a correctly-working
-  agent routes it to `conflicting` and the review queue fills with false conflicts. Measured:
+  agent routes it to `conflicting` and the gate fills with false conflicts. Measured:
   rephrasing two benchmark claims from closed- to open-world moved every model from 50% to
   ≥88% on the Classify task.
 - **The three buckets are tested in precedence order, and the prompt must say so.** `conflicting`
@@ -1144,7 +1187,7 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   Then two operations, in order, never one: **drop excerpts that cannot be tied to this
   subject, then classify what remains.** An off-entity excerpt is neither corroboration nor
   contradiction — it is not evidence about this claim at all, and treating it as a
-  disagreement fills the review queue with noise the same way closed-world phrasing did. Fall
+  disagreement fills the gate with noise the same way closed-world phrasing did. Fall
   through to `conflicting` only when filtering empties the batch, because *that* means
   retrieval went off-target and a human should see it. This is the guard on `seed-plan.md`
   §4.3, the variant-vs-prime precision case, which is benchmark case #4 precisely because it
@@ -1162,8 +1205,8 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
 - **A social domain missing from a profile's `domain_tiers` scores as general press.**
   Unknown falls to `UNKNOWN_TIER = 4`, which skips the `best >= 5` social cap: measured, a
   Tumblr-only claim scores 0.50 instead of 0.30. Neither clears the 0.75 auto-apply gate, so
-  this mis-states a number rather than approving a bad edit — but the number is on screen in
-  the ledger view. Add social hosts to the table as they appear; the default itself is sound,
+  this mis-states a number rather than approving a bad edit — but the number reaches a card's
+  confidence bar. Add social hosts to the table as they appear; the default itself is sound,
   because `confidence_from` already gates corroboration at tier <=3 and an unknown domain
   therefore never corroborates anything.
 - **Never trust the structure of an excerpt.** Excerpts are markdown scraped from the page and
@@ -1175,4 +1218,41 @@ non-obvious. Scar log only; anticipated vendor constraints go in `summary.md` §
   that one response and falls back to `FE/data/demo-state.json` itself, so a server-side
   fallback would put a **live** pill above a fixture. This outlives the stub: when Firestore
   lands, a read error is still a 503, never last-known-good demo data.
+- **A Gemini 429 is not a `ModelError`, so it used to kill the whole run.** The SDK retries
+  transport failures itself and then raises `google.genai.errors.ClientError` at us; every stage
+  catches `ModelError`, so the vendor exception sailed past all of them and took the run with
+  it — a live propose pass died eight claims in, from a burst it created itself by calling once
+  per section → `GeminiModel._ask` now waits out 429 and 503 (`RETRY_WAITS`, ~23s across three
+  tries) and raises `ModelError` if it is still refused, which is the exception the callers
+  already handle section-by-section. **The general rule: a vendor exception that is not
+  translated at the perimeter is an exception nothing upstream catches.** Any new code path
+  through a vendor SDK owes the same translation.
+- **A repaint is not a navigation, and `innerHTML` forgets that.** The run rail strobed for the
+  whole length of a run: `watchRun` polls once a second and called `route()`, which replaces the
+  view's `innerHTML`, so all eight `.stage` nodes were destroyed and rebuilt — replaying their
+  `stage-in` entrance animation from `opacity: 0` every tick. The same `route()` also called
+  `window.scrollTo(0, 0)`, so the popup jumped to the top once a second, and deciding a card low
+  in the queue threw the reader away from it → `paintRail()` mutates the eight existing nodes in
+  place, and `route()` scrolls only when `location.hash` actually changed. **Any state that
+  arrives on a timer needs a repaint path that is not the render path**, or every CSS entrance
+  animation under it becomes a strobe.
+- **A popup is a second copy of the browser wiki, and publish wrote into the wrong one.** The
+  wiki lives in the tab (`FE/wiki-api.js`), and its docstring reasoned that an edit lasting as
+  long as the tab was fine "because the article and the review gate are two routes in one app".
+  The gate moved into a `window.open` popup and that stopped being true: the popup has its own
+  module instance and its own tables, so five accepted edits were written, reported as written,
+  and were invisible on the article — then died with the popup. Nothing errored, which is why it
+  read as publish being slow → a write is announced on a `BroadcastChannel`, other windows adopt
+  it into their own tables, and the article view drops its page cache and repaints. **When a
+  view moves into its own window, every module holding state becomes two modules holding two
+  states.** `FE/check.js` loads the module twice and edits across the bus, because greping for
+  the channel's name would not have caught this.
+- **A named popup keeps the code it was opened with.** `window.open(url, "continuity-gate")`
+  hands back the *same* window on a second press, and since only the fragment differs that is a
+  same-document navigation — no reload, no scripts re-run. So the gate went on serving the
+  `app.js` it first loaded while the article window, refreshed normally, had the new one; a
+  shipped frontend fix looked like it had not shipped, and no error said otherwise → the
+  launcher reloads a popup that already has our `#view` in it. **Refreshing the opener does not
+  refresh a popup**, so when a gate change seems absent, close the popup rather than reloading
+  the article.
 - Typing strictness, design system and state rules: TBD with the first module.

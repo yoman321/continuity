@@ -188,7 +188,7 @@ function renderAt(hash) {
     location: { hash },
     window: { addEventListener() {}, scrollTo() {} },
     fetch: (url) => {
-      // `/api/state` is down on purpose: the ledger and page views must fall back to the
+      // `/api/state` is down on purpose: the page view must fall back to the
       // fixture. The draft routes are up, because the queue comes from the store now and the
       // render path under test is the one a reviewer actually gets.
       if (url === "/api/state") return Promise.resolve({ ok: false });
@@ -212,8 +212,10 @@ function renderAt(hash) {
 }
 
 async function checkViews() {
-  console.log("\n# queue");
-  const queue = await renderAt("#/queue");
+  /* The gate is the only tool view now, so the card checks that used to run against `#/queue`
+     run against it — unfiltered, by naming the draft and no page. */
+  console.log("\n# the cards");
+  const queue = await renderAt(`#/verify?draft=${DRAFT_ID}&tab=changes`);
   check("one card per drafted edit",
     count(queue.html, /<article class="card/g) === state.queue.length,
     `${count(queue.html, /<article class="card/g)} of ${state.queue.length}`);
@@ -226,30 +228,30 @@ async function checkViews() {
   // requirement is that it is escaped, not that it is absent.
   check("diffs escape their wikitext", !/<script/i.test(queue.html) && /\[\[/.test(queue.html));
 
-  console.log("\n# ledger");
-  const ledger = await renderAt("#/ledger");
-  check("one row per claim",
-    count(ledger.html, /<tr>/g) === state.claims.length + 1,
-    `${count(ledger.html, /<tr>/g) - 1} rows`);
-  check("contradicted claim surfaces its conflict",
-    ledger.html.indexOf("do not agree") !== -1);
-  check("settled claim reaches the 6-month ceiling", /6mo/.test(ledger.html));
-
   console.log("\n# wiki pages");
+  /* An article is a wiki page and nothing else. Everything the agent knows — which claims it
+     tracks, what it concluded about them, which revision it read, whether the state behind it
+     is live — belongs to the popup, so none of it may reach this markup. The button is the one
+     exception, and it is the thing being checked for rather than tolerated. */
+  const TOOL_MARKUP = [
+    ["claim highlight", /<mark class="claim-hit">/],
+    ["infobox claim stamp", /class="(ib-hit|ib-claim)"/],
+    ["claim rail", /class="(claim-rail|rail-claim|rail-meta|rail-why)"/],
+    ["revision line", /class="page-meta"/],
+    ["claim id", /claim-\d{4}/],
+    ["status pill", /class="pill pill-/],
+  ];
   for (const slug of Object.keys(state.pages)) {
     const view = await renderAt("#/wiki/" + slug);
-    const expected = state.claims.filter((c) => c.page_slug === slug).length;
-    const marks = count(view.html, /<mark class="claim-hit">/g) +
-      count(view.html, /class="ib-hit"/g);
     check(`${slug}: renders`, view.html.length > 300, `${view.html.length} chars`);
     check(`${slug}: infobox present`, view.html.indexOf('class="infobox"') !== -1);
-    check(`${slug}: highlights every claim`, marks === expected,
-      `${marks} of ${expected}`);
 
-    // Only the article must be free of wikitext; the claim rail prints anchors verbatim.
-    const article = view.html.slice(
-      view.html.indexOf('<article class="article"'),
-      view.html.indexOf('<aside class="claim-rail"'));
+    const leaked = TOOL_MARKUP.filter(([, re]) => re.test(view.html)).map(([name]) => name);
+    check(`${slug}: carries no agent detail`, leaked.length === 0, leaked.join(", "));
+    check(`${slug}: offers the Continuity button`,
+      count(view.html, /class="continuity-launch"/g) === 1);
+
+    const article = view.html.slice(view.html.indexOf('<article class="article"'));
     check(`${slug}: article has no leaked wikitext`, !WIKITEXT.test(article),
       `${article.length} chars`);
   }
@@ -294,25 +296,81 @@ async function checkVerify(W) {
   const wgPageName = item.page.replace(/ /g, "_");   // what MediaWiki hands the launcher
   const expected = state.queue.filter((q) => q.page === item.page).length;
 
-  const one = await renderAt(`#/verify?page=${encodeURIComponent(wgPageName)}&rev=2019481`);
+  const one = await renderAt(
+    `#/verify?page=${encodeURIComponent(wgPageName)}&rev=2019481&draft=${DRAFT_ID}`);
   const cards = count(one.html, /<article class="card/g);
   check("scopes to the page the launcher opened it from", cards === expected,
     `${cards} of ${expected}`);
   check("names that page", one.html.indexOf(W.escapeHtml(item.page)) !== -1);
   check("carries the revision it was opened at", /against revision 2019481/.test(one.html));
 
+  /* **The gate opens idle.** The launcher used to pass `start=1` and the view fired a run on
+     sight, so every open — a reopen, a refresh, a second look at a finished run — spent a
+     search per claim before the reader asked for anything. Opened fresh it must show no
+     findings, claim no stages, and offer the button. */
+  const fresh = await renderAt(`#/verify?page=${encodeURIComponent(wgPageName)}&live=1`);
+  check("a freshly opened gate shows no cards",
+    count(fresh.html, /<article class="card/g) === 0);
+  check("a freshly opened gate claims no completed stages",
+    count(fresh.html, /✓/g) === 0 && count(fresh.html, /class="stage pending"/g) === 7,
+    `${count(fresh.html, /class="stage pending"/g)} pending`);
+  check("a freshly opened gate says so rather than narrating a run",
+    /Nothing has run on this page yet/.test(fresh.html));
+  check("a freshly opened gate offers the run button",
+    count(fresh.html, /class="runagain"/g) === 1 && /Run Continuity/.test(fresh.html));
+  check("the button says what pressing it costs", /this run bills/.test(fresh.html));
+
   const box = new RegExp(`<textarea class="draft" id="draft-${escapeRe(item.edit_id)}"[^>]*>` +
     escapeRe(W.escapeHtml(item.after)) + "</textarea>");
   check("the draft is editable and seeded with what the agent wrote", box.test(one.html));
 
-  const none = await renderAt("#/verify?page=Not_A_Seeded_Page");
+  /* **A press must be able to come back empty.** Three ways the popup used to answer without
+     the agent having answered, all of which look identical to a real finding on screen: it
+     replayed a recorded verdict, it adopted the newest stored draft at boot, and it left the
+     previous run's cards up while the next one ran. */
+  /* A named popup hands back the same window on a second press, and a fragment-only change is
+     a same-document navigation — so without this the gate serves the code it was first opened
+     with until somebody closes it, and a shipped fix looks like it never shipped. */
+  check("reopening the gate reloads it rather than reusing stale code",
+    /popup\.location\.reload\(\)/.test(appSrc) &&
+    /popup\.document\.getElementById\("view"\)/.test(appSrc));
+  check("the button runs the agent for real, not from the cassette",
+    /\+ "&live=1"/.test(appSrc) && /params\.live !== "0"/.test(appSrc));
+  check("running again bills the same way",
+    /runagain"\)\) return startRun\(currentPage\(\), wantsLive\(\)\)/.test(appSrc));
+  check("the gate adopts no stored draft unless one is named",
+    /opened\.params\.draft \|\| opened\.parts\[0\] !== "verify"/.test(appSrc));
+  check("opening the gate does not start a run",
+    /function renderVerify\(([\s\S]*?)\n  \}/.exec(appSrc)[1].indexOf("startRun") === -1);
+  check("starting a run clears the last one's cards",
+    /function startRun\(([\s\S]*?)\n  \}/.exec(appSrc)[1].indexOf("state.queue = []") !== -1);
+
+  /* **A poll tick is a repaint, not a navigation.** `.stage` carries an entrance animation, so
+     rebuilding the rail replays it — once a second for the length of a run, which strobes. And
+     `route()` scrolling on every call threw the reader to the top of the queue each time they
+     decided a card. Both are the same mistake: treating a redraw as a page load. */
+  const watch = /function watchRun\(([\s\S]*?)\n  \}/.exec(appSrc)[1];
+  check("a mid-run tick repaints the rail instead of rebuilding the view",
+    /if \(currentTab\(\) === "process" && !paintRail\(\)\) route\(\)/.test(watch));
+  check("a tick on the changes tab repaints nothing at all",
+    watch.indexOf('currentTab() === "process"') !== -1);
+  check("the rail is mutated in place, so the stage animation is not restarted",
+    /function paintRail\(([\s\S]*?)\n  \}/.exec(appSrc)[1].indexOf("innerHTML") === -1);
+  check("scrolling to the top is for navigation, not redraw",
+    /if \(location\.hash !== lastRoute\)/.test(appSrc) &&
+    (appSrc.match(/scrollTo\(0, 0\)/g) || []).length === 1);
+
+  const none = await renderAt("#/verify?page=Not_A_Seeded_Page&tab=changes");
   check("an unqueued page says so instead of showing every card",
     count(none.html, /<article class="card/g) === 0 && /Nothing drafted/.test(none.html));
 
-  const all = await renderAt("#/queue");
-  check("the queue is the same gate, unfiltered",
+  const all = await renderAt(`#/verify?draft=${DRAFT_ID}&tab=changes`);
+  check("an unscoped gate shows the whole run",
     count(all.html, /<textarea class="draft"/g) === state.queue.length,
     `${count(all.html, /<textarea class="draft"/g)} of ${state.queue.length}`);
+  check("there is nowhere else to go — the popup is one page",
+    !/#\/queue|#\/ledger/.test(appSrc) &&
+    !/#\/queue|#\/ledger/.test(fs.readFileSync(path.join(ROOT, "FE/index.html"), "utf8")));
 
   // -- the run rail. Counts are asserted against the state they claim to describe, not
   //    against a screenshot (`CLAUDE.md` §5).
@@ -320,17 +378,27 @@ async function checkVerify(W) {
   const sources = claims.reduce((n, c) => n + c.sources.length, 0);
   const conflicts = claims.filter((c) => c.conflict_note).length;
 
-  check("the rail shows all eight stages", count(one.html, /<li class="stage /g) === 8,
-    `${count(one.html, /<li class="stage /g)}`);
-  check("everything through Diff is ticked", count(one.html, /✓/g) === 5,
-    `${count(one.html, /✓/g)} ticks`);
-  check("Verify is where the run is standing", /class="stage active"/.test(one.html));
-  check("the rail counts this page's claims", one.html.indexOf(`${claims.length} claims`) !== -1,
+  // The rail lives on the Process tab, so ask for it. `one` above is the Changes tab, which
+  // is where a gate holding a finished run opens.
+  const rail = await renderAt(
+    `#/verify?page=${encodeURIComponent(wgPageName)}&draft=${DRAFT_ID}&tab=process`);
+  check("the rail shows all seven stages", count(rail.html, /<li class="stage /g) === 7,
+    `${count(rail.html, /<li class="stage /g)}`);
+  check("everything through Diff is ticked", count(rail.html, /✓/g) === 5,
+    `${count(rail.html, /✓/g)} ticks`);
+  check("Verify is where the run is standing", /class="stage active"/.test(rail.html));
+  check("the rail counts this page's claims", rail.html.indexOf(`${claims.length} claims`) !== -1,
     `${claims.length}`);
   check("the rail counts the sources behind them",
-    one.html.indexOf(`${sources} sources`) !== -1, `${sources}`);
+    rail.html.indexOf(`${sources} sources`) !== -1, `${sources}`);
   check("the rail counts the conflicts",
-    one.html.indexOf(conflicts ? `${conflicts} conflict` : "all sorted") !== -1);
+    rail.html.indexOf(conflicts ? `${conflicts} conflict` : "all sorted") !== -1);
+  check("the stepper is one click away from the findings",
+    count(one.html, /data-tab="process"/g) === 1 && count(rail.html, /data-tab="changes"/g) === 1);
+  check("a gate holding a finished run opens on what it found",
+    /class="gate-tab on" data-tab="changes"/.test(one.html));
+  check("a gate with nothing to show opens on the stepper",
+    /class="gate-tab on" data-tab="process"/.test(fresh.html));
 
   // -- two levels: the cards decide what goes, the bar decides whether anything goes.
   check("publish is shut until every card has a decision", /still to review/.test(one.html));
@@ -351,13 +419,25 @@ async function checkVerify(W) {
 function checkGate() {
   console.log("\n# the gate");
 
-  /* The wiki lives in this tab (`FE/wiki-api.js`), so a full page load discards every edit
-     that was just published. The gate must therefore NOT reload anything after publishing —
-     it re-renders instead. This check is inverted from what it used to assert, and the
-     inversion is the point: reloading was right while the wiki was a separate MediaWiki page
-     and is now the fastest way to throw the demo's best moment away. */
+  /* The wiki lives in the tab (`FE/wiki-api.js`), so a full page load discards every edit that
+     was just published. The publish path must therefore NOT reload — it re-renders instead.
+     This check is inverted from what it used to assert, and the inversion is the point:
+     reloading was right while the wiki was a separate MediaWiki page and is now the fastest way
+     to throw the demo's best moment away.
+
+     It used to forbid the string anywhere in the file, which was a fine proxy until the
+     launcher needed exactly one — a reused popup keeps the code it was opened with, so
+     reopening the gate has to reload it. The rule was never "never reload"; it was "never
+     reload away a published edit". So: none in the publish path, and exactly one in the file,
+     which must be the launcher's. */
+  const noReload = (fn) =>
+    new RegExp("function " + fn + "\\(([\\s\\S]*?)\\n  \\}").exec(appSrc)[1]
+      .indexOf("reload") === -1;
   check("publishing does not reload anything away",
-    !/location\.reload\(\)/.test(appSrc));
+    noReload("publishAll") && noReload("editOne") && noReload("writeSequentially"));
+  check("the only reload in the app is the launcher refreshing a stale gate",
+    (appSrc.match(/\.reload\(\)/g) || []).length === 1 &&
+    /popup\.location\.reload\(\)/.test(appSrc));
 
   // A conflicting claim reaches the gate as a card like any other; what makes it readable is
   // that the disagreement is on screen above the diff, with both sides linked. Rendering the
@@ -416,6 +496,81 @@ function checkWiring() {
     .test(css) && !/<link[^>]+href="http/.test(html) && !/<script[^>]+src="http/.test(html));
 }
 
+/* One wiki across two windows.
+ *
+ * The gate opens with `window.open`, and a popup is a separate browsing context: its own copy
+ * of `wiki-api.js`, its own tables. Publishing wrote revisions into the popup's wiki and died
+ * with it, while the article window never saw the edit — which looks exactly like publish
+ * doing nothing, and is what it looked like.
+ *
+ * Greping for the word "BroadcastChannel" would not have caught that, so this loads the module
+ * twice into two isolated globals, wires a channel between them, edits in one and reads the
+ * text back out of the *other*. That is the property: an edit made over here shows up over
+ * there.
+ */
+async function checkTwoWindows() {
+  console.log("\n# one wiki, two windows");
+
+  const channels = [];                       // every listener on the bus
+  function FakeChannel() {
+    this.onmessage = null;
+    channels.push(this);
+    this.postMessage = (data) => {
+      // Real BroadcastChannel never echoes to the sender.
+      channels.filter((c) => c !== this)
+        .forEach((c) => c.onmessage && c.onmessage({ data: JSON.parse(JSON.stringify(data)) }));
+    };
+  }
+
+  function openWindow() {
+    const sandbox = {
+      window: { BroadcastChannel: FakeChannel },
+      BroadcastChannel: FakeChannel,
+      fetch: () => Promise.resolve({ ok: true,
+        json: () => Promise.resolve(JSON.parse(JSON.stringify(wikiDb))) }),
+    };
+    new Function("window", "BroadcastChannel", "fetch", wikiApiSrc + "\nreturn window.WikiAPI;")
+      .call(sandbox, sandbox.window, FakeChannel, sandbox.fetch);
+    return sandbox.window.WikiAPI;
+  }
+
+  const article = openWindow();          // the window the reader is looking at
+  const popup = openWindow();            // the gate
+
+  const TITLE = "Gambit";
+  const MARK = "<!-- published from the gate -->";
+  const read = (api) => api.request({
+    action: "query", prop: "revisions", titles: TITLE, rvprop: "content",
+    rvslots: "main", rvlimit: "1", format: "json", formatversion: "2",
+  }).then((r) => r.query.pages[0].revisions[0].slots.main.content);
+
+  const before = await read(article);
+  const token = await popup.request({ action: "query", meta: "tokens", type: "csrf" })
+    .then((r) => r.query.tokens.csrftoken);
+  const wrote = await popup.request({
+    action: "edit", title: TITLE, text: before + "\n" + MARK,
+    token: token, summary: "check",
+  });
+  check("the gate's write succeeds in its own window", !wrote.error && wrote.edit,
+    wrote.error ? wrote.error.code : "");
+
+  // The channel delivers synchronously here, but the receiver applies it after `load()`.
+  await new Promise((r) => setTimeout(r, 30));
+  const after = await read(article);
+  check("an edit published in the popup reaches the article's window",
+    after.indexOf(MARK) !== -1);
+  check("it lands as an edit, not a duplicate page",
+    (after.match(new RegExp(MARK, "g")) || []).length === 1);
+
+  let bounced = 0;
+  channels.forEach((c) => {
+    const original = c.onmessage;
+    if (original) c.onmessage = (e) => { bounced++; original(e); };
+  });
+  await read(article);
+  check("an adopted edit is not re-announced", bounced === 0, `${bounced} echo(es)`);
+}
+
 (async () => {
   const W = loadWikitext();
   checkRenderer(W);
@@ -426,6 +581,7 @@ function checkWiring() {
   checkDiffs();
   checkWiring();
   checkGate();
+  await checkTwoWindows();
   console.log(failures ? `\n${failures} FAILURE(S)` : "\nall FE checks passed");
   process.exit(failures ? 1 : 0);
 })();

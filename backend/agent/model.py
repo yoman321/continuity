@@ -10,7 +10,7 @@ knows what a claim is would put product logic where the vendor lives.
 so a stage reads fields rather than regexing sentences. A model that cannot satisfy the schema
 fails loudly here instead of producing text that parses into something plausible and wrong.
 
-**Temperature 0.** The decay ladder and the review queue are on camera; a stage that classifies
+**Temperature 0.** The decay ladder and the gate are on camera; a stage that classifies
 differently on a second run is not demonstrable. Determinism is not guaranteed by temperature
 alone, which is exactly why `RecordedModel` exists.
 
@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
@@ -47,6 +48,18 @@ TIMEOUT_SECONDS = 60.0
 #: Where a recorded run lives. Not committed — it carries third-party excerpts inside the
 #: prompts, same reason as `fixtures/searches.json` (`.gitignore`).
 DEFAULT_CASSETTE = Path("fixtures") / "model.json"
+
+#: Answers that mean "ask again later" rather than "this cannot work". 429 is the one that
+#: actually happens: a propose pass calls once per section and arrives at the quota as a burst,
+#: which is precisely the shape a rate limit is built to refuse — observed Sept 3, 2026, where
+#: it killed a live pass eight claims in. 503 joins it because a backend that is momentarily
+#: out of capacity is the same situation wearing a different number.
+RETRY_CODES = frozenset({429, 503})
+
+#: What to wait before each re-ask, in seconds. Three tries, ~23s of waiting in the worst case:
+#: long enough to outlast the burst that caused it, short enough that a reader watching the
+#: stepper on a demo does not conclude the run has hung.
+RETRY_WAITS: tuple[float, ...] = (2.0, 6.0, 15.0)
 
 
 class ModelError(Exception):
@@ -129,10 +142,8 @@ class GeminiModel:
             # Saying so explicitly also silences the SDK's AFC advisory on every call.
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
         )
-        response = client.models.generate_content(
-            model=self.model, contents=request.prompt, config=config
-        )
-        text = response.text
+        response = self._ask(client, request.prompt, config)
+        text: str | None = response.text
         if not text:
             # A blocked or empty candidate is a refusal, not a transport failure: retrying the
             # identical prompt cannot change it, so it is a domain error the stage must handle.
@@ -141,6 +152,40 @@ class GeminiModel:
                 f"(finish reason: {_finish_reason(response)})"
             )
         return text
+
+    def _ask(self, client: Any, prompt: str, config: Any) -> Any:
+        """One judgement, waiting out a rate limit rather than losing the run to one.
+
+        The SDK retries transport failures itself and gives up on a 429, raising it at us as a
+        vendor exception — which is not `ModelError`, so it sails past every `except ModelError`
+        a stage has and takes the whole run with it. A propose pass is a burst of one call per
+        section, so this is not a rare shape: it is the shape.
+
+        Waited-out and still refused becomes `ModelError`, because that is the exception the
+        callers already handle claim-by-claim and section-by-section. The cost of getting this
+        wrong is asymmetric — a skipped section is a smaller claim set, a raised `ClientError`
+        is a dead run — and the stage above knows which of its work is still worth doing.
+        """
+        from google.genai import errors
+
+        last: BaseException | None = None
+        for attempt in range(len(RETRY_WAITS) + 1):
+            try:
+                return client.models.generate_content(
+                    model=self.model, contents=prompt, config=config
+                )
+            except errors.APIError as exc:
+                # Anything outside the retry set is a real failure — a dead credential, a bad
+                # request — and waiting cannot improve it. Let it propagate untouched.
+                if exc.code not in RETRY_CODES:
+                    raise
+                last = exc
+                if attempt < len(RETRY_WAITS):
+                    time.sleep(RETRY_WAITS[attempt])
+        raise ModelError(
+            f"{self.model} stayed rate limited through {len(RETRY_WAITS)} waits "
+            f"({sum(RETRY_WAITS):.0f}s); the quota is the problem, not the prompt"
+        ) from last
 
 
 class RecordedModel:

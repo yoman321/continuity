@@ -19,6 +19,7 @@ from typing import Any
 
 from backend.agent.model import (
     MODEL,
+    RETRY_WAITS,
     TEMPERATURE,
     GeminiModel,
     ModelError,
@@ -155,6 +156,79 @@ class TestTheCallLeavesTheRequestAlone(unittest.TestCase):
         moved during it writes an entry nothing can ever look up."""
         schema, before = self.call()
         self.assertEqual(ModelRequest(system="s", prompt="p", schema=schema).key, before)
+
+
+class TestARateLimitCostsAWaitNotTheRun(unittest.TestCase):
+    """A 429 arrives as a vendor exception, not `ModelError`, so it used to sail past every
+    `except ModelError` a stage has and kill the whole run — observed Sept 3, 2026, eight claims
+    into a live propose pass. Held here with a fake client, so no quota is spent proving it."""
+
+    def run_with(self, codes: list[int]) -> tuple[str | None, int]:
+        """Answer after failing with `codes` in order. Returns the text and the call count."""
+        try:
+            from unittest.mock import patch
+
+            from google.genai import errors
+        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
+            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+
+        calls = {"n": 0}
+        pending = list(codes)
+
+        class Models:
+            @staticmethod
+            def generate_content(*, model: str, contents: str, config: Any) -> Any:
+                calls["n"] += 1
+                if pending:
+                    code = pending.pop(0)
+                    raise errors.ClientError(code, {"error": {"message": "no"}}, None)
+                return type("R", (), {"text": '{"ok": true}'})()
+
+        client = type("C", (), {"models": Models()})()
+        # Waiting for real would put ~23s of sleep in the suite to prove arithmetic.
+        with patch("google.genai.Client", return_value=client), \
+             patch("backend.agent.model.time.sleep") as slept:
+            try:
+                text = GeminiModel().run(ModelRequest(system="s", prompt="p", schema={}))
+            finally:
+                self.slept = [c.args[0] for c in slept.call_args_list]
+        return text, calls["n"]
+
+    def test_a_rate_limited_call_is_asked_again(self) -> None:
+        text, calls = self.run_with([429])
+        self.assertEqual(text, '{"ok": true}')
+        self.assertEqual(calls, 2)
+
+    def test_it_waits_longer_each_time(self) -> None:
+        # Backing off matters more than the exact numbers: re-asking immediately is what the
+        # quota just refused.
+        self.run_with([429, 429])
+        self.assertEqual(self.slept, list(RETRY_WAITS[:2]))
+        self.assertEqual(sorted(self.slept), self.slept)
+
+    def test_an_overloaded_backend_is_the_same_situation(self) -> None:
+        self.assertEqual(self.run_with([503])[0], '{"ok": true}')
+
+    def test_giving_up_raises_what_the_stages_catch(self) -> None:
+        # The whole point: a stage skips one section on `ModelError` and keeps its other work.
+        with self.assertRaises(ModelError):
+            self.run_with([429] * (len(RETRY_WAITS) + 1))
+
+    def test_it_stops_asking_rather_than_waiting_forever(self) -> None:
+        with self.assertRaises(ModelError):
+            self.run_with([429] * (len(RETRY_WAITS) + 1))
+        self.assertEqual(len(self.slept), len(RETRY_WAITS))
+
+    def test_a_failure_waiting_cannot_fix_is_not_retried(self) -> None:
+        """A dead credential or a malformed request is not a quota problem, and burning 23
+        seconds before reporting it helps nobody."""
+        try:
+            from google.genai import errors
+        except ImportError as exc:  # pragma: no cover - only on a bare interpreter
+            raise unittest.SkipTest(f"needs the venv: {exc}") from exc
+        with self.assertRaises(errors.ClientError):
+            self.run_with([403])
+        self.assertEqual(self.slept, [])
 
 
 if __name__ == "__main__":

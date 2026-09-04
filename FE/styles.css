@@ -28,8 +28,8 @@
 
 * { box-sizing: border-box; }
 
-/* `.topbar` and `nav.main` set `display: flex`, which outranks the user agent's
-   `[hidden] { display: none }` — so hiding them for the popup gate (app.js `route`) silently
+/* `.topbar` sets `display: flex`, which outranks the user agent's
+   `[hidden] { display: none }` — so hiding it for the article view (app.js `route`) silently
    did nothing until this rule existed. */
 [hidden] { display: none !important; }
 
@@ -90,36 +90,11 @@ a { color: var(--accent); }
 
 .profile-meta { font-size: 11px; color: var(--ink-faint); font-family: var(--mono); }
 
-/* -- nav ------------------------------------------------------------------- */
-
-nav.main {
-  display: flex; gap: 4px;
-  padding: 0 28px;
-  background: var(--card);
-  border-bottom: 1px solid var(--rule);
-}
-
-nav.main a {
-  padding: 10px 14px;
-  font-size: 14px;
-  text-decoration: none;
-  color: var(--ink-soft);
-  border-bottom: 2px solid transparent;
-}
-
-nav.main a.on { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
-
 /* -- shared bits ----------------------------------------------------------- */
 
 main { max-width: 1120px; margin: 0 auto; padding: 28px; }
 
-.lede { margin-bottom: 22px; }
-.lede h1 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.02em; }
-.lede p { margin: 0; color: var(--ink-soft); max-width: 68ch; }
-
 .empty, .muted { color: var(--ink-faint); }
-.nowrap { white-space: nowrap; }
-.mono { font-family: var(--mono); font-size: 12px; }
 
 .pill {
   display: inline-block;
@@ -136,8 +111,6 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px; }
 .pill.warn { background: #fbf0dd; color: var(--warn); }
 /* Two, because `ClaimStatus` has two. A claim either needs a reviewer or it does not;
    where a drafted edit sits is the queue's business, and age is next_check_at vs the clock. */
-.status-verified { background: #e4f2ea; color: var(--ok); }
-.status-unresolved { background: #ece9f7; color: var(--violet); }
 
 .stub-banner {
   max-width: 1120px;
@@ -291,6 +264,58 @@ main { max-width: 1120px; margin: 0 auto; padding: 28px; }
 }
 .verify-sub { margin: 0; font-size: 13px; color: var(--ink-faint); }
 
+/* The gate's one action. The popup opens idle now, so this is what the reader presses to
+   spend money — it is the primary control on the view and reads like one, with the cost said
+   beside it rather than discovered afterwards. */
+.run-action { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+
+.runagain {
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.runagain:hover:not([disabled]) { filter: brightness(1.1); }
+.runagain[disabled] {
+  background: var(--card); color: var(--ink-faint); border-color: var(--rule);
+  cursor: default;
+}
+
+.run-cost { font-size: 11.5px; color: var(--ink-faint); }
+
+/* Process and Changes: two views of one run, not two steps. The stepper used to sit above the
+   cards and scroll away, so the thing worth watching while a run went was the thing you could
+   not get back to. */
+.gate-tabs {
+  display: flex; gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.gate-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 14px;
+  margin-bottom: -1px;
+  border: 0; border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit; font-size: 13px; font-weight: 600;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+.gate-tab:hover { color: var(--ink-soft); }
+.gate-tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+.tab-count {
+  padding: 1px 7px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent);
+  font-size: 11px; font-weight: 700;
+}
+
 /* A card whose text the reviewer has changed. The agent's diff above it is now a proposal
    rather than a description of what will be written, and the card has to say so. */
 .card.edited { border-left: 3px solid var(--violet); }
@@ -333,7 +358,11 @@ textarea.draft:focus { outline: 2px solid var(--accent); outline-offset: -1px; b
   animation: stage-in .34s ease both;
 }
 .stage::before {
-  content: ""; position: absolute; top: 11px; right: 50%; width: 100%; height: 2px;
+  content: ""; position: absolute; top: 11px; height: 2px;
+  /* Between the circles, not under them: 12px of dot radius plus 8px of clearance, which also
+     clears the 4px halo an active dot carries. Centre-to-centre drew the line through every
+     dot and it read as skewered rather than connected. */
+  right: calc(50% + 20px); width: calc(100% - 40px);
   background: var(--rule);
 }
 .stage:first-child::before { display: none; }
@@ -393,27 +422,9 @@ textarea.draft:focus { outline: 2px solid var(--accent); outline-offset: -1px; b
   font-size: 12px; color: var(--danger);
 }
 
-/* -- ledger table ---------------------------------------------------------- */
-
-.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--card); }
-
-table.ledger { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.ledger th, table.ledger td { padding: 10px 12px; text-align: left; vertical-align: top; }
-table.ledger thead th {
-  font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
-  color: var(--ink-faint); border-bottom: 1px solid var(--rule); white-space: nowrap;
-}
-table.ledger tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
-.claim-text { max-width: 34ch; }
-.conflict { display: block; margin-top: 4px; font-size: 12px; color: var(--violet); }
-.variant {
-  margin-left: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .05em;
-  padding: 1px 5px; border-radius: 3px; background: #ece9f7; color: var(--violet);
-}
-
 /* -- article view ---------------------------------------------------------- */
 
-.page-switch { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.page-switch { max-width: 820px; display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 
 .page-switch a {
   padding: 5px 11px;
@@ -427,12 +438,7 @@ table.ledger tbody tr + tr td { border-top: 1px solid var(--rule-soft); }
 
 .page-switch a.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-.page-meta {
-  font-size: 12px; color: var(--ink-faint); font-family: var(--mono);
-  margin-bottom: 14px;
-}
-
-.article-grid { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; }
+.article-grid { max-width: 820px; }
 
 .article {
   background: var(--card);
@@ -537,33 +543,6 @@ mark.claim-hit {
 .infobox dl > div + div { border-top: 1px solid var(--rule-soft); }
 .infobox dt { color: var(--ink-faint); text-transform: capitalize; }
 .infobox dd { margin: 0; word-break: break-word; }
-.infobox .ib-hit { background: #fdf3d8; }
-.infobox .ib-claim {
-  display: block; margin-top: 3px;
-  font-family: var(--mono); font-size: 10px; color: var(--warn);
-}
-
-/* -- claim rail ------------------------------------------------------------ */
-
-.claim-rail { align-self: start; position: sticky; top: 18px; }
-.claim-rail h3 {
-  margin: 0 0 10px;
-  font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-faint);
-}
-
-.rail-claim {
-  background: var(--card);
-  border: 1px solid var(--rule);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 10px;
-  font-size: 13px;
-}
-
-.rail-claim p { margin: 8px 0 0; }
-.rail-meta { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
-.rail-why { color: var(--ink-soft); font-size: 12.5px; }
-
 /* -- footer ---------------------------------------------------------------- */
 
 .foot {
@@ -581,8 +560,6 @@ mark.claim-hit {
 /* -- narrow ---------------------------------------------------------------- */
 
 @media (max-width: 900px) {
-  .article-grid { grid-template-columns: minmax(0, 1fr); }
-  .claim-rail { position: static; }
   .infobox { float: none; width: auto; margin: 0 0 18px; }
   .topbar { gap: 12px; }
   .profile-picker { margin-left: 0; width: 100%; }

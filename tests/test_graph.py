@@ -741,10 +741,9 @@ class TestTheRun(unittest.TestCase):
         self.assertEqual(report.stages, STAGES)
 
     def test_publishing_is_not_a_stage(self) -> None:
-        """Publish is a button on a route and Fan-out needs an applied edit, so neither can be
-        reached from here. A stage that wrote to the wiki would make the gate optional."""
+        """Publish is a button on a route, so it cannot be reached from here. A stage that
+        wrote to the wiki would make the gate optional."""
         self.assertNotIn("publish", STAGES)
-        self.assertNotIn("fanout", STAGES)
         stages, _, _ = build()
         self.assertNotIn("publish", run(stages).stages)
 

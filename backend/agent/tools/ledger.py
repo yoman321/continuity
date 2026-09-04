@@ -41,8 +41,8 @@ claim and are already in the model's context from the search that produced them.
 
 Every call returns the claim's own view, so a write reports what the record now *is* rather
 than only that it succeeded. What the call did is under `result`, not `status`: `status` is the
-claim's, it means `verified` or `unresolved`, and it is the name the ledger view and the
-stored document already use. Two meanings of one key is how a node ends up branching on the
+claim's, it means `verified` or `unresolved`, and it is the name the stored document and
+`/api/state` already use. Two meanings of one key is how a node ends up branching on the
 wrong one.
 
 Imports no ADK: the graph wraps these methods in `FunctionTool` where it is constructed

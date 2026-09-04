@@ -3,7 +3,7 @@
 Three properties here are the reason retrieval is a tool and not a function call:
 
 * **One call per claim, however many queries it carries.** Parallel bills per call, so a tool
-  that took a single query would quietly quadruple the cost of a fan-out.
+  that took a single query would quietly quadruple the cost of a tick.
 * **The allowlist is not a parameter.** It comes off the profile every time, because the tier
   table is the retrieval policy and not just a scoring function (`AGENTS.md` §7).
 * **Tier is a property of the wiki's policy, not of the URL.** `marvel.com` is tier 1 to the
